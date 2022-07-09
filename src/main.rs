@@ -61,11 +61,11 @@ fn main() -> Result<()> {
 
     // ======== goooooooooooooo
 
-    let then = Instant::now();
+    let start_time = Instant::now();
 
     let file = File::create("out.gif")?;
 
-    let h2 = thread::spawn(move || {
+    let writer_handle = thread::spawn(move || {
         let mut pr = gifski::progress::ProgressBar::new(count);
         writer.write(file, &mut pr).unwrap();
     });
@@ -76,9 +76,9 @@ fn main() -> Result<()> {
 
     drop(collector);
 
-    h2.join().unwrap();
+    writer_handle.join().unwrap();
 
-    println!("finished in {}", then.elapsed().as_secs_f32());
+    println!("finished in {}", start_time.elapsed().as_secs_f32());
 
     Ok(())
 
