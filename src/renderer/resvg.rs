@@ -12,6 +12,7 @@ pub struct ResvgRenderer {
     options: usvg::Options,
     transform: tiny_skia::Transform,
     fit_to: usvg::FitTo,
+    font_family: String,
 }
 
 trait SvgText {
@@ -112,18 +113,20 @@ impl SvgText for vt::Pen {
 }
 
 impl ResvgRenderer {
-    pub fn new(cols: usize, rows: usize, zoom: f32) -> Self {
+    pub fn new(
+        cols: usize,
+        rows: usize,
+        font_db: fontdb::Database,
+        font_family: &str,
+        zoom: f32,
+    ) -> Self {
         let char_width = 100.0 * 1.0 / (cols as f32 + 2.0);
         let mut options = usvg::Options::default();
-        let mut fontdb = usvg::fontdb::Database::new();
-        fontdb.load_system_fonts();
-        options.fontdb = fontdb;
-        // // options.dpi = 192.0;
-        // // options.font_family = "JetBrains Mono".to_owned();
+        options.fontdb = font_db;
         let fit_to = usvg::FitTo::Zoom(zoom);
         let transform = tiny_skia::Transform::default(); // identity();
 
-        let mut svg = Self::header(cols, rows);
+        let mut svg = Self::header(cols, rows, &font_family);
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options.to_ref()).unwrap();
         let size = fit_to
@@ -141,16 +144,17 @@ impl ResvgRenderer {
             options,
             transform,
             fit_to,
+            font_family: font_family.to_owned(),
         }
     }
 
-    fn header(cols: usize, rows: usize) -> String {
+    fn header(cols: usize, rows: usize, font_family: &str) -> String {
         let mut svg = String::new();
         let font_size = 14.0;
         svg.push_str(r#"<?xml version="1.0"?>"#);
         let width = (cols + 2) as f32 * 8.433333333;
         let height = (rows + 1) as f32 * font_size * 1.4;
-        svg.push_str(&format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="JetBrains Mono">"#, width, height, font_size));
+        svg.push_str(&format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="{}">"#, width, height, font_size, font_family));
         svg.push_str(r#"<style>"#);
         svg.push_str(include_str!("../../themes/asciinema.css"));
         svg.push_str(r#"</style>"#);
@@ -275,7 +279,7 @@ impl Renderer for ResvgRenderer {
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8> {
-        let mut svg = Self::header(self.cols, self.rows);
+        let mut svg = Self::header(self.cols, self.rows, &self.font_family);
         Self::push_lines(
             &mut svg,
             lines,

@@ -8,6 +8,8 @@ use renderer::Renderer;
 
 fn main() -> Result<()> {
     let filename = args().nth(1).unwrap();
+    let zoom = 2.0;
+    let font_family = "JetBrains Mono";
 
     // =========== asciicast
 
@@ -25,12 +27,16 @@ fn main() -> Result<()> {
 
     let vt = VT::new(cols, rows);
 
-    // =========== SVG renderer
+    // ============ font database
 
-    let zoom = 2.0;
+    let mut font_db = fontdb::Database::new();
+    font_db.load_system_fonts();
+    font_db.load_fonts_dir("fonts");
 
-    // let mut renderer = renderer::resvg(cols, rows, zoom);
-    let mut renderer = renderer::fontdue(cols, rows, zoom);
+    // =========== renderer
+
+    // let mut renderer = renderer::resvg(cols, rows, font_db, font_family, zoom);
+    let mut renderer = renderer::fontdue(cols, rows, font_db, font_family, zoom);
 
     // ============ GIF writer
 

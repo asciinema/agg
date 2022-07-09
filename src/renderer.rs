@@ -14,12 +14,24 @@ pub trait Renderer {
     fn pixel_height(&self) -> usize;
 }
 
-pub fn resvg(cols: usize, rows: usize, zoom: f32) -> resvg::ResvgRenderer {
-    resvg::ResvgRenderer::new(cols, rows, zoom)
+pub fn resvg(
+    cols: usize,
+    rows: usize,
+    font_db: fontdb::Database,
+    font_family: &str,
+    zoom: f32,
+) -> resvg::ResvgRenderer {
+    resvg::ResvgRenderer::new(cols, rows, font_db, font_family, zoom)
 }
 
-pub fn fontdue(cols: usize, rows: usize, zoom: f32) -> fontdue::FontdueRenderer {
-    fontdue::FontdueRenderer::new(cols, rows, zoom)
+pub fn fontdue(
+    cols: usize,
+    rows: usize,
+    font_db: fontdb::Database,
+    font_family: &str,
+    zoom: f32,
+) -> fontdue::FontdueRenderer {
+    fontdue::FontdueRenderer::new(cols, rows, font_db, font_family, zoom)
 }
 
 fn adjust_pen(pen: &mut vt::Pen, cursor: &Option<(usize, usize)>, x: usize, y: usize) {

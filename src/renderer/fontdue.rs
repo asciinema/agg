@@ -43,99 +43,55 @@ fn get_font(
         fontdue::Font::from_bytes(font_data, settings).unwrap()
     })
     .unwrap()
-
-    // let font = include_bytes!("../JetBrainsMono-Regular.ttf") as &[u8];
-    // let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
-    // let font = include_bytes!("../jbmono-with-emoji.ttf") as &[u8];
-
-    // let emoji_font = include_bytes!("../NotoEmoji-Regular.ttf") as &[u8];
-    // let emoji_font = fontdue::Font::from_bytes(emoji_font, fontdue::FontSettings::default()).unwrap();
 }
 
 impl FontdueRenderer {
-    pub fn new(cols: usize, rows: usize, zoom: f32) -> Self {
-        let mut fontdb = fontdb::Database::new();
-        fontdb.load_system_fonts();
-        fontdb.load_fonts_dir("fonts");
-
-        println!("{:?}", fontdb.faces());
-
-        let font_family = "JetBrains Mono";
-
+    pub fn new(
+        cols: usize,
+        rows: usize,
+        font_db: fontdb::Database,
+        font_family: &str,
+        zoom: f32,
+    ) -> Self {
         let default_font = get_font(
-            &fontdb,
+            &font_db,
             font_family,
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         );
 
         let bold_font = get_font(
-            &fontdb,
+            &font_db,
             font_family,
             fontdb::Weight::BOLD,
             fontdb::Style::Normal,
         );
 
         let italic_font = get_font(
-            &fontdb,
+            &font_db,
             font_family,
             fontdb::Weight::NORMAL,
             fontdb::Style::Italic,
         );
 
         let bold_italic_font = get_font(
-            &fontdb,
+            &font_db,
             font_family,
             fontdb::Weight::BOLD,
             fontdb::Style::Italic,
         );
 
         let emoji_font = get_font(
-            &fontdb,
+            &font_db,
             "Noto Emoji",
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         );
 
-        // let query = fontdb::Query {
-        //     families: &[fontdb::Family::Name("JetBrains Mono")],
-        //     weight: fontdb::Weight::NORMAL,
-        //     stretch: fontdb::Stretch::Normal,
-        //     style: fontdb::Style::Normal,
-        // };
-
-        // let font_id = fontdb.query(&query).unwrap();
-
-        // let font = fontdb.with_face_data(font_id, |font_data, face_index| {
-        //     let mut settings = fontdue::FontSettings::default();
-        //     settings.collection_index = face_index;
-        //     fontdue::Font::from_bytes(font_data, settings).unwrap()
-        // }).unwrap();
-
         let font_size = 14.0 * zoom;
-
-        // for b in 0..metrics.height {
-
-        // }
-
-        // let metrics = font.metrics('.', font_size);
-        // println!("{:?}", metrics);
-        // let metrics = font.metrics('!', font_size);
-        // println!("{:?}", metrics);
-        // let metrics = font.metrics('/', font_size);
-        // println!("{:?}", metrics);
-        // let metrics = font.metrics('t', font_size);
-        // println!("{:?}", metrics);
-
-        // println!("{}", font.units_per_em());
-        // println!("{:?}", font.);
-
         let metrics = default_font.metrics('/', font_size);
-        println!("{:?}", metrics);
 
-        let line_height = 1.4;
-
-        let s = Self {
+        Self {
             cols,
             rows,
             font_size,
@@ -145,13 +101,9 @@ impl FontdueRenderer {
             bold_italic_font,
             emoji_font,
             col_width: metrics.advance_width,
-            row_height: font_size * line_height,
+            row_height: font_size * 1.4,
             cache: HashMap::new(),
-        };
-
-        println!("{:?}", s);
-
-        s
+        }
     }
 }
 
