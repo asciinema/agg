@@ -1,9 +1,6 @@
 use anyhow::Result;
 use std::{env::args, fs::File, thread, time::Instant};
 use vt::VT;
-// use vt::LineExt;
-// use std::io::Read;
-// use anyhow::Error;
 mod asciicast;
 mod frames;
 mod renderer;
@@ -68,50 +65,22 @@ fn main() -> Result<()> {
 
     let file = File::create("out.gif")?;
 
-    // let (tx, rx) = std::sync::mpsc::sync_channel(16);
-
-    // let h1 = thread::spawn(move || {
-    //     events.for_each(|(i, image, time)| {
-    //     // events.for_each_with(tx, |tx, (i, image, time)| {
-    //         println!("adding {}", i);
-    //         tx.send((i, image, time)).unwrap();
-    //     });
-    // });
-
     let h2 = thread::spawn(move || {
-        // let mut pr = gifski::progress::NoProgress {};
         let mut pr = gifski::progress::ProgressBar::new(count);
         writer.write(file, &mut pr); //.unwrap();
     });
-    // drop(collector);
-
-    // let h3 = thread::spawn(move || {
-    //     for (i, image, time) in rx {
-    //         collector.add_frame_rgba(i, image, time).unwrap();
-    //     }
-    // });
-
-    // drop(events);
 
     for (i, image, time) in images {
-        // println!("adding {}", i);
-        // tx.send((i, image, time)).unwrap();
-        // collector.add_frame_png_file(0, "1.png".into(), 0.0).unwrap();
-        // collector.add_frame_png_file(1, "2.png".into(), 1.0).unwrap();
-
         collector.add_frame_rgba(i, image, *time).unwrap();
     }
+
     drop(collector);
 
-    // h1.join().unwrap();
     h2.join().unwrap();
-    // h3.join().unwrap();
 
     println!("finished in {}", then.elapsed().as_secs_f32());
 
     Ok(())
 
-    // TODO
-    // font styles: bold / italic etc
     // margin: 2*char_width, 1*char_height
 }
