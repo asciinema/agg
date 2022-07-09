@@ -20,7 +20,7 @@ pub enum EventType {
 
 pub struct Event {
     pub time: f64,
-    pub event_type: EventType,
+    pub type_: EventType,
     pub data: String,
 }
 
@@ -96,7 +96,7 @@ fn parse_event(line: String) -> Result<Event, Error> {
 
     Ok(Event {
         time,
-        event_type,
+        type_: event_type,
         data,
     })
 }

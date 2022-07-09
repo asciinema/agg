@@ -38,7 +38,7 @@ impl<I: Iterator<Item = Event>> Iterator for Batched<I> {
                         let prev_data = std::mem::replace(&mut self.prev_data, e.data);
                         Some(Event {
                             time: prev_time,
-                            event_type: EventType::Output,
+                            type_: EventType::Output,
                             data: prev_data,
                         })
                     } else {
@@ -55,7 +55,7 @@ impl<I: Iterator<Item = Event>> Iterator for Batched<I> {
                     let prev_data = std::mem::replace(&mut self.prev_data, "".to_owned());
                     Some(Event {
                         time: prev_time,
-                        event_type: EventType::Output,
+                        type_: EventType::Output,
                         data: prev_data,
                     })
                 } else {
@@ -84,7 +84,7 @@ fn main() -> Result<()> {
 
         let events = events
             .map(Result::unwrap)
-            .filter(|e| e.event_type == EventType::Output)
+            .filter(|e| e.type_ == EventType::Output)
             .map(|mut e| {
                 e.time /= 2.0;
                 e
