@@ -1,15 +1,6 @@
 use anyhow::Result;
 use asciicast::{Event, EventType};
-use imgref::ImgVec;
-use rgb::*;
-use std::{
-    collections::HashMap,
-    env::args,
-    fs::File,
-    sync::{Arc, Mutex},
-    thread,
-    time::Instant,
-};
+use std::{env::args, fs::File, thread, time::Instant};
 use vt::VT;
 // use vt::LineExt;
 // use std::io::Read;
