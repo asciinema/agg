@@ -1,78 +1,13 @@
 use anyhow::Result;
-use asciicast::{Event, EventType};
 use std::{env::args, fs::File, thread, time::Instant};
 use vt::VT;
 // use vt::LineExt;
 // use std::io::Read;
 // use anyhow::Error;
 mod asciicast;
+mod frames;
 mod renderer;
 use renderer::Renderer;
-
-struct Batched<I>
-where
-    I: Iterator<Item = Event>,
-{
-    iter: I,
-    prev_time: f64,
-    prev_data: String,
-}
-
-// const MAX_FRAME_TIME: f64 = 1.0 / 15.0;
-const MAX_FRAME_TIME: f64 = 1.0 / 30.0;
-// const MAX_FRAME_TIME: f64 = 1.0 / 60.0;
-
-impl<I: Iterator<Item = Event>> Iterator for Batched<I> {
-    type Item = Event;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            Some(e) => {
-                if e.time - self.prev_time < MAX_FRAME_TIME {
-                    self.prev_data.push_str(&e.data);
-                    self.next()
-                } else {
-                    if self.prev_data != "" {
-                        let prev_time = self.prev_time;
-                        self.prev_time = e.time;
-                        let prev_data = std::mem::replace(&mut self.prev_data, e.data);
-                        Some(Event {
-                            time: prev_time,
-                            type_: EventType::Output,
-                            data: prev_data,
-                        })
-                    } else {
-                        self.prev_time = e.time;
-                        self.prev_data = e.data;
-                        self.next()
-                    }
-                }
-            }
-
-            None => {
-                if self.prev_data != "" {
-                    let prev_time = self.prev_time;
-                    let prev_data = std::mem::replace(&mut self.prev_data, "".to_owned());
-                    Some(Event {
-                        time: prev_time,
-                        type_: EventType::Output,
-                        data: prev_data,
-                    })
-                } else {
-                    None
-                }
-            }
-        }
-    }
-}
-
-pub fn batched(iter: impl Iterator<Item = Event>) -> impl Iterator<Item = Event> {
-    Batched {
-        iter,
-        prev_data: "".to_owned(),
-        prev_time: 0.0,
-    }
-}
 
 fn main() -> Result<()> {
     let filename = args().nth(1).unwrap();
@@ -82,20 +17,10 @@ fn main() -> Result<()> {
     let (cols, rows, events) = {
         let (header, events) = asciicast::open(&filename)?;
 
-        let events = events
-            .map(Result::unwrap)
-            .filter(|e| e.type_ == EventType::Output)
-            .map(|mut e| {
-                e.time /= 2.0;
-                e
-            });
-        // .skip(1)
-        // .take(1);
-
         (
             header.width,
             header.height,
-            batched(events).collect::<Vec<_>>(),
+            frames::stdout(events, 2.0, 30.0),
         )
     };
 
@@ -127,8 +52,7 @@ fn main() -> Result<()> {
     let count = events.len() as u64;
 
     let images = events
-        .into_iter()
-        .map(|e| (e.time, e.data))
+        .iter()
         .scan(vt, |vt, (t, d)| {
             vt.feed_str(&d);
             let cursor = vt.get_cursor();
@@ -175,7 +99,7 @@ fn main() -> Result<()> {
         // collector.add_frame_png_file(0, "1.png".into(), 0.0).unwrap();
         // collector.add_frame_png_file(1, "2.png".into(), 1.0).unwrap();
 
-        collector.add_frame_rgba(i, image, time).unwrap();
+        collector.add_frame_rgba(i, image, *time).unwrap();
     }
     drop(collector);
 
