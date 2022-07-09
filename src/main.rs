@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 
     let zoom = 2.0;
 
-    let mut renderer = renderer::resvg(cols, rows, zoom);
+    // let mut renderer = renderer::resvg(cols, rows, zoom);
     let mut renderer = renderer::fontdue(cols, rows, zoom);
 
     // ============ GIF writer

@@ -15,8 +15,8 @@ pub struct FontdueRenderer {
     italic_font: fontdue::Font,
     bold_italic_font: fontdue::Font,
     emoji_font: fontdue::Font,
-    char_width: usize,
-    char_height: usize,
+    col_width: f32,
+    row_height: f32,
     cache: HashMap<(char, bool, bool), (fontdue::Metrics, Vec<u8>)>,
 }
 
@@ -133,6 +133,8 @@ impl FontdueRenderer {
         let metrics = default_font.metrics('/', font_size);
         println!("{:?}", metrics);
 
+        let line_height = 1.4;
+
         let s = Self {
             cols,
             rows,
@@ -142,8 +144,8 @@ impl FontdueRenderer {
             italic_font,
             bold_italic_font,
             emoji_font,
-            char_width: metrics.advance_width.round() as usize,
-            char_height: (font_size * 1.33333).round() as usize,
+            col_width: metrics.advance_width,
+            row_height: font_size * line_height,
             cache: HashMap::new(),
         };
 
@@ -210,15 +212,11 @@ impl Renderer for FontdueRenderer {
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8> {
-        // let mut pixmap = tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
-        let mut buf: Vec<RGBA8> =
-            vec![RGBA8::new(0, 0, 0, 255); self.pixel_width() * self.pixel_height()];
-
-        let width = self.cols * self.char_width;
-        let max_px = (width - 1) as i32;
-        let max_py = (self.rows * self.char_height - 1) as i32;
-
-        // margin: 2*char_width, 1*char_height
+        let width = self.pixel_width();
+        let height = self.pixel_height();
+        let mut buf: Vec<RGBA8> = vec![RGBA8::new(0x12, 0x13, 0x14, 255); width * height];
+        let left_margin = self.col_width;
+        let top_margin = (self.row_height / 2.0).round() as usize;
 
         for (cy, chars) in lines.iter().enumerate() {
             for (cx, (t, mut a)) in chars.iter().enumerate() {
@@ -228,11 +226,15 @@ impl Renderer for FontdueRenderer {
                     let (r, g, b) = color_to_rgb(c);
                     let c = RGBA8::new(r, g, b, 255);
 
-                    for b in 0..self.char_height {
-                        let py = cy * self.char_height + b;
+                    let py_a = top_margin + (cy as f32 * self.row_height).round() as usize;
+                    let py_b = top_margin + ((cy + 1) as f32 * self.row_height).round() as usize;
 
-                        for a in 0..self.char_width {
-                            let px = cx * self.char_width + a;
+                    for py in py_a..py_b {
+                        let px_a = (left_margin + cx as f32 * self.col_width).round() as usize;
+                        let px_b =
+                            (left_margin + (cx + 1) as f32 * self.col_width).round() as usize;
+
+                        for px in px_a..px_b {
                             buf[py * width + px] = c;
                         }
                     }
@@ -265,29 +267,31 @@ impl Renderer for FontdueRenderer {
                         }
                     });
 
-                // let (metrics, bitmap) = self.font.rasterize(*t, self.font_size);
-                // let (metrics, bitmap) = self.font.rasterize_subpixel(*t, self.font_size);
-
-                let py_offset = 28 - metrics.height as i32 - metrics.ymin;
+                let py_offset =
+                    top_margin as i32 + (cy as f32 * self.row_height).round() as i32 + 28
+                        - metrics.height as i32
+                        - metrics.ymin;
 
                 for b in 0..metrics.height {
-                    let py = (cy * self.char_height + b) as i32 + py_offset;
+                    let py = py_offset + b as i32;
 
-                    if py < 0 || py > max_py {
+                    if py < 0 || py >= height as i32 {
                         continue;
                     }
 
-                    for a in 0..metrics.width {
-                        let px = (cx * self.char_width + a) as i32 + metrics.xmin;
+                    let px_offset = left_margin as i32
+                        + (cx as f32 * self.col_width).round() as i32
+                        + metrics.xmin;
 
-                        if px < 0 || px > max_px {
+                    for a in 0..metrics.width {
+                        let px = px_offset + a as i32;
+
+                        if px < 0 || px >= width as i32 {
                             continue;
                         }
 
-                        let idx = (py as usize) * width + (px as usize);
-
                         let v = bitmap[b * metrics.width + a] as u16;
-
+                        let idx = (py as usize) * width + (px as usize);
                         let bg = buf[idx];
 
                         let c = RGBA8::new(
@@ -296,10 +300,6 @@ impl Renderer for FontdueRenderer {
                             ((bg.b as u16) * (255 - v) / 256) as u8 + ((bb as u16) * v / 256) as u8,
                             255,
                         );
-
-                        // let q = (b * metrics.width + a) * 3;
-                        // let v = &bitmap[q..q+3];
-                        // let c = RGBA8::new(v[0], v[1], v[2], 255);
 
                         buf[idx] = c;
                     }
@@ -311,10 +311,10 @@ impl Renderer for FontdueRenderer {
     }
 
     fn pixel_width(&self) -> usize {
-        self.cols * self.char_width
+        ((self.cols + 2) as f32 * self.col_width).round() as usize
     }
 
     fn pixel_height(&self) -> usize {
-        self.rows * self.char_height
+        ((self.rows + 1) as f32 * self.row_height).round() as usize
     }
 }
