@@ -187,10 +187,10 @@ impl Renderer for FontdueRenderer {
         let margin_t = (self.row_height / 2.0).round() as usize;
 
         for (row, chars) in lines.iter().enumerate() {
-            for (col, (t, mut a)) in chars.iter().enumerate() {
-                adjust_pen(&mut a, &cursor, col, row);
+            for (col, (ch, mut attrs)) in chars.iter().enumerate() {
+                adjust_pen(&mut attrs, &cursor, col, row);
 
-                if let Some(c) = a.background {
+                if let Some(c) = attrs.background {
                     let c = to_rgb(c);
                     let y_t = margin_t + (row as f32 * self.row_height).round() as usize;
                     let y_b = margin_t + ((row + 1) as f32 * self.row_height).round() as usize;
@@ -205,30 +205,33 @@ impl Renderer for FontdueRenderer {
                     }
                 }
 
-                if t == &' ' {
+                if ch == &' ' {
                     continue;
                 }
 
                 let fg = to_rgb(
-                    a.foreground
+                    attrs
+                        .foreground
                         .unwrap_or_else(|| vt::Color::RGB(0xcc, 0xcc, 0xcc)),
                 );
 
-                let (metrics, bitmap) =
-                    self.cache.entry((*t, a.bold, a.italic)).or_insert_with(|| {
-                        let font = match (a.bold, a.italic) {
+                let (metrics, bitmap) = self
+                    .cache
+                    .entry((*ch, attrs.bold, attrs.italic))
+                    .or_insert_with(|| {
+                        let font = match (attrs.bold, attrs.italic) {
                             (false, false) => &self.default_font,
                             (true, false) => &self.bold_font,
                             (false, true) => &self.italic_font,
                             (true, true) => &self.bold_italic_font,
                         };
 
-                        let idx = font.lookup_glyph_index(*t);
+                        let idx = font.lookup_glyph_index(*ch);
 
                         if idx > 0 {
                             font.rasterize_indexed(idx, self.font_size)
                         } else {
-                            self.emoji_font.rasterize(*t, self.font_size)
+                            self.emoji_font.rasterize(*ch, self.font_size)
                         }
                     });
 

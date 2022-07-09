@@ -185,44 +185,45 @@ impl ResvgRenderer {
         char_width: f32,
     ) {
         svg.push_str(r#"<g style="shape-rendering: optimizeSpeed">"#);
-        for (i, line) in lines.iter().enumerate() {
-            let y = 100.0 * (i as f32) / (rows as f32 + 1.0);
-            let ii = i;
-            for (i, (_t, mut a)) in line.iter().enumerate() {
-                adjust_pen(&mut a, &cursor, i, ii);
+
+        for (row, line) in lines.iter().enumerate() {
+            let y = 100.0 * (row as f32) / (rows as f32 + 1.0);
+
+            for (col, (_ch, mut attrs)) in line.iter().enumerate() {
+                adjust_pen(&mut attrs, &cursor, col, row);
 
                 // let entry = cache.entry(a.background);
                 // let ee = entry.or_insert_with(|| a.svg_rect_class());
 
-                if let None = a.background {
+                if let None = attrs.background {
                     continue;
                 }
 
-                let ee = a.svg_rect_class();
+                let ee = attrs.svg_rect_class();
                 // let ff = "".to_owned();
                 // let ee = "".to_owned();
-                let ff = a.svg_rect_style();
+                let ff = attrs.svg_rect_style();
 
                 // if ee != "" || ff != "" {
-                let x = 100.0 * (i as f32) / (cols as f32 + 2.0);
+                let x = 100.0 * (col as f32) / (cols as f32 + 2.0);
                 // let h = 3;
                 svg.push_str(&format!(r#"<rect x="{:.3}%" y="{:.3}%" width="{:.3}%" height="19.7" class="{}" style="{}" />"#, x, y, char_width, ee, ff));
                 // }
             }
         }
         svg.push_str(r#"</g>"#);
-
         svg.push_str(r#"<text class="default-text-fill">"#);
-        for (i, line) in lines.iter().enumerate() {
-            let y = 100.0 * (i as f32) / (rows as f32 + 1.0);
+
+        for (row, line) in lines.iter().enumerate() {
+            let y = 100.0 * (row as f32) / (rows as f32 + 1.0);
             svg.push_str(&format!(r#"<tspan y="{:.3}%">"#, y));
             let mut did_dy = false;
-            let ii = i;
-            for (i, (t, mut a)) in line.iter().enumerate() {
-                if t == &' ' {
+
+            for (col, (ch, mut attrs)) in line.iter().enumerate() {
+                if ch == &' ' {
                     continue;
                 }
-                adjust_pen(&mut a, &cursor, i, ii);
+                adjust_pen(&mut attrs, &cursor, col, row);
 
                 svg.push_str(r#"<tspan "#);
                 if !did_dy {
@@ -230,9 +231,9 @@ impl ResvgRenderer {
                     svg.push_str(r#"dy="1em" "#);
                     did_dy = true;
                 }
-                let x = 100.0 * (i as f32) / (cols as f32 + 2.0);
-                let class = a.svg_text_class();
-                let style = a.svg_text_style();
+                let x = 100.0 * (col as f32) / (cols as f32 + 2.0);
+                let class = attrs.svg_text_class();
+                let style = attrs.svg_text_style();
                 // let class = "";
                 // let style = "";
                 // svg.push_str(r#">"#);
@@ -241,7 +242,7 @@ impl ResvgRenderer {
                     x, class, style
                 ));
                 // // svg.push_str(&format!(r#">{}"#, t));
-                match t {
+                match ch {
                     '\'' => {
                         svg.push_str("&#39;");
                     }
@@ -261,7 +262,7 @@ impl ResvgRenderer {
                     //     svg.push_str("   ");
                     // }
                     _ => {
-                        svg.push(*t);
+                        svg.push(*ch);
                     }
                 }
                 svg.push_str(r#"</tspan>"#);
