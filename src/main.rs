@@ -6,10 +6,23 @@ mod frames;
 mod renderer;
 use renderer::Renderer;
 
+// TODO:
+// switch to vt from git
+// output filename
+// theme selection
+// zoom selection
+// family selection
+// additional font dirs
+// speed selection
+// time window (from/to)
+// fps cap override
+
 fn main() -> Result<()> {
     let filename = args().nth(1).unwrap();
-    let zoom = 2.0;
     let font_family = "JetBrains Mono";
+    let speed = 2.0;
+    let zoom = 2.0;
+    let fps_cap = 30.0;
 
     // =========== asciicast
 
@@ -19,7 +32,7 @@ fn main() -> Result<()> {
         (
             header.width,
             header.height,
-            frames::stdout(events, 2.0, 30.0),
+            frames::stdout(events, speed, fps_cap),
         )
     };
 
