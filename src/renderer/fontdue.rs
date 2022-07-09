@@ -215,27 +215,25 @@ impl Renderer for FontdueRenderer {
         let width = self.pixel_width();
         let height = self.pixel_height();
         let mut buf: Vec<RGBA8> = vec![RGBA8::new(0x12, 0x13, 0x14, 255); width * height];
-        let left_margin = self.col_width;
-        let top_margin = (self.row_height / 2.0).round() as usize;
+        let margin_l = self.col_width;
+        let margin_t = (self.row_height / 2.0).round() as usize;
 
-        for (cy, chars) in lines.iter().enumerate() {
-            for (cx, (t, mut a)) in chars.iter().enumerate() {
-                adjust_pen(&mut a, &cursor, cx, cy);
+        for (row, chars) in lines.iter().enumerate() {
+            for (col, (t, mut a)) in chars.iter().enumerate() {
+                adjust_pen(&mut a, &cursor, col, row);
 
                 if let Some(c) = a.background {
                     let (r, g, b) = color_to_rgb(c);
                     let c = RGBA8::new(r, g, b, 255);
+                    let y_t = margin_t + (row as f32 * self.row_height).round() as usize;
+                    let y_b = margin_t + ((row + 1) as f32 * self.row_height).round() as usize;
 
-                    let py_a = top_margin + (cy as f32 * self.row_height).round() as usize;
-                    let py_b = top_margin + ((cy + 1) as f32 * self.row_height).round() as usize;
+                    for y in y_t..y_b {
+                        let x_l = (margin_l + col as f32 * self.col_width).round() as usize;
+                        let x_r = (margin_l + (col + 1) as f32 * self.col_width).round() as usize;
 
-                    for py in py_a..py_b {
-                        let px_a = (left_margin + cx as f32 * self.col_width).round() as usize;
-                        let px_b =
-                            (left_margin + (cx + 1) as f32 * self.col_width).round() as usize;
-
-                        for px in px_a..px_b {
-                            buf[py * width + px] = c;
+                        for x in x_l..x_r {
+                            buf[y * width + x] = c;
                         }
                     }
                 }
@@ -244,7 +242,7 @@ impl Renderer for FontdueRenderer {
                     continue;
                 }
 
-                let (r, g, bb) = color_to_rgb(
+                let (r, g, b) = color_to_rgb(
                     a.foreground
                         .unwrap_or_else(|| vt::Color::RGB(0xcc, 0xcc, 0xcc)),
                 );
@@ -267,37 +265,36 @@ impl Renderer for FontdueRenderer {
                         }
                     });
 
-                let py_offset =
-                    top_margin as i32 + (cy as f32 * self.row_height).round() as i32 + 28
-                        - metrics.height as i32
-                        - metrics.ymin;
+                let y_offset = margin_t as i32 + (row as f32 * self.row_height).round() as i32 + 28
+                    - metrics.height as i32
+                    - metrics.ymin;
 
-                for b in 0..metrics.height {
-                    let py = py_offset + b as i32;
+                for bmap_y in 0..metrics.height {
+                    let y = y_offset + bmap_y as i32;
 
-                    if py < 0 || py >= height as i32 {
+                    if y < 0 || y >= height as i32 {
                         continue;
                     }
 
-                    let px_offset = left_margin as i32
-                        + (cx as f32 * self.col_width).round() as i32
+                    let x_offset = margin_l as i32
+                        + (col as f32 * self.col_width).round() as i32
                         + metrics.xmin;
 
-                    for a in 0..metrics.width {
-                        let px = px_offset + a as i32;
+                    for bmap_x in 0..metrics.width {
+                        let x = x_offset + bmap_x as i32;
 
-                        if px < 0 || px >= width as i32 {
+                        if x < 0 || x >= width as i32 {
                             continue;
                         }
 
-                        let v = bitmap[b * metrics.width + a] as u16;
-                        let idx = (py as usize) * width + (px as usize);
+                        let v = bitmap[bmap_y * metrics.width + bmap_x] as u16;
+                        let idx = (y as usize) * width + (x as usize);
                         let bg = buf[idx];
 
                         let c = RGBA8::new(
                             ((bg.r as u16) * (255 - v) / 256) as u8 + ((r as u16) * v / 256) as u8,
                             ((bg.g as u16) * (255 - v) / 256) as u8 + ((g as u16) * v / 256) as u8,
-                            ((bg.b as u16) * (255 - v) / 256) as u8 + ((bb as u16) * v / 256) as u8,
+                            ((bg.b as u16) * (255 - v) / 256) as u8 + ((b as u16) * v / 256) as u8,
                             255,
                         );
 
