@@ -66,16 +66,16 @@ fn main() -> Result<()> {
 
     let writer_handle = thread::spawn(move || {
         let mut pr = gifski::progress::ProgressBar::new(count);
-        writer.write(file, &mut pr).unwrap();
+        writer.write(file, &mut pr)
     });
 
     for (i, (image, time)) in images.enumerate() {
-        collector.add_frame_rgba(i, image, *time).unwrap();
+        collector.add_frame_rgba(i, image, *time)?;
     }
 
     drop(collector);
 
-    writer_handle.join().unwrap();
+    writer_handle.join().unwrap()?;
 
     println!("finished in {}", start_time.elapsed().as_secs_f32());
 
