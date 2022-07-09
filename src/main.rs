@@ -56,8 +56,7 @@ fn main() -> Result<()> {
             let lines = vt.lines();
             Some((t, lines, cursor))
         })
-        .enumerate()
-        .map(move |(i, (time, lines, cursor))| (i, renderer.render(lines, cursor), time));
+        .map(move |(time, lines, cursor)| (renderer.render(lines, cursor), time));
 
     // ======== goooooooooooooo
 
@@ -70,7 +69,7 @@ fn main() -> Result<()> {
         writer.write(file, &mut pr).unwrap();
     });
 
-    for (i, image, time) in images {
+    for (i, (image, time)) in images.enumerate() {
         collector.add_frame_rgba(i, image, *time).unwrap();
     }
 
