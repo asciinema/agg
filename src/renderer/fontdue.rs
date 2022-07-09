@@ -155,27 +155,31 @@ impl FontdueRenderer {
     }
 }
 
-fn color_to_rgb(c: vt::Color) -> (u8, u8, u8) {
+fn rgb(r: u8, g: u8, b: u8) -> RGBA8 {
+    RGBA8::new(r, g, b, 255)
+}
+
+fn to_rgb(c: vt::Color) -> RGBA8 {
     match c {
-        vt::Color::RGB(r, g, b) => (r, g, b),
+        vt::Color::RGB(r, g, b) => rgb(r, g, b),
 
         vt::Color::Indexed(n) => match n {
-            0 => (0x00, 0x00, 0x00),
-            1 => (0xdd, 0x3c, 0x69),
-            2 => (0x4e, 0xbf, 0x22),
-            3 => (0xdd, 0xaf, 0x3c),
-            4 => (0x26, 0xb0, 0xd7),
-            5 => (0xb9, 0x54, 0xe1),
-            6 => (0x54, 0xe1, 0xb9),
-            7 => (0xd9, 0xd9, 0xd9),
-            8 => (0x4d, 0x4d, 0x4d),
-            9 => (0xdd, 0x3c, 0x69),
-            10 => (0x4e, 0xbf, 0x22),
-            11 => (0xdd, 0xaf, 0x3c),
-            12 => (0x26, 0xb0, 0xd7),
-            13 => (0xb9, 0x54, 0xe1),
-            14 => (0x54, 0xe1, 0xb9),
-            15 => (0xff, 0xff, 0xff),
+            0 => rgb(0x00, 0x00, 0x00),
+            1 => rgb(0xdd, 0x3c, 0x69),
+            2 => rgb(0x4e, 0xbf, 0x22),
+            3 => rgb(0xdd, 0xaf, 0x3c),
+            4 => rgb(0x26, 0xb0, 0xd7),
+            5 => rgb(0xb9, 0x54, 0xe1),
+            6 => rgb(0x54, 0xe1, 0xb9),
+            7 => rgb(0xd9, 0xd9, 0xd9),
+            8 => rgb(0x4d, 0x4d, 0x4d),
+            9 => rgb(0xdd, 0x3c, 0x69),
+            10 => rgb(0x4e, 0xbf, 0x22),
+            11 => rgb(0xdd, 0xaf, 0x3c),
+            12 => rgb(0x26, 0xb0, 0xd7),
+            13 => rgb(0xb9, 0x54, 0xe1),
+            14 => rgb(0x54, 0xe1, 0xb9),
+            15 => rgb(0xff, 0xff, 0xff),
 
             16..=231 => {
                 let n = n - 16;
@@ -195,15 +199,27 @@ fn color_to_rgb(c: vt::Color) -> (u8, u8, u8) {
                     b += 55;
                 }
 
-                (r, g, b)
+                rgb(r, g, b)
             }
 
             232.. => {
                 let v = 8 + 10 * (n - 232);
-                (v, v, v)
+
+                rgb(v, v, v)
             }
         },
     }
+}
+
+fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
+    let ratio = ratio as u16;
+
+    RGBA8::new(
+        ((bg.r as u16) * (255 - ratio) / 256) as u8 + ((fg.r as u16) * ratio / 256) as u8,
+        ((bg.g as u16) * (255 - ratio) / 256) as u8 + ((fg.g as u16) * ratio / 256) as u8,
+        ((bg.b as u16) * (255 - ratio) / 256) as u8 + ((fg.b as u16) * ratio / 256) as u8,
+        255,
+    )
 }
 
 impl Renderer for FontdueRenderer {
@@ -223,8 +239,7 @@ impl Renderer for FontdueRenderer {
                 adjust_pen(&mut a, &cursor, col, row);
 
                 if let Some(c) = a.background {
-                    let (r, g, b) = color_to_rgb(c);
-                    let c = RGBA8::new(r, g, b, 255);
+                    let c = to_rgb(c);
                     let y_t = margin_t + (row as f32 * self.row_height).round() as usize;
                     let y_b = margin_t + ((row + 1) as f32 * self.row_height).round() as usize;
 
@@ -242,7 +257,7 @@ impl Renderer for FontdueRenderer {
                     continue;
                 }
 
-                let (r, g, b) = color_to_rgb(
+                let fg = to_rgb(
                     a.foreground
                         .unwrap_or_else(|| vt::Color::RGB(0xcc, 0xcc, 0xcc)),
                 );
@@ -287,18 +302,11 @@ impl Renderer for FontdueRenderer {
                             continue;
                         }
 
-                        let v = bitmap[bmap_y * metrics.width + bmap_x] as u16;
+                        let v = bitmap[bmap_y * metrics.width + bmap_x];
                         let idx = (y as usize) * width + (x as usize);
                         let bg = buf[idx];
 
-                        let c = RGBA8::new(
-                            ((bg.r as u16) * (255 - v) / 256) as u8 + ((r as u16) * v / 256) as u8,
-                            ((bg.g as u16) * (255 - v) / 256) as u8 + ((g as u16) * v / 256) as u8,
-                            ((bg.b as u16) * (255 - v) / 256) as u8 + ((b as u16) * v / 256) as u8,
-                            255,
-                        );
-
-                        buf[idx] = c;
+                        buf[idx] = mix_colors(fg, bg, v);
                     }
                 }
             }
