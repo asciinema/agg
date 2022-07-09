@@ -67,7 +67,7 @@ fn main() -> Result<()> {
 
     let h2 = thread::spawn(move || {
         let mut pr = gifski::progress::ProgressBar::new(count);
-        writer.write(file, &mut pr); //.unwrap();
+        writer.write(file, &mut pr).unwrap();
     });
 
     for (i, image, time) in images {
