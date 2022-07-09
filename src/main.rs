@@ -3,7 +3,6 @@ use anyhow::Result;
 use asciicast::{Event, EventType};
 use fontdue::Font;
 use imgref::ImgVec;
-use rayon::prelude::*;
 use rgb::*;
 use vt::VT;
 // use vt::LineExt;
@@ -699,7 +698,6 @@ fn main() -> Result<()> {
             Some((t, lines, cursor))
         })
         .enumerate()
-        // .par_bridge()
         .map(move |(i, (time, lines, cursor))| {
             (i, renderer.render(lines, cursor), time)
         });

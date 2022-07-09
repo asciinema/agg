@@ -308,7 +308,6 @@ dependencies = [
  "fontdue",
  "gifski",
  "imgref",
- "rayon",
  "resvg",
  "rgb",
  "serde",

@@ -17,7 +17,6 @@ usvg = { version = "*", features = ["text"] }
 tiny-skia = "*"
 fontdue = "*"
 fontdb = "*"
-rayon = "*"
 
 # for asciicast
 serde_json = "1.0.81"
