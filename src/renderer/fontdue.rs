@@ -218,8 +218,10 @@ impl Renderer for FontdueRenderer {
         let max_px = (width - 1) as i32;
         let max_py = (self.rows * self.char_height - 1) as i32;
 
+        // margin: 2*char_width, 1*char_height
+
         for (cy, chars) in lines.iter().enumerate() {
-            for (cx, (mut t, mut a)) in chars.iter().enumerate() {
+            for (cx, (t, mut a)) in chars.iter().enumerate() {
                 adjust_pen(&mut a, &cursor, cx, cy);
 
                 if let Some(c) = a.background {
@@ -236,7 +238,7 @@ impl Renderer for FontdueRenderer {
                     }
                 }
 
-                if t == ' ' {
+                if t == &' ' {
                     continue;
                 }
 
@@ -246,7 +248,7 @@ impl Renderer for FontdueRenderer {
                 );
 
                 let (metrics, bitmap) =
-                    self.cache.entry((t, a.bold, a.italic)).or_insert_with(|| {
+                    self.cache.entry((*t, a.bold, a.italic)).or_insert_with(|| {
                         let font = match (a.bold, a.italic) {
                             (false, false) => &self.default_font,
                             (true, false) => &self.bold_font,
@@ -254,12 +256,12 @@ impl Renderer for FontdueRenderer {
                             (true, true) => &self.bold_italic_font,
                         };
 
-                        let idx = font.lookup_glyph_index(t);
+                        let idx = font.lookup_glyph_index(*t);
 
                         if idx > 0 {
                             font.rasterize_indexed(idx, self.font_size)
                         } else {
-                            self.emoji_font.rasterize(t, self.font_size)
+                            self.emoji_font.rasterize(*t, self.font_size)
                         }
                     });
 

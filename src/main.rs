@@ -80,6 +80,4 @@ fn main() -> Result<()> {
     println!("finished in {}", start_time.elapsed().as_secs_f32());
 
     Ok(())
-
-    // margin: 2*char_width, 1*char_height
 }
