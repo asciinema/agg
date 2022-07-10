@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::info;
 use std::{env::args, fs::File, thread, time::Instant};
 use vt::VT;
 mod asciicast;
@@ -19,8 +20,11 @@ use renderer::Renderer;
 // renderer selection
 
 fn main() -> Result<()> {
+    env_logger::init();
+
     let filename = args().nth(1).unwrap();
-    let font_family = "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
+    let font_family =
+        "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
     let speed = 2.0;
     let zoom = 2.0;
     let fps_cap = 30.0;
@@ -65,7 +69,8 @@ fn main() -> Result<()> {
 
     let face_info = font_db.face(face_id).unwrap();
     let font_family = face_info.family.clone();
-    println!("family: {}", &font_family);
+
+    info!("selected font family: {}", &font_family);
 
     // =========== renderer
 
@@ -117,7 +122,7 @@ fn main() -> Result<()> {
 
     writer_handle.join().unwrap()?;
 
-    println!("finished in {}", start_time.elapsed().as_secs_f32());
+    info!("finished in {}s", start_time.elapsed().as_secs_f32());
 
     Ok(())
 }
