@@ -25,7 +25,7 @@ fn get_font(
     family: &str,
     weight: fontdb::Weight,
     style: fontdb::Style,
-) -> fontdue::Font {
+) -> Option<fontdue::Font> {
     println!("loading {}", family);
 
     let query = fontdb::Query {
@@ -42,7 +42,6 @@ fn get_font(
         settings.collection_index = face_index;
         fontdue::Font::from_bytes(font_data, settings).unwrap()
     })
-    .unwrap()
 }
 
 impl FontdueRenderer {
@@ -58,35 +57,40 @@ impl FontdueRenderer {
             font_family,
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
-        );
+        )
+        .unwrap();
 
         let bold_font = get_font(
             &font_db,
             font_family,
             fontdb::Weight::BOLD,
             fontdb::Style::Normal,
-        );
+        )
+        .unwrap_or(default_font.clone());
 
         let italic_font = get_font(
             &font_db,
             font_family,
             fontdb::Weight::NORMAL,
             fontdb::Style::Italic,
-        );
+        )
+        .unwrap_or(default_font.clone());
 
         let bold_italic_font = get_font(
             &font_db,
             font_family,
             fontdb::Weight::BOLD,
             fontdb::Style::Italic,
-        );
+        )
+        .unwrap_or(default_font.clone());
 
         let emoji_font = get_font(
             &font_db,
             "Noto Emoji",
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
-        );
+        )
+        .unwrap_or(default_font.clone());
 
         let font_size = 14.0 * zoom;
         let metrics = default_font.metrics('/', font_size);

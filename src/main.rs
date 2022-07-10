@@ -11,11 +11,12 @@ use renderer::Renderer;
 // output filename
 // theme selection
 // zoom selection
-// family selection
+// family selection (array, different default per OS?)
 // additional font dirs
 // speed selection
 // time window (from/to)
 // fps cap override
+// renderer selection
 
 fn main() -> Result<()> {
     let filename = args().nth(1).unwrap();
