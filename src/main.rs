@@ -20,7 +20,7 @@ use renderer::Renderer;
 
 fn main() -> Result<()> {
     let filename = args().nth(1).unwrap();
-    let font_family = "JetBrains Mono";
+    let font_family = "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
     let speed = 2.0;
     let zoom = 2.0;
     let fps_cap = 30.0;
