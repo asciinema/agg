@@ -26,8 +26,6 @@ fn get_font(
     weight: fontdb::Weight,
     style: fontdb::Style,
 ) -> Option<fontdue::Font> {
-    println!("loading {}", family);
-
     let query = fontdb::Query {
         families: &[fontdb::Family::Name(family)],
         weight,
@@ -35,7 +33,7 @@ fn get_font(
         style,
     };
 
-    let font_id = db.query(&query).unwrap();
+    let font_id = db.query(&query)?;
 
     db.with_face_data(font_id, |font_data, face_index| {
         let mut settings = fontdue::FontSettings::default();

@@ -47,10 +47,30 @@ fn main() -> Result<()> {
     font_db.load_system_fonts();
     font_db.load_fonts_dir("fonts");
 
+    let families = font_family
+        .split(',')
+        .map(fontdb::Family::Name)
+        .collect::<Vec<_>>();
+
+    let query = fontdb::Query {
+        families: &families,
+        weight: fontdb::Weight::NORMAL,
+        stretch: fontdb::Stretch::Normal,
+        style: fontdb::Style::Normal,
+    };
+
+    let face_id = font_db
+        .query(&query)
+        .ok_or_else(|| anyhow::anyhow!("no faces matching font family {}", font_family))?;
+
+    let face_info = font_db.face(face_id).unwrap();
+    let font_family = face_info.family.clone();
+    println!("family: {}", &font_family);
+
     // =========== renderer
 
     // let mut renderer = renderer::resvg(cols, rows, font_db, font_family, zoom);
-    let mut renderer = renderer::fontdue(cols, rows, font_db, font_family, zoom);
+    let mut renderer = renderer::fontdue(cols, rows, font_db, &font_family, zoom);
 
     // ============ GIF writer
 
