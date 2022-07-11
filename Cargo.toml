@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "*"
 # vt = { git = "https://github.com/asciinema/vt-rs.git" }
 vt = { path = "../vt-rs" }
+clap = { version = "3.2.8", features = ["derive"] }
 gifski = "*"
 imgref = "*"
 rgb = "*"

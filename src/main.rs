@@ -1,6 +1,7 @@
 use anyhow::Result;
+use clap::{ArgEnum, Parser};
 use log::info;
-use std::{env::args, fs::File, thread, time::Instant};
+use std::{fs::File, thread, time::Instant};
 use vt::VT;
 mod asciicast;
 mod frames;
@@ -9,7 +10,6 @@ use renderer::Renderer;
 
 // TODO:
 // switch to vt from git
-// output filename
 // theme selection
 // zoom selection
 // family selection (array, different default per OS?)
@@ -19,10 +19,20 @@ use renderer::Renderer;
 // fps cap override
 // renderer selection
 
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Cli {
+    /// asciicast path/filename
+    input_filename: String,
+
+    /// GIF path/filename
+    output_filename: String,
+}
+
 fn main() -> Result<()> {
     env_logger::init();
+    let cli = Cli::parse();
 
-    let filename = args().nth(1).unwrap();
     let font_family =
         "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
     let speed = 2.0;
@@ -32,7 +42,7 @@ fn main() -> Result<()> {
     // =========== asciicast
 
     let (cols, rows, events) = {
-        let (header, events) = asciicast::open(&filename)?;
+        let (header, events) = asciicast::open(&cli.input_filename)?;
 
         (
             header.width,
@@ -107,7 +117,7 @@ fn main() -> Result<()> {
 
     let start_time = Instant::now();
 
-    let file = File::create("out.gif")?;
+    let file = File::create(cli.output_filename)?;
 
     let writer_handle = thread::spawn(move || {
         let mut pr = gifski::progress::ProgressBar::new(count);
