@@ -9,7 +9,7 @@ use super::{adjust_pen, Renderer};
 pub struct FontdueRenderer {
     cols: usize,
     rows: usize,
-    font_size: f32,
+    font_size: usize,
     default_font: fontdue::Font,
     bold_font: fontdue::Font,
     italic_font: fontdue::Font,
@@ -96,7 +96,7 @@ impl FontdueRenderer {
         Self {
             cols,
             rows,
-            font_size,
+            font_size: font_size as usize,
             default_font,
             bold_font,
             italic_font,
@@ -231,14 +231,14 @@ impl Renderer for FontdueRenderer {
                         let idx = font.lookup_glyph_index(*ch);
 
                         if idx > 0 {
-                            font.rasterize_indexed(idx, self.font_size)
+                            font.rasterize_indexed(idx, self.font_size as f32)
                         } else {
-                            self.emoji_font.rasterize(*ch, self.font_size)
+                            self.emoji_font.rasterize(*ch, self.font_size as f32)
                         }
                     });
 
-                let y_offset = margin_t as i32 + (row as f32 * self.row_height).round() as i32 + 28
-                    - metrics.height as i32
+                let y_offset = (margin_t + self.font_size - metrics.height) as i32
+                    + (row as f32 * self.row_height).round() as i32
                     - metrics.ymin;
 
                 for bmap_y in 0..metrics.height {
