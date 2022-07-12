@@ -28,11 +28,11 @@ struct Cli {
     /// GIF path/filename
     output_filename: String,
 
-    /// Frame rendering backend
+    /// Select frame rendering backend
     #[clap(long, arg_enum, default_value_t = RendererBackend::Fontdue)]
     renderer: RendererBackend,
 
-    /// Font family
+    /// Specify font family
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
     font_family: String,
 
@@ -40,15 +40,15 @@ struct Cli {
     #[clap(long)]
     font_dir: Vec<String>,
 
-    /// Zoom (text scaling)
+    /// Set zoom level (text scaling)
     #[clap(long, default_value_t = 1.0)]
     zoom: f32,
 
-    /// Playback speed
+    /// Adjust playback speed
     #[clap(long, default_value_t = 1.0)]
     speed: f64,
 
-    /// FPS cap
+    /// Set FPS cap
     #[clap(long, default_value_t = 30)]
     fps_cap: u8,
 
