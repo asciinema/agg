@@ -13,7 +13,6 @@ use renderer::Renderer;
 // theme selection
 // zoom selection
 // additional font dirs
-// speed selection
 // time window (from/to)
 // fps cap override
 
@@ -39,13 +38,16 @@ struct Cli {
     /// Font family
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
     font_family: String,
+
+    /// Playback speed
+    #[clap(long, default_value_t = 1.0)]
+    speed: f64,
 }
 
 fn main() -> Result<()> {
     env_logger::init();
     let cli = Cli::parse();
 
-    let speed = 2.0;
     let zoom = 2.0;
     let fps_cap = 30.0;
 
@@ -57,7 +59,7 @@ fn main() -> Result<()> {
         (
             header.width,
             header.height,
-            frames::stdout(events, speed, fps_cap),
+            frames::stdout(events, cli.speed, fps_cap),
         )
     };
 
