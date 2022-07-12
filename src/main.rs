@@ -12,7 +12,6 @@ use renderer::Renderer;
 // switch to vt from git
 // theme selection
 // zoom selection
-// family selection (array, different default per OS?)
 // additional font dirs
 // speed selection
 // time window (from/to)
@@ -36,14 +35,16 @@ struct Cli {
     /// Frame rendering backend
     #[clap(long, arg_enum, default_value_t = RendererBackend::Fontdue)]
     renderer: RendererBackend,
+
+    /// Font family
+    #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
+    font_family: String,
 }
 
 fn main() -> Result<()> {
     env_logger::init();
     let cli = Cli::parse();
 
-    let font_family =
-        "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
     let speed = 2.0;
     let zoom = 2.0;
     let fps_cap = 30.0;
@@ -70,7 +71,8 @@ fn main() -> Result<()> {
     font_db.load_system_fonts();
     font_db.load_fonts_dir("fonts");
 
-    let families = font_family
+    let families = cli
+        .font_family
         .split(',')
         .map(fontdb::Family::Name)
         .collect::<Vec<_>>();
@@ -84,7 +86,7 @@ fn main() -> Result<()> {
 
     let face_id = font_db
         .query(&query)
-        .ok_or_else(|| anyhow::anyhow!("no faces matching font family {}", font_family))?;
+        .ok_or_else(|| anyhow::anyhow!("no faces matching font family {}", cli.font_family))?;
 
     let face_info = font_db.face(face_id).unwrap();
     let font_family = face_info.family.clone();
