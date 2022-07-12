@@ -11,7 +11,6 @@ use renderer::Renderer;
 // TODO:
 // switch to vt from git
 // theme selection
-// zoom selection
 // additional font dirs
 // time window (from/to)
 // fps cap override
@@ -39,6 +38,10 @@ struct Cli {
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
     font_family: String,
 
+    /// Zoom (text scaling)
+    #[clap(long, default_value_t = 1.0)]
+    zoom: f32,
+
     /// Playback speed
     #[clap(long, default_value_t = 1.0)]
     speed: f64,
@@ -59,7 +62,6 @@ fn main() -> Result<()> {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
 
-    let zoom = 2.0;
     let fps_cap = 30.0;
 
     // =========== asciicast
@@ -109,11 +111,15 @@ fn main() -> Result<()> {
     // =========== renderer
 
     let mut renderer: Box<dyn Renderer> = match cli.renderer {
-        RendererBackend::Fontdue => {
-            Box::new(renderer::fontdue(cols, rows, font_db, &font_family, zoom))
-        }
+        RendererBackend::Fontdue => Box::new(renderer::fontdue(
+            cols,
+            rows,
+            font_db,
+            &font_family,
+            cli.zoom,
+        )),
         RendererBackend::Resvg => {
-            Box::new(renderer::resvg(cols, rows, font_db, &font_family, zoom))
+            Box::new(renderer::resvg(cols, rows, font_db, &font_family, cli.zoom))
         }
     };
 
