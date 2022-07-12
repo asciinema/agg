@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{ArgEnum, Parser};
+use clap::{ArgAction, ArgEnum, Parser};
 use log::info;
 use std::{fs::File, thread, time::Instant};
 use vt::VT;
@@ -42,11 +42,22 @@ struct Cli {
     /// Playback speed
     #[clap(long, default_value_t = 1.0)]
     speed: f64,
+
+    /// Enable verbose logging
+    #[clap(short, long, action = ArgAction::Count)]
+    verbose: u8,
 }
 
 fn main() -> Result<()> {
-    env_logger::init();
     let cli = Cli::parse();
+
+    let log_level = match cli.verbose {
+        0 => "error",
+        1 => "info",
+        _ => "debug",
+    };
+
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
 
     let zoom = 2.0;
     let fps_cap = 30.0;
