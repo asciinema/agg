@@ -11,7 +11,6 @@ use renderer::Renderer;
 // TODO:
 // switch to vt from git
 // theme selection
-// additional font dirs
 // time window (from/to)
 
 #[derive(Clone, ArgEnum)]
@@ -36,6 +35,10 @@ struct Cli {
     /// Font family
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
     font_family: String,
+
+    /// Use additional font directory
+    #[clap(long)]
+    font_dir: Vec<String>,
 
     /// Zoom (text scaling)
     #[clap(long, default_value_t = 1.0)]
@@ -85,7 +88,10 @@ fn main() -> Result<()> {
 
     let mut font_db = fontdb::Database::new();
     font_db.load_system_fonts();
-    font_db.load_fonts_dir("fonts");
+
+    for dir in cli.font_dir {
+        font_db.load_fonts_dir(dir);
+    }
 
     let families = cli
         .font_family
