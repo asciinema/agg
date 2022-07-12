@@ -13,7 +13,6 @@ use renderer::Renderer;
 // theme selection
 // additional font dirs
 // time window (from/to)
-// fps cap override
 
 #[derive(Clone, ArgEnum)]
 enum RendererBackend {
@@ -46,6 +45,10 @@ struct Cli {
     #[clap(long, default_value_t = 1.0)]
     speed: f64,
 
+    /// FPS cap
+    #[clap(long, default_value_t = 30)]
+    fps_cap: u8,
+
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]
     verbose: u8,
@@ -62,8 +65,6 @@ fn main() -> Result<()> {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
 
-    let fps_cap = 30.0;
-
     // =========== asciicast
 
     let (cols, rows, events) = {
@@ -72,7 +73,7 @@ fn main() -> Result<()> {
         (
             header.width,
             header.height,
-            frames::stdout(events, cli.speed, fps_cap),
+            frames::stdout(events, cli.speed, cli.fps_cap as f64),
         )
     };
 
