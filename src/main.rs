@@ -17,7 +17,12 @@ use renderer::Renderer;
 // speed selection
 // time window (from/to)
 // fps cap override
-// renderer selection
+
+#[derive(Clone, ArgEnum)]
+enum RendererBackend {
+    Fontdue,
+    Resvg,
+}
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -27,6 +32,10 @@ struct Cli {
 
     /// GIF path/filename
     output_filename: String,
+
+    /// Frame rendering backend
+    #[clap(long, arg_enum, default_value_t = RendererBackend::Fontdue)]
+    renderer: RendererBackend,
 }
 
 fn main() -> Result<()> {
@@ -84,8 +93,14 @@ fn main() -> Result<()> {
 
     // =========== renderer
 
-    // let mut renderer = renderer::resvg(cols, rows, font_db, font_family, zoom);
-    let mut renderer = renderer::fontdue(cols, rows, font_db, &font_family, zoom);
+    let mut renderer: Box<dyn Renderer> = match cli.renderer {
+        RendererBackend::Fontdue => {
+            Box::new(renderer::fontdue(cols, rows, font_db, &font_family, zoom))
+        }
+        RendererBackend::Resvg => {
+            Box::new(renderer::resvg(cols, rows, font_db, &font_family, zoom))
+        }
+    };
 
     // ============ GIF writer
 
