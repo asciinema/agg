@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use imgref::ImgVec;
-use rgb::RGBA8;
+use rgb::{RGB8, RGBA8};
 
 use super::{adjust_pen, Renderer};
 
@@ -109,11 +109,11 @@ impl FontdueRenderer {
     }
 }
 
-fn rgb(r: u8, g: u8, b: u8) -> RGBA8 {
-    RGBA8::new(r, g, b, 255)
+fn rgb(r: u8, g: u8, b: u8) -> RGB8 {
+    RGB8::new(r, g, b)
 }
 
-fn to_rgb(c: vt::Color) -> RGBA8 {
+fn to_rgb(c: vt::Color) -> RGB8 {
     match c {
         vt::Color::RGB(r, g, b) => rgb(r, g, b),
 
@@ -202,7 +202,7 @@ impl Renderer for FontdueRenderer {
                         let x_r = (margin_l + (col + 1) as f32 * self.col_width).round() as usize;
 
                         for x in x_l..x_r {
-                            buf[y * width + x] = c;
+                            buf[y * width + x] = c.alpha(255);
                         }
                     }
                 }
@@ -215,7 +215,8 @@ impl Renderer for FontdueRenderer {
                     attrs
                         .foreground
                         .unwrap_or_else(|| vt::Color::RGB(0xcc, 0xcc, 0xcc)),
-                );
+                )
+                .alpha(255);
 
                 let (metrics, bitmap) = self
                     .cache
