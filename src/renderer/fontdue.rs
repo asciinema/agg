@@ -115,7 +115,7 @@ fn rgb(r: u8, g: u8, b: u8) -> RGB8 {
 
 fn to_rgb(c: vt::Color) -> RGB8 {
     match c {
-        vt::Color::RGB(r, g, b) => rgb(r, g, b),
+        vt::Color::RGB(c) => c,
 
         vt::Color::Indexed(n) => match n {
             0 => rgb(0x00, 0x00, 0x00),
@@ -214,7 +214,7 @@ impl Renderer for FontdueRenderer {
                 let fg = to_rgb(
                     attrs
                         .foreground
-                        .unwrap_or_else(|| vt::Color::RGB(0xcc, 0xcc, 0xcc)),
+                        .unwrap_or_else(|| vt::Color::RGB(RGB8::new(0xcc, 0xcc, 0xcc))),
                 )
                 .alpha(255);
 

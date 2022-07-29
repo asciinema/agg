@@ -61,8 +61,8 @@ impl SvgText for vt::Pen {
 
     fn svg_text_style(&self) -> String {
         // if !self.inverse {
-        if let Some(vt::Color::RGB(r, g, b)) = self.foreground {
-            return format!("fill: rgb({},{},{})", r, g, b);
+        if let Some(vt::Color::RGB(c)) = self.foreground {
+            return format!("fill: rgb({},{},{})", c.r, c.g, c.b);
         }
         // } else {
         //     if let Some(vt::Color::RGB(r, g, b)) = self.background {
@@ -104,7 +104,7 @@ impl SvgText for vt::Pen {
         // }
 
         match self.background {
-            Some(vt::Color::RGB(r, g, b)) => format!("fill: rgb({},{},{})", r, g, b),
+            Some(vt::Color::RGB(c)) => format!("fill: rgb({},{},{})", c.r, c.g, c.b),
             _ => "".to_owned(),
         }
 
