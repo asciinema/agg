@@ -9,7 +9,6 @@ mod renderer;
 use renderer::Renderer;
 
 // TODO:
-// switch to vt from git
 // theme selection
 // time window (from/to)
 
