@@ -58,8 +58,8 @@ fn adjust_pen(pen: &mut vt::Pen, cursor: &Option<(usize, usize)>, x: usize, y: u
     }
 
     if pen.inverse {
-        let fg = pen.background.unwrap_or_else(|| vt::Color::Indexed(0));
-        let bg = pen.foreground.unwrap_or_else(|| vt::Color::Indexed(7));
+        let fg = pen.background.unwrap_or(vt::Color::Indexed(0));
+        let bg = pen.foreground.unwrap_or(vt::Color::Indexed(7));
         pen.foreground = Some(fg);
         pen.background = Some(bg);
     }

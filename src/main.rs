@@ -149,7 +149,7 @@ fn main() -> Result<()> {
     let images = events
         .iter()
         .scan(vt, |vt, (t, d)| {
-            vt.feed_str(&d);
+            vt.feed_str(d);
             let cursor = vt.get_cursor();
             let lines = vt.lines();
             Some((t, lines, cursor))

@@ -16,10 +16,10 @@ pub struct ResvgRenderer {
 }
 
 trait SvgText {
-    fn svg_text_class(self: &Self) -> String;
-    fn svg_text_style(self: &Self) -> String;
-    fn svg_rect_class(self: &Self) -> String;
-    fn svg_rect_style(self: &Self) -> String;
+    fn svg_text_class(&self) -> String;
+    fn svg_text_style(&self) -> String;
+    fn svg_rect_class(&self) -> String;
+    fn svg_rect_style(&self) -> String;
 }
 
 impl SvgText for vt::Pen {
@@ -121,12 +121,14 @@ impl ResvgRenderer {
         zoom: f32,
     ) -> Self {
         let char_width = 100.0 * 1.0 / (cols as f32 + 2.0);
-        let mut options = usvg::Options::default();
-        options.fontdb = font_db;
+        let options = usvg::Options {
+            fontdb: font_db,
+            ..Default::default()
+        };
         let fit_to = usvg::FitTo::Zoom(zoom);
         let transform = tiny_skia::Transform::default(); // identity();
 
-        let mut svg = Self::header(cols, rows, &font_family);
+        let mut svg = Self::header(cols, rows, font_family);
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options.to_ref()).unwrap();
         let size = fit_to
@@ -152,7 +154,7 @@ impl ResvgRenderer {
         let mut svg = String::new();
         let font_size = 14.0;
         svg.push_str(r#"<?xml version="1.0"?>"#);
-        let width = (cols + 2) as f32 * 8.433333333;
+        let width = (cols + 2) as f32 * 8.433333;
         let height = (rows + 1) as f32 * font_size * 1.4;
         svg.push_str(&format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="{}">"#, width, height, font_size, font_family));
         svg.push_str(r#"<style>"#);
@@ -195,7 +197,7 @@ impl ResvgRenderer {
                 // let entry = cache.entry(a.background);
                 // let ee = entry.or_insert_with(|| a.svg_rect_class());
 
-                if let None = attrs.background {
+                if attrs.background.is_none() {
                     continue;
                 }
 

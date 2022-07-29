@@ -22,24 +22,22 @@ impl<I: Iterator<Item = Frame>> Iterator for Batched<I> {
                     self.prev_data.push_str(&data);
 
                     self.next()
+                } else if !self.prev_data.is_empty() {
+                    let prev_time = self.prev_time;
+                    self.prev_time = time;
+                    let prev_data = std::mem::replace(&mut self.prev_data, data);
+
+                    Some((prev_time, prev_data))
                 } else {
-                    if self.prev_data != "" {
-                        let prev_time = self.prev_time;
-                        self.prev_time = time;
-                        let prev_data = std::mem::replace(&mut self.prev_data, data);
+                    self.prev_time = time;
+                    self.prev_data = data;
 
-                        Some((prev_time, prev_data))
-                    } else {
-                        self.prev_time = time;
-                        self.prev_data = data;
-
-                        self.next()
-                    }
+                    self.next()
                 }
             }
 
             None => {
-                if self.prev_data != "" {
+                if !self.prev_data.is_empty() {
                     let prev_time = self.prev_time;
                     let prev_data = std::mem::replace(&mut self.prev_data, "".to_owned());
 

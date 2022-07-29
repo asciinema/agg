@@ -67,7 +67,7 @@ pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Er
     let header: Header = serde_json::from_str(&first_line)?;
 
     let events = lines
-        .filter(|line| line.as_ref().map_or(true, |l| l != ""))
+        .filter(|line| line.as_ref().map_or(true, |l| !l.is_empty()))
         .map(|line| line.map(parse_event)?);
 
     Ok((header, events))
@@ -84,7 +84,7 @@ fn parse_event(line: String) -> Result<Event, Error> {
     let event_type = match v[1].as_str() {
         Some("o") => EventType::Output,
         Some("i") => EventType::Input,
-        Some(s) if s.len() > 0 => EventType::Other(s.chars().next().unwrap()),
+        Some(s) if !s.is_empty() => EventType::Other(s.chars().next().unwrap()),
         Some(s) => return Err(Error::InvalidEventType(s.to_owned())),
         None => return Err(Error::InvalidEventType("".to_owned())),
     };

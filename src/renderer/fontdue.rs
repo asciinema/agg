@@ -36,8 +36,10 @@ fn get_font(
     let font_id = db.query(&query)?;
 
     db.with_face_data(font_id, |font_data, face_index| {
-        let mut settings = fontdue::FontSettings::default();
-        settings.collection_index = face_index;
+        let settings = fontdue::FontSettings {
+            collection_index: face_index,
+            ..Default::default()
+        };
         fontdue::Font::from_bytes(font_data, settings).unwrap()
     })
 }
@@ -64,7 +66,7 @@ impl FontdueRenderer {
             fontdb::Weight::BOLD,
             fontdb::Style::Normal,
         )
-        .unwrap_or(default_font.clone());
+        .unwrap_or_else(|| default_font.clone());
 
         let italic_font = get_font(
             &font_db,
@@ -72,7 +74,7 @@ impl FontdueRenderer {
             fontdb::Weight::NORMAL,
             fontdb::Style::Italic,
         )
-        .unwrap_or(default_font.clone());
+        .unwrap_or_else(|| default_font.clone());
 
         let bold_italic_font = get_font(
             &font_db,
@@ -80,7 +82,7 @@ impl FontdueRenderer {
             fontdb::Weight::BOLD,
             fontdb::Style::Italic,
         )
-        .unwrap_or(default_font.clone());
+        .unwrap_or_else(|| default_font.clone());
 
         let emoji_font = get_font(
             &font_db,
@@ -88,7 +90,7 @@ impl FontdueRenderer {
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         )
-        .unwrap_or(default_font.clone());
+        .unwrap_or_else(|| default_font.clone());
 
         let font_size = 14.0 * zoom;
         let metrics = default_font.metrics('/', font_size);
