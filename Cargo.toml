@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "*"
 vt = { git = "https://github.com/asciinema/vt-rs.git" }
-clap = { version = "3.2.8", features = ["derive"] }
+clap = { version = "3.2.15", features = ["derive"] }
 gifski = "*"
 imgref = "*"
 rgb = "*"
