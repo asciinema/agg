@@ -213,7 +213,7 @@ fn main() -> Result<()> {
 
     let face_id = font_db
         .query(&query)
-        .ok_or_else(|| anyhow::anyhow!("no faces matching font family {}", cli.font_family))?;
+        .ok_or_else(|| anyhow!("no faces matching font family {}", cli.font_family))?;
 
     let face_info = font_db.face(face_id).unwrap();
     let font_family = face_info.family.clone();
