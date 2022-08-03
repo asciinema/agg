@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 
 use imgref::ImgVec;
-use rgb::{RGB8, RGBA8};
+use rgb::RGBA8;
 
-use super::{adjust_pen, Renderer};
+use crate::theme::Theme;
 
-#[derive(Debug)]
+use super::{adjust_pen, color_to_rgb, Renderer};
+
 pub struct FontdueRenderer {
     cols: usize,
     rows: usize,
+    theme: Theme,
     font_size: usize,
     default_font: fontdue::Font,
     bold_font: fontdue::Font,
@@ -50,6 +52,7 @@ impl FontdueRenderer {
         rows: usize,
         font_db: fontdb::Database,
         font_family: &str,
+        theme: Theme,
         zoom: f32,
     ) -> Self {
         let default_font = get_font(
@@ -98,6 +101,7 @@ impl FontdueRenderer {
         Self {
             cols,
             rows,
+            theme,
             font_size: font_size as usize,
             default_font,
             bold_font,
@@ -108,62 +112,6 @@ impl FontdueRenderer {
             row_height: font_size * 1.4,
             cache: HashMap::new(),
         }
-    }
-}
-
-fn rgb(r: u8, g: u8, b: u8) -> RGB8 {
-    RGB8::new(r, g, b)
-}
-
-fn to_rgb(c: vt::Color) -> RGB8 {
-    match c {
-        vt::Color::RGB(c) => c,
-
-        vt::Color::Indexed(n) => match n {
-            0 => rgb(0x00, 0x00, 0x00),
-            1 => rgb(0xdd, 0x3c, 0x69),
-            2 => rgb(0x4e, 0xbf, 0x22),
-            3 => rgb(0xdd, 0xaf, 0x3c),
-            4 => rgb(0x26, 0xb0, 0xd7),
-            5 => rgb(0xb9, 0x54, 0xe1),
-            6 => rgb(0x54, 0xe1, 0xb9),
-            7 => rgb(0xd9, 0xd9, 0xd9),
-            8 => rgb(0x4d, 0x4d, 0x4d),
-            9 => rgb(0xdd, 0x3c, 0x69),
-            10 => rgb(0x4e, 0xbf, 0x22),
-            11 => rgb(0xdd, 0xaf, 0x3c),
-            12 => rgb(0x26, 0xb0, 0xd7),
-            13 => rgb(0xb9, 0x54, 0xe1),
-            14 => rgb(0x54, 0xe1, 0xb9),
-            15 => rgb(0xff, 0xff, 0xff),
-
-            16..=231 => {
-                let n = n - 16;
-                let mut r = ((n / 36) % 6) * 40;
-                let mut g = ((n / 6) % 6) * 40;
-                let mut b = (n % 6) * 40;
-
-                if r > 0 {
-                    r += 55;
-                }
-
-                if g > 0 {
-                    g += 55;
-                }
-
-                if b > 0 {
-                    b += 55;
-                }
-
-                rgb(r, g, b)
-            }
-
-            232.. => {
-                let v = 8 + 10 * (n - 232);
-
-                rgb(v, v, v)
-            }
-        },
     }
 }
 
@@ -186,16 +134,16 @@ impl Renderer for FontdueRenderer {
     ) -> ImgVec<RGBA8> {
         let width = self.pixel_width();
         let height = self.pixel_height();
-        let mut buf: Vec<RGBA8> = vec![RGBA8::new(0x12, 0x13, 0x14, 255); width * height];
+        let mut buf: Vec<RGBA8> = vec![self.theme.background.alpha(255); width * height];
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;
 
         for (row, chars) in lines.iter().enumerate() {
             for (col, (ch, mut attrs)) in chars.iter().enumerate() {
-                adjust_pen(&mut attrs, &cursor, col, row);
+                adjust_pen(&mut attrs, &cursor, col, row, &self.theme);
 
                 if let Some(c) = attrs.background {
-                    let c = to_rgb(c);
+                    let c = color_to_rgb(&c, &self.theme);
                     let y_t = margin_t + (row as f32 * self.row_height).round() as usize;
                     let y_b = margin_t + ((row + 1) as f32 * self.row_height).round() as usize;
 
@@ -213,10 +161,11 @@ impl Renderer for FontdueRenderer {
                     continue;
                 }
 
-                let fg = to_rgb(
-                    attrs
+                let fg = color_to_rgb(
+                    &attrs
                         .foreground
-                        .unwrap_or_else(|| vt::Color::RGB(RGB8::new(0xcc, 0xcc, 0xcc))),
+                        .unwrap_or(vt::Color::RGB(self.theme.foreground)),
+                    &self.theme,
                 )
                 .alpha(255);
 

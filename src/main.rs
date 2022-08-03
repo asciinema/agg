@@ -1,21 +1,123 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{ArgAction, ArgEnum, Parser};
 use log::info;
+use std::fmt::{Debug, Display};
 use std::{fs::File, thread, time::Instant};
 use vt::VT;
 mod asciicast;
 mod frames;
 mod renderer;
-use renderer::Renderer;
+mod theme;
+use crate::renderer::Renderer;
+use crate::theme::Theme;
 
 // TODO:
-// theme selection
 // time window (from/to)
 
 #[derive(Clone, ArgEnum)]
 enum RendererBackend {
     Fontdue,
     Resvg,
+}
+
+#[derive(Clone, Debug, ArgEnum)]
+pub enum BuiltinTheme {
+    Asciinema,
+    Monokai,
+    SolarizedDark,
+    SolarizedLight,
+}
+
+#[derive(Clone)]
+pub enum ThemeOpt {
+    Builtin(BuiltinTheme),
+    Custom(Theme),
+}
+
+impl From<ThemeOpt> for Theme {
+    fn from(theme_opt: ThemeOpt) -> Self {
+        use BuiltinTheme::*;
+        use ThemeOpt::*;
+
+        match theme_opt {
+            Builtin(Asciinema) => Theme::parse("121314,cccccc,000000,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,d9d9d9,4d4d4d,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,ffffff").unwrap(),
+
+            Builtin(Monokai) => Theme::parse("272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5").unwrap(),
+
+            Builtin(SolarizedDark) => Theme::parse("002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3").unwrap(),
+
+            Builtin(SolarizedLight) => Theme::parse("fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3").unwrap(),
+
+            Custom(t) => t
+        }
+    }
+}
+
+impl Display for ThemeOpt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ThemeOpt::Builtin(t) => write!(f, "{}", format!("{:?}", t).to_lowercase()),
+            ThemeOpt::Custom(_) => f.write_str("custom"),
+        }
+    }
+}
+
+impl clap::builder::ValueParserFactory for ThemeOpt {
+    type Parser = ThemeOptValueParser;
+
+    fn value_parser() -> Self::Parser {
+        ThemeOptValueParser
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ThemeOptValueParser;
+
+impl clap::builder::TypedValueParser for ThemeOptValueParser {
+    type Value = ThemeOpt;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let s = value.to_string_lossy();
+
+        if s.contains(',') {
+            match Theme::parse(s.as_ref()) {
+                Ok(t) => Ok(ThemeOpt::Custom(t)),
+
+                Err(e) => {
+                    let mut cmd = cmd.clone();
+                    let e = cmd.error(
+                        clap::ErrorKind::ValueValidation,
+                        format!("invalid theme definition: {}", e),
+                    );
+
+                    Err(e.format(&mut cmd))
+                }
+            }
+        } else {
+            let inner = clap::value_parser!(BuiltinTheme);
+
+            match inner.parse_ref(cmd, arg, value) {
+                Ok(t) => Ok(ThemeOpt::Builtin(t)),
+                Err(e) => Err(e),
+            }
+        }
+    }
+
+    fn possible_values(
+        &self,
+    ) -> Option<Box<dyn Iterator<Item = clap::PossibleValue<'static>> + '_>> {
+        Some(Box::new(
+            BuiltinTheme::value_variants()
+                .iter()
+                .filter_map(|v| v.to_possible_value())
+                .chain(vec![clap::PossibleValue::new("custom")]),
+        ))
+    }
 }
 
 #[derive(Parser)]
@@ -34,6 +136,10 @@ struct Cli {
     /// Specify font family
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
     font_family: String,
+
+    /// Select color theme
+    #[clap(long, value_parser = ThemeOptValueParser, default_value_t = ThemeOpt::Builtin(BuiltinTheme::Asciinema))]
+    theme: ThemeOpt,
 
     /// Use additional font directory
     #[clap(long)]
@@ -122,11 +228,18 @@ fn main() -> Result<()> {
             rows,
             font_db,
             &font_family,
+            cli.theme.into(),
             cli.zoom,
         )),
-        RendererBackend::Resvg => {
-            Box::new(renderer::resvg(cols, rows, font_db, &font_family, cli.zoom))
-        }
+
+        RendererBackend::Resvg => Box::new(renderer::resvg(
+            cols,
+            rows,
+            font_db,
+            &font_family,
+            cli.theme.into(),
+            cli.zoom,
+        )),
     };
 
     // ============ GIF writer

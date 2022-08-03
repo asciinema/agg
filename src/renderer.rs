@@ -2,7 +2,9 @@ mod fontdue;
 mod resvg;
 
 use imgref::ImgVec;
-use rgb::RGBA8;
+use rgb::{RGB8, RGBA8};
+
+use crate::theme::Theme;
 
 pub trait Renderer {
     fn render(
@@ -19,9 +21,10 @@ pub fn resvg(
     rows: usize,
     font_db: fontdb::Database,
     font_family: &str,
+    theme: Theme,
     zoom: f32,
 ) -> resvg::ResvgRenderer {
-    resvg::ResvgRenderer::new(cols, rows, font_db, font_family, zoom)
+    resvg::ResvgRenderer::new(cols, rows, font_db, font_family, theme, zoom)
 }
 
 pub fn fontdue(
@@ -29,12 +32,19 @@ pub fn fontdue(
     rows: usize,
     font_db: fontdb::Database,
     font_family: &str,
+    theme: Theme,
     zoom: f32,
 ) -> fontdue::FontdueRenderer {
-    fontdue::FontdueRenderer::new(cols, rows, font_db, font_family, zoom)
+    fontdue::FontdueRenderer::new(cols, rows, font_db, font_family, theme, zoom)
 }
 
-fn adjust_pen(pen: &mut vt::Pen, cursor: &Option<(usize, usize)>, x: usize, y: usize) {
+fn adjust_pen(
+    pen: &mut vt::Pen,
+    cursor: &Option<(usize, usize)>,
+    x: usize,
+    y: usize,
+    theme: &Theme,
+) {
     if let Some((cx, cy)) = cursor {
         if cx == &x && cy == &y {
             pen.inverse = !pen.inverse;
@@ -58,9 +68,16 @@ fn adjust_pen(pen: &mut vt::Pen, cursor: &Option<(usize, usize)>, x: usize, y: u
     }
 
     if pen.inverse {
-        let fg = pen.background.unwrap_or(vt::Color::Indexed(0));
-        let bg = pen.foreground.unwrap_or(vt::Color::Indexed(7));
+        let fg = pen.background.unwrap_or(vt::Color::RGB(theme.background));
+        let bg = pen.foreground.unwrap_or(vt::Color::RGB(theme.foreground));
         pen.foreground = Some(fg);
         pen.background = Some(bg);
+    }
+}
+
+fn color_to_rgb(c: &vt::Color, theme: &Theme) -> RGB8 {
+    match c {
+        vt::Color::RGB(c) => *c,
+        vt::Color::Indexed(c) => theme.color(*c),
     }
 }
