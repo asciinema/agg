@@ -15,7 +15,7 @@ use crate::theme::Theme;
 // time window (from/to)
 
 #[derive(Clone, ArgEnum)]
-enum RendererBackend {
+enum RendererOpt {
     Fontdue,
     Resvg,
 }
@@ -130,8 +130,8 @@ struct Cli {
     output_filename: String,
 
     /// Select frame rendering backend
-    #[clap(long, arg_enum, default_value_t = RendererBackend::Fontdue)]
-    renderer: RendererBackend,
+    #[clap(long, arg_enum, default_value_t = RendererOpt::Fontdue)]
+    renderer: RendererOpt,
 
     /// Specify font family
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
@@ -223,7 +223,7 @@ fn main() -> Result<()> {
     // =========== renderer
 
     let mut renderer: Box<dyn Renderer> = match cli.renderer {
-        RendererBackend::Fontdue => Box::new(renderer::fontdue(
+        RendererOpt::Fontdue => Box::new(renderer::fontdue(
             cols,
             rows,
             font_db,
@@ -232,7 +232,7 @@ fn main() -> Result<()> {
             cli.zoom,
         )),
 
-        RendererBackend::Resvg => Box::new(renderer::resvg(
+        RendererOpt::Resvg => Box::new(renderer::resvg(
             cols,
             rows,
             font_db,
