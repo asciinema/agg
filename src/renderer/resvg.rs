@@ -35,7 +35,7 @@ impl SvgText for vt::Pen {
         let mut class = "".to_owned();
 
         if self.bold {
-            class.push_str(" br");
+            class.push_str("br");
         }
 
         if self.italic {
