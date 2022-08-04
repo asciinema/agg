@@ -40,13 +40,13 @@ impl From<ThemeOpt> for Theme {
         use ThemeOpt::*;
 
         match theme_opt {
-            Builtin(Asciinema) => Theme::parse("121314,cccccc,000000,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,d9d9d9,4d4d4d,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,ffffff").unwrap(),
+            Builtin(Asciinema) => "121314,cccccc,000000,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,d9d9d9,4d4d4d,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,ffffff".parse().unwrap(),
 
-            Builtin(Monokai) => Theme::parse("272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5").unwrap(),
+            Builtin(Monokai) => "272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5".parse().unwrap(),
 
-            Builtin(SolarizedDark) => Theme::parse("002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3").unwrap(),
+            Builtin(SolarizedDark) => "002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
 
-            Builtin(SolarizedLight) => Theme::parse("fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3").unwrap(),
+            Builtin(SolarizedLight) => "fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
 
             Custom(t) => t
         }
@@ -85,7 +85,7 @@ impl clap::builder::TypedValueParser for ThemeOptValueParser {
         let s = value.to_string_lossy();
 
         if s.contains(',') {
-            match Theme::parse(s.as_ref()) {
+            match s.parse() {
                 Ok(t) => Ok(ThemeOpt::Custom(t)),
 
                 Err(e) => {

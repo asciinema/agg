@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::anyhow;
 use rgb::RGB8;
 
@@ -20,11 +22,13 @@ fn parse_hex_triplet(triplet: &str) -> anyhow::Result<RGB8> {
     Ok(RGB8::new(r, g, b))
 }
 
-impl Theme {
-    pub fn parse(colors: &str) -> anyhow::Result<Self> {
+impl FromStr for Theme {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut palette = [RGB8::default(); 16];
 
-        let colors = colors
+        let colors = s
             .split(',')
             .filter(|s| !s.is_empty())
             .map(parse_hex_triplet)
@@ -50,7 +54,9 @@ impl Theme {
             palette,
         })
     }
+}
 
+impl Theme {
     pub fn color(&self, color: u8) -> RGB8 {
         match color {
             0..=15 => self.palette[color as usize],

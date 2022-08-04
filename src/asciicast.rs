@@ -69,7 +69,7 @@ impl TryInto<Header> for V2Header {
 
                 let s = format!("{},{},{}", &bg[1..], &fg[1..], palette);
 
-                match Theme::parse(&s) {
+                match s.parse() {
                     Ok(t) => Some(t),
                     Err(_) => return Err(Error::InvalidTheme),
                 }
