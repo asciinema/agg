@@ -5,10 +5,26 @@ use std::fs;
 use std::io::prelude::*;
 use std::io::BufReader;
 
+use crate::theme::Theme;
+
 #[derive(Deserialize)]
-pub struct Header {
+pub struct V2Theme {
+    fg: String,
+    bg: String,
+    palette: String,
+}
+
+#[derive(Deserialize)]
+pub struct V2Header {
     pub width: usize,
     pub height: usize,
+    pub theme: Option<V2Theme>,
+}
+
+pub struct Header {
+    pub cols: usize,
+    pub rows: usize,
+    pub theme: Option<Theme>,
 }
 
 #[derive(PartialEq)]
@@ -31,7 +47,44 @@ pub enum Error {
     InvalidEventTime,
     InvalidEventType(String),
     InvalidEventData,
+    InvalidTheme,
     ParseJson(serde_json::Error),
+}
+
+impl TryInto<Header> for V2Header {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Header, Self::Error> {
+        let theme = match self.theme {
+            Some(V2Theme { bg, fg, palette })
+                if bg.len() == 7
+                    && fg.len() == 7
+                    && (palette.len() == 63 || palette.len() == 127) =>
+            {
+                let palette = palette
+                    .split(':')
+                    .map(|s| &s[1..])
+                    .collect::<Vec<_>>()
+                    .join(",");
+
+                let s = format!("{},{},{}", &bg[1..], &fg[1..], palette);
+
+                match Theme::parse(&s) {
+                    Ok(t) => Some(t),
+                    Err(_) => return Err(Error::InvalidTheme),
+                }
+            }
+
+            Some(_) => return Err(Error::InvalidTheme),
+            None => None,
+        };
+
+        Ok(Header {
+            cols: self.width,
+            rows: self.height,
+            theme,
+        })
+    }
 }
 
 impl Display for Error {
@@ -64,7 +117,8 @@ pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Er
         None => return Err(Error::EmptyFile),
     };
 
-    let header: Header = serde_json::from_str(&first_line)?;
+    let v2_header: V2Header = serde_json::from_str(&first_line)?;
+    let header: Header = v2_header.try_into()?;
 
     let events = lines
         .filter(|line| line.as_ref().map_or(true, |l| !l.is_empty()))

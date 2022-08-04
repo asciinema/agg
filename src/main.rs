@@ -138,8 +138,8 @@ struct Cli {
     font_family: String,
 
     /// Select color theme
-    #[clap(long, value_parser = ThemeOptValueParser, default_value_t = ThemeOpt::Builtin(BuiltinTheme::Asciinema))]
-    theme: ThemeOpt,
+    #[clap(long, value_parser = ThemeOptValueParser)]
+    theme: Option<ThemeOpt>,
 
     /// Use additional font directory
     #[clap(long)]
@@ -175,12 +175,13 @@ fn main() -> Result<()> {
 
     // =========== asciicast
 
-    let (cols, rows, events) = {
+    let (cols, rows, embedded_theme, events) = {
         let (header, events) = asciicast::open(&cli.input_filename)?;
 
         (
-            header.width,
-            header.height,
+            header.cols,
+            header.rows,
+            header.theme,
             frames::stdout(events, cli.speed, cli.fps_cap as f64),
         )
     };
@@ -220,6 +221,14 @@ fn main() -> Result<()> {
 
     info!("selected font family: {}", &font_family);
 
+    // =========== theme
+
+    let theme: Theme = cli
+        .theme
+        .or_else(|| embedded_theme.map(ThemeOpt::Custom))
+        .unwrap_or(ThemeOpt::Builtin(BuiltinTheme::Asciinema))
+        .into();
+
     // =========== renderer
 
     let mut renderer: Box<dyn Renderer> = match cli.renderer {
@@ -228,7 +237,7 @@ fn main() -> Result<()> {
             rows,
             font_db,
             &font_family,
-            cli.theme.into(),
+            theme,
             cli.zoom,
         )),
 
@@ -237,7 +246,7 @@ fn main() -> Result<()> {
             rows,
             font_db,
             &font_family,
-            cli.theme.into(),
+            theme,
             cli.zoom,
         )),
     };
