@@ -77,7 +77,7 @@ impl ResvgRenderer {
             ..Default::default()
         };
         let fit_to = usvg::FitTo::Zoom(zoom);
-        let transform = tiny_skia::Transform::default(); // identity();
+        let transform = tiny_skia::Transform::default();
 
         let mut svg = Self::header(cols, rows, font_family, &theme);
         svg.push_str(Self::footer());
@@ -186,7 +186,6 @@ impl ResvgRenderer {
                 svg.push_str(r#"<tspan "#);
 
                 if !did_dy {
-                    // if i == 0 {
                     svg.push_str(r#"dy="1em" "#);
                     did_dy = true;
                 }
@@ -194,9 +193,7 @@ impl ResvgRenderer {
                 let x = 100.0 * (col as f32) / (cols as f32 + 2.0);
                 let class = attrs.svg_text_class();
                 let style = attrs.svg_text_style(theme);
-                // let class = "";
-                // let style = "";
-                // svg.push_str(r#">"#);
+
                 svg.push_str(&format!(
                     r#"x="{:.3}%" class="{}" style="{}">"#,
                     x, class, style
@@ -259,7 +256,6 @@ impl Renderer for ResvgRenderer {
         svg.push_str(Self::footer());
 
         let tree = usvg::Tree::from_str(&svg, &self.options.to_ref()).unwrap();
-        // let tree = usvg::Tree::from_str(r#"<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1" height="2" font-size="14px" font-family="JetBrains Mono"></svg>"#, opt).unwrap();
 
         let mut pixmap =
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
