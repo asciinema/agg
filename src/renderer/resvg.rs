@@ -78,15 +78,13 @@ impl ResvgRenderer {
         };
         let fit_to = usvg::FitTo::Zoom(zoom);
         let transform = tiny_skia::Transform::default();
-
         let mut svg = Self::header(cols, rows, font_family, &theme);
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options.to_ref()).unwrap();
-        let size = fit_to
-            .fit_to(tree.svg_node().size.to_screen_size())
-            .unwrap();
-        let pixel_width = size.width() as usize;
-        let pixel_height = size.height() as usize;
+        let screen_size = tree.svg_node().size.to_screen_size();
+        let screen_size = fit_to.fit_to(screen_size).unwrap();
+        let pixel_width = screen_size.width() as usize;
+        let pixel_height = screen_size.height() as usize;
 
         Self {
             cols,
@@ -104,18 +102,24 @@ impl ResvgRenderer {
 
     fn header(cols: usize, rows: usize, font_family: &str, theme: &Theme) -> String {
         let mut svg = String::new();
+
+        svg.push_str(r#"<?xml version="1.0"?>"#);
+
         let font_size = 14.0;
         let width = (cols + 2) as f32 * 8.433333;
         let height = (rows + 1) as f32 * font_size * 1.4;
 
-        svg.push_str(r#"<?xml version="1.0"?>"#);
         svg.push_str(&format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="{}">"#, width, height, font_size, font_family));
 
-        svg.push_str(r#"<style>"#);
-        svg.push_str(r#".br { font-weight: bold }"#);
-        svg.push_str(r#".it { font-style: italic }"#);
-        svg.push_str(r#".un { text-decoration: underline }"#);
-        svg.push_str(r#"</style>"#);
+        svg.push_str(
+            "
+            <style>
+            .br { font-weight: bold }
+            .it { font-style: italic }
+            .un { text-decoration: underline }
+            </style>
+        ",
+        );
 
         svg.push_str(&format!(
             r#"<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />"#,
@@ -168,7 +172,7 @@ impl ResvgRenderer {
             }
         }
 
-        svg.push_str(r#"</g>"#);
+        svg.push_str("</g>");
         svg.push_str(r#"<text class="default-text-fill">"#);
 
         for (row, line) in lines.iter().enumerate() {
@@ -183,7 +187,7 @@ impl ResvgRenderer {
 
                 adjust_pen(&mut attrs, &cursor, col, row, theme);
 
-                svg.push_str(r#"<tspan "#);
+                svg.push_str("<tspan ");
 
                 if !did_dy {
                     svg.push_str(r#"dy="1em" "#);
@@ -225,10 +229,10 @@ impl ResvgRenderer {
                     }
                 }
 
-                svg.push_str(r#"</tspan>"#);
+                svg.push_str("</tspan>");
             }
 
-            svg.push_str(r#"</tspan>"#);
+            svg.push_str("</tspan>");
         }
 
         svg.push_str("</text>");
