@@ -42,6 +42,7 @@ fn get_font(
             collection_index: face_index,
             ..Default::default()
         };
+
         fontdue::Font::from_bytes(font_data, settings).unwrap()
     })
 }

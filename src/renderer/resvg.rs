@@ -184,11 +184,13 @@ impl ResvgRenderer {
                 adjust_pen(&mut attrs, &cursor, col, row, theme);
 
                 svg.push_str(r#"<tspan "#);
+
                 if !did_dy {
                     // if i == 0 {
                     svg.push_str(r#"dy="1em" "#);
                     did_dy = true;
                 }
+
                 let x = 100.0 * (col as f32) / (cols as f32 + 2.0);
                 let class = attrs.svg_text_class();
                 let style = attrs.svg_text_style(theme);
@@ -199,32 +201,36 @@ impl ResvgRenderer {
                     r#"x="{:.3}%" class="{}" style="{}">"#,
                     x, class, style
                 ));
-                // // svg.push_str(&format!(r#">{}"#, t));
+
                 match ch {
                     '\'' => {
                         svg.push_str("&#39;");
                     }
+
                     '"' => {
                         svg.push_str("&quot;");
                     }
+
                     '&' => {
                         svg.push_str("&amp;");
                     }
+
                     '>' => {
                         svg.push_str("&gt;");
                     }
+
                     '<' => {
                         svg.push_str("&lt;");
                     }
-                    // ' ' => {
-                    //     svg.push_str("   ");
-                    // }
+
                     _ => {
                         svg.push(*ch);
                     }
                 }
+
                 svg.push_str(r#"</tspan>"#);
             }
+
             svg.push_str(r#"</tspan>"#);
         }
 

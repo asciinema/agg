@@ -280,7 +280,6 @@ fn main() -> Result<()> {
     // ======== goooooooooooooo
 
     let start_time = Instant::now();
-
     let file = File::create(cli.output_filename)?;
 
     let writer_handle = thread::spawn(move || {
@@ -293,9 +292,7 @@ fn main() -> Result<()> {
     }
 
     drop(collector);
-
     writer_handle.join().unwrap()?;
-
     info!("finished in {}s", start_time.elapsed().as_secs_f32());
 
     Ok(())
