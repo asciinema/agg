@@ -140,10 +140,10 @@ impl Renderer for FontdueRenderer {
         let margin_t = (self.row_height / 2.0).round() as usize;
 
         for (row, chars) in lines.iter().enumerate() {
-            for (col, (ch, mut attrs)) in chars.iter().enumerate() {
-                adjust_pen(&mut attrs, &cursor, col, row, &self.theme);
+            for (col, (ch, mut pen)) in chars.iter().enumerate() {
+                adjust_pen(&mut pen, &cursor, col, row, &self.theme);
 
-                if let Some(c) = attrs.background {
+                if let Some(c) = pen.background {
                     let c = color_to_rgb(&c, &self.theme);
                     let y_t = margin_t + (row as f32 * self.row_height).round() as usize;
                     let y_b = margin_t + ((row + 1) as f32 * self.row_height).round() as usize;
@@ -163,8 +163,7 @@ impl Renderer for FontdueRenderer {
                 }
 
                 let fg = color_to_rgb(
-                    &attrs
-                        .foreground
+                    &pen.foreground
                         .unwrap_or(vt::Color::RGB(self.theme.foreground)),
                     &self.theme,
                 )
@@ -172,9 +171,9 @@ impl Renderer for FontdueRenderer {
 
                 let (metrics, bitmap) = self
                     .cache
-                    .entry((*ch, attrs.bold, attrs.italic))
+                    .entry((*ch, pen.bold, pen.italic))
                     .or_insert_with(|| {
-                        let font = match (attrs.bold, attrs.italic) {
+                        let font = match (pen.bold, pen.italic) {
                             (false, false) => &self.default_font,
                             (true, false) => &self.bold_font,
                             (false, true) => &self.italic_font,
