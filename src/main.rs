@@ -258,7 +258,7 @@ fn main() -> Result<()> {
         height: Some(renderer.pixel_height() as u32),
         quality: 100,
         fast: true,
-        ..gifski::Settings::default()
+        ..Default::default()
     };
 
     let (mut collector, writer) = gifski::new(settings)?;
