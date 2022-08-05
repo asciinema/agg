@@ -12,16 +12,11 @@ pub struct ResvgRenderer {
     pixel_width: usize,
     pixel_height: usize,
     char_width: f32,
+    row_height: f32,
     options: usvg::Options,
     transform: tiny_skia::Transform,
     fit_to: usvg::FitTo,
-    font_family: String,
-}
-
-trait SvgText {
-    fn svg_text_class(&self) -> String;
-    fn svg_text_style(&self, theme: &Theme) -> String;
-    fn svg_rect_style(&self, theme: &Theme) -> String;
+    header: String,
 }
 
 fn color_to_style(color: &vt::Color, theme: &Theme) -> String {
@@ -30,36 +25,34 @@ fn color_to_style(color: &vt::Color, theme: &Theme) -> String {
     format!("fill: rgb({},{},{})", c.r, c.g, c.b)
 }
 
-impl SvgText for vt::Pen {
-    fn svg_text_class(&self) -> String {
-        let mut class = "".to_owned();
+fn text_class(pen: &vt::Pen) -> String {
+    let mut class = "".to_owned();
 
-        if self.bold {
-            class.push_str("br");
-        }
-
-        if self.italic {
-            class.push_str(" it");
-        }
-
-        if self.underline {
-            class.push_str(" un");
-        }
-
-        class
+    if pen.bold {
+        class.push_str("br");
     }
 
-    fn svg_text_style(&self, theme: &Theme) -> String {
-        self.foreground
-            .map(|c| color_to_style(&c, theme))
-            .unwrap_or_else(|| "".to_owned())
+    if pen.italic {
+        class.push_str(" it");
     }
 
-    fn svg_rect_style(&self, theme: &Theme) -> String {
-        self.background
-            .map(|c| color_to_style(&c, theme))
-            .unwrap_or_else(|| "".to_owned())
+    if pen.underline {
+        class.push_str(" un");
     }
+
+    class
+}
+
+fn text_style(pen: &vt::Pen, theme: &Theme) -> String {
+    pen.foreground
+        .map(|c| color_to_style(&c, theme))
+        .unwrap_or_else(|| "".to_owned())
+}
+
+fn rect_style(pen: &vt::Pen, theme: &Theme) -> String {
+    pen.background
+        .map(|c| color_to_style(&c, theme))
+        .unwrap_or_else(|| "".to_owned())
 }
 
 impl ResvgRenderer {
@@ -72,13 +65,16 @@ impl ResvgRenderer {
         zoom: f32,
     ) -> Self {
         let char_width = 100.0 * 1.0 / (cols as f32 + 2.0);
+        let font_size = 14.0;
+        let row_height = font_size * 1.4;
         let options = usvg::Options {
             fontdb: font_db,
             ..Default::default()
         };
         let fit_to = usvg::FitTo::Zoom(zoom);
         let transform = tiny_skia::Transform::default();
-        let mut svg = Self::header(cols, rows, font_family, &theme);
+        let header = Self::header(cols, rows, font_family, font_size, row_height, &theme);
+        let mut svg = header.clone();
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options.to_ref()).unwrap();
         let screen_size = tree.svg_node().size.to_screen_size();
@@ -93,48 +89,39 @@ impl ResvgRenderer {
             pixel_width,
             pixel_height,
             char_width,
+            row_height,
             options,
             transform,
             fit_to,
-            font_family: font_family.to_owned(),
+            header,
         }
     }
 
-    fn header(cols: usize, rows: usize, font_family: &str, theme: &Theme) -> String {
-        let mut svg = String::new();
-
-        svg.push_str(r#"<?xml version="1.0"?>"#);
-
-        let font_size = 14.0;
+    fn header(
+        cols: usize,
+        rows: usize,
+        font_family: &str,
+        font_size: f32,
+        row_height: f32,
+        theme: &Theme,
+    ) -> String {
         let width = (cols + 2) as f32 * 8.433333;
-        let height = (rows + 1) as f32 * font_size * 1.4;
-
-        svg.push_str(&format!(r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="{}">"#, width, height, font_size, font_family));
-
-        svg.push_str(
-            "
-            <style>
-            .br { font-weight: bold }
-            .it { font-style: italic }
-            .un { text-decoration: underline }
-            </style>
-        ",
-        );
-
-        svg.push_str(&format!(
-            r#"<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />"#,
-            4, 4, theme.background
-        ));
-
+        let height = (rows + 1) as f32 * row_height;
         let x = 1.0 * 100.0 / (cols as f32 + 2.0);
         let y = 0.5 * 100.0 / (rows as f32 + 1.0);
 
-        svg.push_str(&format!(
-            r#"<svg x="{:.3}%" y="{:.3}%" style="fill: {}">"#,
-            x, y, theme.foreground
-        ));
-
-        svg
+        format!(
+            r#"<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="{}">
+<style>
+.br {{ font-weight: bold }}
+.it {{ font-style: italic }}
+.un {{ text-decoration: underline }}
+</style>
+<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />
+<svg x="{:.3}%" y="{:.3}%" style="fill: {}">"#,
+            width, height, font_size, font_family, 4, 4, theme.background, x, y, theme.foreground
+        )
     }
 
     fn footer() -> &'static str {
@@ -142,32 +129,29 @@ impl ResvgRenderer {
     }
 
     fn push_lines(
+        &self,
         svg: &mut String,
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
-        cols: usize,
-        rows: usize,
-        char_width: f32,
-        theme: &Theme,
     ) {
         svg.push_str(r#"<g style="shape-rendering: optimizeSpeed">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f32) / (rows as f32 + 1.0);
+            let y = 100.0 * (row as f32) / (self.rows as f32 + 1.0);
 
-            for (col, (_ch, mut attrs)) in line.iter().enumerate() {
-                adjust_pen(&mut attrs, &cursor, col, row, theme);
+            for (col, (_ch, mut pen)) in line.iter().enumerate() {
+                adjust_pen(&mut pen, &cursor, col, row, &self.theme);
 
-                if attrs.background.is_none() {
+                if pen.background.is_none() {
                     continue;
                 }
 
-                let x = 100.0 * (col as f32) / (cols as f32 + 2.0);
-                let style = attrs.svg_rect_style(theme);
+                let x = 100.0 * (col as f32) / (self.cols as f32 + 2.0);
+                let style = rect_style(&pen, &self.theme);
 
                 svg.push_str(&format!(
-                    r#"<rect x="{:.3}%" y="{:.3}%" width="{:.3}%" height="19.7" style="{}" />"#,
-                    x, y, char_width, style
+                    r#"<rect x="{:.3}%" y="{:.3}%" width="{:.3}%" height="{:.3}" style="{}" />"#,
+                    x, y, self.char_width, self.row_height, style
                 ));
             }
         }
@@ -176,16 +160,16 @@ impl ResvgRenderer {
         svg.push_str(r#"<text class="default-text-fill">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f32) / (rows as f32 + 1.0);
+            let y = 100.0 * (row as f32) / (self.rows as f32 + 1.0);
             svg.push_str(&format!(r#"<tspan y="{:.3}%">"#, y));
             let mut did_dy = false;
 
-            for (col, (ch, mut attrs)) in line.iter().enumerate() {
+            for (col, (ch, mut pen)) in line.iter().enumerate() {
                 if ch == &' ' {
                     continue;
                 }
 
-                adjust_pen(&mut attrs, &cursor, col, row, theme);
+                adjust_pen(&mut pen, &cursor, col, row, &self.theme);
 
                 svg.push_str("<tspan ");
 
@@ -194,9 +178,9 @@ impl ResvgRenderer {
                     did_dy = true;
                 }
 
-                let x = 100.0 * (col as f32) / (cols as f32 + 2.0);
-                let class = attrs.svg_text_class();
-                let style = attrs.svg_text_style(theme);
+                let x = 100.0 * (col as f32) / (self.cols as f32 + 2.0);
+                let class = text_class(&pen);
+                let style = text_style(&pen, &self.theme);
 
                 svg.push_str(&format!(
                     r#"x="{:.3}%" class="{}" style="{}">"#,
@@ -245,24 +229,14 @@ impl Renderer for ResvgRenderer {
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8> {
-        let mut svg = Self::header(self.cols, self.rows, &self.font_family, &self.theme);
-
-        Self::push_lines(
-            &mut svg,
-            lines,
-            cursor,
-            self.cols,
-            self.rows,
-            self.char_width,
-            &self.theme,
-        );
-
+        let mut svg = self.header.clone();
+        self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
-
         let tree = usvg::Tree::from_str(&svg, &self.options.to_ref()).unwrap();
 
         let mut pixmap =
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
+
         resvg::render(&tree, self.fit_to, self.transform, pixmap.as_mut()).unwrap();
         let buf = pixmap.take().as_rgba().to_vec();
 
