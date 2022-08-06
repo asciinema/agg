@@ -11,8 +11,8 @@ pub struct ResvgRenderer {
     theme: Theme,
     pixel_width: usize,
     pixel_height: usize,
-    char_width: f32,
-    row_height: f32,
+    char_width: f64,
+    row_height: f64,
     options: usvg::Options,
     transform: tiny_skia::Transform,
     fit_to: usvg::FitTo,
@@ -62,11 +62,11 @@ impl ResvgRenderer {
         font_db: fontdb::Database,
         font_family: &str,
         font_size: usize,
-        line_height: f32,
+        line_height: f64,
         theme: Theme,
     ) -> Self {
-        let char_width = 100.0 * 1.0 / (cols as f32 + 2.0);
-        let font_size = font_size as f32;
+        let char_width = 100.0 / (cols as f64 + 2.0);
+        let font_size = font_size as f64;
         let row_height = font_size * line_height;
         let options = usvg::Options {
             fontdb: font_db,
@@ -102,14 +102,14 @@ impl ResvgRenderer {
         cols: usize,
         rows: usize,
         font_family: &str,
-        font_size: f32,
-        row_height: f32,
+        font_size: f64,
+        row_height: f64,
         theme: &Theme,
     ) -> String {
-        let width = (cols + 2) as f32 * (font_size * 0.6);
-        let height = (rows + 1) as f32 * row_height;
-        let x = 1.0 * 100.0 / (cols as f32 + 2.0);
-        let y = 0.5 * 100.0 / (rows as f32 + 1.0);
+        let width = (cols + 2) as f64 * (font_size * 0.6);
+        let height = (rows + 1) as f64 * row_height;
+        let x = 1.0 * 100.0 / (cols as f64 + 2.0);
+        let y = 0.5 * 100.0 / (rows as f64 + 1.0);
 
         format!(
             r#"<?xml version="1.0"?>
@@ -148,7 +148,7 @@ impl ResvgRenderer {
         svg.push_str(r#"<g style="shape-rendering: optimizeSpeed">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f32) / (self.rows as f32 + 1.0);
+            let y = 100.0 * (row as f64) / (self.rows as f64 + 1.0);
 
             for (col, (_ch, mut pen)) in line.iter().enumerate() {
                 adjust_pen(&mut pen, &cursor, col, row, &self.theme);
@@ -157,7 +157,7 @@ impl ResvgRenderer {
                     continue;
                 }
 
-                let x = 100.0 * (col as f32) / (self.cols as f32 + 2.0);
+                let x = 100.0 * (col as f64) / (self.cols as f64 + 2.0);
                 let style = rect_style(&pen, &self.theme);
 
                 svg.push_str(&format!(
@@ -179,7 +179,7 @@ impl ResvgRenderer {
         svg.push_str(r#"<text class="default-text-fill">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f32) / (self.rows as f32 + 1.0);
+            let y = 100.0 * (row as f64) / (self.rows as f64 + 1.0);
             svg.push_str(&format!(r#"<tspan y="{:.3}%">"#, y));
             let mut did_dy = false;
 
@@ -197,7 +197,7 @@ impl ResvgRenderer {
                     did_dy = true;
                 }
 
-                let x = 100.0 * (col as f32) / (self.cols as f32 + 2.0);
+                let x = 100.0 * (col as f64) / (self.cols as f64 + 2.0);
                 let class = text_class(&pen);
                 let style = text_style(&pen, &self.theme);
 

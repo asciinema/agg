@@ -22,7 +22,7 @@ pub fn resvg(
     font_db: fontdb::Database,
     font_family: &str,
     font_size: usize,
-    line_height: f32,
+    line_height: f64,
     theme: Theme,
 ) -> resvg::ResvgRenderer {
     resvg::ResvgRenderer::new(
@@ -42,7 +42,7 @@ pub fn fontdue(
     font_db: fontdb::Database,
     font_family: &str,
     font_size: usize,
-    line_height: f32,
+    line_height: f64,
     theme: Theme,
 ) -> fontdue::FontdueRenderer {
     fontdue::FontdueRenderer::new(

@@ -17,8 +17,8 @@ pub struct FontdueRenderer {
     italic_font: fontdue::Font,
     bold_italic_font: fontdue::Font,
     emoji_font: fontdue::Font,
-    col_width: f32,
-    row_height: f32,
+    col_width: f64,
+    row_height: f64,
     cache: HashMap<(char, bool, bool), (fontdue::Metrics, Vec<u8>)>,
 }
 
@@ -54,7 +54,7 @@ impl FontdueRenderer {
         font_db: fontdb::Database,
         font_family: &str,
         font_size: usize,
-        line_height: f32,
+        line_height: f64,
         theme: Theme,
     ) -> Self {
         let default_font = get_font(
@@ -109,8 +109,8 @@ impl FontdueRenderer {
             italic_font,
             bold_italic_font,
             emoji_font,
-            col_width: metrics.advance_width,
-            row_height: (font_size as f32) * line_height,
+            col_width: metrics.advance_width as f64,
+            row_height: (font_size as f64) * line_height,
             cache: HashMap::new(),
         }
     }
@@ -145,12 +145,12 @@ impl Renderer for FontdueRenderer {
 
                 if let Some(c) = pen.background {
                     let c = color_to_rgb(&c, &self.theme);
-                    let y_t = margin_t + (row as f32 * self.row_height).round() as usize;
-                    let y_b = margin_t + ((row + 1) as f32 * self.row_height).round() as usize;
+                    let y_t = margin_t + (row as f64 * self.row_height).round() as usize;
+                    let y_b = margin_t + ((row + 1) as f64 * self.row_height).round() as usize;
 
                     for y in y_t..y_b {
-                        let x_l = (margin_l + col as f32 * self.col_width).round() as usize;
-                        let x_r = (margin_l + (col + 1) as f32 * self.col_width).round() as usize;
+                        let x_l = (margin_l + col as f64 * self.col_width).round() as usize;
+                        let x_r = (margin_l + (col + 1) as f64 * self.col_width).round() as usize;
 
                         for x in x_l..x_r {
                             buf[y * width + x] = c.alpha(255);
@@ -190,7 +190,7 @@ impl Renderer for FontdueRenderer {
                     });
 
                 let y_offset = (margin_t + self.font_size - metrics.height) as i32
-                    + (row as f32 * self.row_height).round() as i32
+                    + (row as f64 * self.row_height).round() as i32
                     - metrics.ymin;
 
                 for bmap_y in 0..metrics.height {
@@ -201,7 +201,7 @@ impl Renderer for FontdueRenderer {
                     }
 
                     let x_offset = margin_l as i32
-                        + (col as f32 * self.col_width).round() as i32
+                        + (col as f64 * self.col_width).round() as i32
                         + metrics.xmin;
 
                     for bmap_x in 0..metrics.width {
@@ -225,10 +225,10 @@ impl Renderer for FontdueRenderer {
     }
 
     fn pixel_width(&self) -> usize {
-        ((self.cols + 2) as f32 * self.col_width).round() as usize
+        ((self.cols + 2) as f64 * self.col_width).round() as usize
     }
 
     fn pixel_height(&self) -> usize {
-        ((self.rows + 1) as f32 * self.row_height).round() as usize
+        ((self.rows + 1) as f64 * self.row_height).round() as usize
     }
 }

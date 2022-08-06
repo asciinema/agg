@@ -146,7 +146,7 @@ struct Cli {
 
     /// Specify line height
     #[clap(long, default_value_t = 1.4)]
-    line_height: f32,
+    line_height: f64,
 
     /// Select color theme
     #[clap(long, value_parser = ThemeOptValueParser)]
