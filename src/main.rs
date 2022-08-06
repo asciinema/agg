@@ -189,6 +189,8 @@ fn main() -> Result<()> {
         )
     };
 
+    info!("terminal size: {}x{}", cols, rows);
+
     // ============ font database
 
     let mut font_db = fontdb::Database::new();
