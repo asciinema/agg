@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::anyhow;
+use anyhow::bail;
 use rgb::RGB8;
 
 #[derive(Clone, Debug)]
@@ -12,7 +12,7 @@ pub struct Theme {
 
 fn parse_hex_triplet(triplet: &str) -> anyhow::Result<RGB8> {
     if triplet.len() < 6 || triplet.len() > 6 {
-        return Err(anyhow!("{} is not a hex triplet", triplet));
+        bail!("{} is not a hex triplet", triplet);
     }
 
     let r = u8::from_str_radix(&triplet[0..2], 16)?;
@@ -35,10 +35,7 @@ impl FromStr for Theme {
             .collect::<anyhow::Result<Vec<RGB8>>>()?;
 
         if colors.len() != 10 && colors.len() != 18 {
-            return Err(anyhow!(
-                "expected 10 or 18 hex triplets, got {}",
-                colors.len()
-            ));
+            bail!("expected 10 or 18 hex triplets, got {}", colors.len());
         }
 
         let background = colors[0];
