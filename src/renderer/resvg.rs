@@ -3,7 +3,7 @@ use rgb::{FromSlice, RGBA8};
 
 use crate::theme::Theme;
 
-use super::{adjust_pen, color_to_rgb, Renderer};
+use super::{adjust_pen, color_to_rgb, Renderer, Settings};
 
 pub struct ResvgRenderer {
     cols: usize,
@@ -56,25 +56,28 @@ fn rect_style(pen: &vt::Pen, theme: &Theme) -> String {
 }
 
 impl ResvgRenderer {
-    pub fn new(
-        cols: usize,
-        rows: usize,
-        font_db: fontdb::Database,
-        font_family: &str,
-        font_size: usize,
-        line_height: f64,
-        theme: Theme,
-    ) -> Self {
-        let char_width = 100.0 / (cols as f64 + 2.0);
-        let font_size = font_size as f64;
-        let row_height = font_size * line_height;
+    pub fn new(settings: Settings) -> Self {
+        let char_width = 100.0 / (settings.cols as f64 + 2.0);
+        let font_size = settings.font_size as f64;
+        let row_height = font_size * settings.line_height;
+
         let options = usvg::Options {
-            fontdb: font_db,
+            fontdb: settings.font_db,
             ..Default::default()
         };
+
         let fit_to = usvg::FitTo::Original;
         let transform = tiny_skia::Transform::default();
-        let header = Self::header(cols, rows, font_family, font_size, row_height, &theme);
+
+        let header = Self::header(
+            settings.cols,
+            settings.rows,
+            &settings.font_family,
+            font_size,
+            row_height,
+            &settings.theme,
+        );
+
         let mut svg = header.clone();
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options.to_ref()).unwrap();
@@ -84,9 +87,9 @@ impl ResvgRenderer {
         let pixel_height = screen_size.height() as usize;
 
         Self {
-            cols,
-            rows,
-            theme,
+            cols: settings.cols,
+            rows: settings.rows,
+            theme: settings.theme,
             pixel_width,
             pixel_height,
             char_width,

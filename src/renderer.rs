@@ -16,44 +16,22 @@ pub trait Renderer {
     fn pixel_height(&self) -> usize;
 }
 
-pub fn resvg(
-    cols: usize,
-    rows: usize,
-    font_db: fontdb::Database,
-    font_family: &str,
-    font_size: usize,
-    line_height: f64,
-    theme: Theme,
-) -> resvg::ResvgRenderer {
-    resvg::ResvgRenderer::new(
-        cols,
-        rows,
-        font_db,
-        font_family,
-        font_size,
-        line_height,
-        theme,
-    )
+pub struct Settings {
+    pub cols: usize,
+    pub rows: usize,
+    pub font_db: fontdb::Database,
+    pub font_family: String,
+    pub font_size: usize,
+    pub line_height: f64,
+    pub theme: Theme,
 }
 
-pub fn fontdue(
-    cols: usize,
-    rows: usize,
-    font_db: fontdb::Database,
-    font_family: &str,
-    font_size: usize,
-    line_height: f64,
-    theme: Theme,
-) -> fontdue::FontdueRenderer {
-    fontdue::FontdueRenderer::new(
-        cols,
-        rows,
-        font_db,
-        font_family,
-        font_size,
-        line_height,
-        theme,
-    )
+pub fn resvg(settings: Settings) -> resvg::ResvgRenderer {
+    resvg::ResvgRenderer::new(settings)
+}
+
+pub fn fontdue(settings: Settings) -> fontdue::FontdueRenderer {
+    fontdue::FontdueRenderer::new(settings)
 }
 
 fn adjust_pen(

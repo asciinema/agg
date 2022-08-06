@@ -5,7 +5,7 @@ use rgb::RGBA8;
 
 use crate::theme::Theme;
 
-use super::{adjust_pen, color_to_rgb, Renderer};
+use super::{adjust_pen, color_to_rgb, Renderer, Settings};
 
 pub struct FontdueRenderer {
     cols: usize,
@@ -48,69 +48,61 @@ fn get_font(
 }
 
 impl FontdueRenderer {
-    pub fn new(
-        cols: usize,
-        rows: usize,
-        font_db: fontdb::Database,
-        font_family: &str,
-        font_size: usize,
-        line_height: f64,
-        theme: Theme,
-    ) -> Self {
+    pub fn new(settings: Settings) -> Self {
         let default_font = get_font(
-            &font_db,
-            font_family,
+            &settings.font_db,
+            &settings.font_family,
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         )
         .unwrap();
 
         let bold_font = get_font(
-            &font_db,
-            font_family,
+            &settings.font_db,
+            &settings.font_family,
             fontdb::Weight::BOLD,
             fontdb::Style::Normal,
         )
         .unwrap_or_else(|| default_font.clone());
 
         let italic_font = get_font(
-            &font_db,
-            font_family,
+            &settings.font_db,
+            &settings.font_family,
             fontdb::Weight::NORMAL,
             fontdb::Style::Italic,
         )
         .unwrap_or_else(|| default_font.clone());
 
         let bold_italic_font = get_font(
-            &font_db,
-            font_family,
+            &settings.font_db,
+            &settings.font_family,
             fontdb::Weight::BOLD,
             fontdb::Style::Italic,
         )
         .unwrap_or_else(|| default_font.clone());
 
         let emoji_font = get_font(
-            &font_db,
+            &settings.font_db,
             "Noto Emoji",
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         )
         .unwrap_or_else(|| default_font.clone());
 
-        let metrics = default_font.metrics('/', font_size as f32);
+        let metrics = default_font.metrics('/', settings.font_size as f32);
 
         Self {
-            cols,
-            rows,
-            theme,
-            font_size,
+            cols: settings.cols,
+            rows: settings.rows,
+            theme: settings.theme,
+            font_size: settings.font_size,
             default_font,
             bold_font,
             italic_font,
             bold_italic_font,
             emoji_font,
             col_width: metrics.advance_width as f64,
-            row_height: (font_size as f64) * line_height,
+            row_height: (settings.font_size as f64) * settings.line_height,
             cache: HashMap::new(),
         }
     }

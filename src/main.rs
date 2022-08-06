@@ -236,26 +236,19 @@ fn main() -> Result<()> {
 
     // =========== renderer
 
-    let mut renderer: Box<dyn Renderer> = match cli.renderer {
-        RendererOpt::Fontdue => Box::new(renderer::fontdue(
-            cols,
-            rows,
-            font_db,
-            &font_family,
-            cli.font_size,
-            cli.line_height,
-            theme,
-        )),
+    let settings = renderer::Settings {
+        cols,
+        rows,
+        font_db,
+        font_family,
+        font_size: cli.font_size,
+        line_height: cli.line_height,
+        theme,
+    };
 
-        RendererOpt::Resvg => Box::new(renderer::resvg(
-            cols,
-            rows,
-            font_db,
-            &font_family,
-            cli.font_size,
-            cli.line_height,
-            theme,
-        )),
+    let mut renderer: Box<dyn Renderer> = match cli.renderer {
+        RendererOpt::Fontdue => Box::new(renderer::fontdue(settings)),
+        RendererOpt::Resvg => Box::new(renderer::resvg(settings)),
     };
 
     info!(
