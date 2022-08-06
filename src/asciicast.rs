@@ -66,12 +66,9 @@ impl TryInto<Header> for V2Header {
                     .collect::<Vec<_>>()
                     .join(",");
 
-                let s = format!("{},{},{}", &bg[1..], &fg[1..], palette);
+                let theme = format!("{},{},{}", &bg[1..], &fg[1..], palette);
 
-                match s.parse() {
-                    Ok(t) => Some(t),
-                    Err(_) => return Err(Error::InvalidTheme),
-                }
+                Some(theme.parse().or(Err(Error::InvalidTheme))?)
             }
 
             Some(_) => return Err(Error::InvalidTheme),
@@ -110,12 +107,7 @@ pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Er
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
-
-    let first_line = match lines.next() {
-        Some(line) => line?,
-        None => return Err(Error::EmptyFile),
-    };
-
+    let first_line = lines.next().ok_or(Error::EmptyFile)??;
     let v2_header: V2Header = serde_json::from_str(&first_line)?;
     let header: Header = v2_header.try_into()?;
 
@@ -127,14 +119,10 @@ pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Er
 }
 
 fn parse_event(line: String) -> Result<Event, Error> {
-    let v: serde_json::Value = serde_json::from_str(&line)?;
+    let value: serde_json::Value = serde_json::from_str(&line)?;
+    let time = value[0].as_f64().ok_or(Error::InvalidEventTime)?;
 
-    let time = match v[0].as_f64() {
-        Some(time) => time,
-        None => return Err(Error::InvalidEventTime),
-    };
-
-    let event_type = match v[1].as_str() {
+    let event_type = match value[1].as_str() {
         Some("o") => EventType::Output,
         Some("i") => EventType::Input,
         Some(s) if !s.is_empty() => EventType::Other(s.chars().next().unwrap()),
@@ -142,7 +130,7 @@ fn parse_event(line: String) -> Result<Event, Error> {
         None => return Err(Error::InvalidEventType("".to_owned())),
     };
 
-    let data = match v[2].as_str() {
+    let data = match value[2].as_str() {
         Some(data) => data.to_owned(),
         None => return Err(Error::InvalidEventData),
     };

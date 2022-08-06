@@ -107,10 +107,7 @@ impl clap::builder::TypedValueParser for ThemeOptValueParser {
         } else {
             let inner = clap::value_parser!(BuiltinTheme);
 
-            match inner.parse_ref(cmd, arg, value) {
-                Ok(t) => Ok(ThemeOpt::Builtin(t)),
-                Err(e) => Err(e),
-            }
+            inner.parse_ref(cmd, arg, value).map(ThemeOpt::Builtin)
         }
     }
 
