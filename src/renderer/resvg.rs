@@ -61,17 +61,17 @@ impl ResvgRenderer {
         rows: usize,
         font_db: fontdb::Database,
         font_family: &str,
+        font_size: usize,
         theme: Theme,
-        zoom: f32,
     ) -> Self {
         let char_width = 100.0 * 1.0 / (cols as f32 + 2.0);
-        let font_size = 14.0;
+        let font_size = font_size as f32;
         let row_height = font_size * 1.4;
         let options = usvg::Options {
             fontdb: font_db,
             ..Default::default()
         };
-        let fit_to = usvg::FitTo::Zoom(zoom);
+        let fit_to = usvg::FitTo::Original;
         let transform = tiny_skia::Transform::default();
         let header = Self::header(cols, rows, font_family, font_size, row_height, &theme);
         let mut svg = header.clone();
@@ -105,7 +105,7 @@ impl ResvgRenderer {
         row_height: f32,
         theme: &Theme,
     ) -> String {
-        let width = (cols + 2) as f32 * 8.433333;
+        let width = (cols + 2) as f32 * (font_size * 0.6);
         let height = (rows + 1) as f32 * row_height;
         let x = 1.0 * 100.0 / (cols as f32 + 2.0);
         let y = 0.5 * 100.0 / (rows as f32 + 1.0);

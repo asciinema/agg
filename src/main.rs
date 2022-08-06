@@ -140,6 +140,10 @@ struct Cli {
     #[clap(long, default_value_t = String::from("JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"))]
     font_family: String,
 
+    /// Specify font size (in pixels)
+    #[clap(long, default_value_t = 14)]
+    font_size: usize,
+
     /// Select color theme
     #[clap(long, value_parser = ThemeOptValueParser)]
     theme: Option<ThemeOpt>,
@@ -147,10 +151,6 @@ struct Cli {
     /// Use additional font directory
     #[clap(long)]
     font_dir: Vec<String>,
-
-    /// Set zoom level (text scaling)
-    #[clap(long, default_value_t = 1.0)]
-    zoom: f32,
 
     /// Adjust playback speed
     #[clap(long, default_value_t = 1.0)]
@@ -241,8 +241,8 @@ fn main() -> Result<()> {
             rows,
             font_db,
             &font_family,
+            cli.font_size,
             theme,
-            cli.zoom,
         )),
 
         RendererOpt::Resvg => Box::new(renderer::resvg(
@@ -250,8 +250,8 @@ fn main() -> Result<()> {
             rows,
             font_db,
             &font_family,
+            cli.font_size,
             theme,
-            cli.zoom,
         )),
     };
 

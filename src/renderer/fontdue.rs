@@ -53,8 +53,8 @@ impl FontdueRenderer {
         rows: usize,
         font_db: fontdb::Database,
         font_family: &str,
+        font_size: usize,
         theme: Theme,
-        zoom: f32,
     ) -> Self {
         let default_font = get_font(
             &font_db,
@@ -96,21 +96,20 @@ impl FontdueRenderer {
         )
         .unwrap_or_else(|| default_font.clone());
 
-        let font_size = 14.0 * zoom;
-        let metrics = default_font.metrics('/', font_size);
+        let metrics = default_font.metrics('/', font_size as f32);
 
         Self {
             cols,
             rows,
             theme,
-            font_size: font_size as usize,
+            font_size,
             default_font,
             bold_font,
             italic_font,
             bold_italic_font,
             emoji_font,
             col_width: metrics.advance_width,
-            row_height: font_size * 1.4,
+            row_height: (font_size as f32) * 1.4,
             cache: HashMap::new(),
         }
     }

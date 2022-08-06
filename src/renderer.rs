@@ -21,10 +21,10 @@ pub fn resvg(
     rows: usize,
     font_db: fontdb::Database,
     font_family: &str,
+    font_size: usize,
     theme: Theme,
-    zoom: f32,
 ) -> resvg::ResvgRenderer {
-    resvg::ResvgRenderer::new(cols, rows, font_db, font_family, theme, zoom)
+    resvg::ResvgRenderer::new(cols, rows, font_db, font_family, font_size, theme)
 }
 
 pub fn fontdue(
@@ -32,10 +32,10 @@ pub fn fontdue(
     rows: usize,
     font_db: fontdb::Database,
     font_family: &str,
+    font_size: usize,
     theme: Theme,
-    zoom: f32,
 ) -> fontdue::FontdueRenderer {
-    fontdue::FontdueRenderer::new(cols, rows, font_db, font_family, theme, zoom)
+    fontdue::FontdueRenderer::new(cols, rows, font_db, font_family, font_size, theme)
 }
 
 fn adjust_pen(
