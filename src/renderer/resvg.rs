@@ -134,6 +134,16 @@ impl ResvgRenderer {
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) {
+        self.push_background(svg, &lines, cursor);
+        self.push_text(svg, &lines, cursor);
+    }
+
+    fn push_background(
+        &self,
+        svg: &mut String,
+        lines: &[Vec<(char, vt::Pen)>],
+        cursor: Option<(usize, usize)>,
+    ) {
         svg.push_str(r#"<g style="shape-rendering: optimizeSpeed">"#);
 
         for (row, line) in lines.iter().enumerate() {
@@ -157,6 +167,14 @@ impl ResvgRenderer {
         }
 
         svg.push_str("</g>");
+    }
+
+    fn push_text(
+        &self,
+        svg: &mut String,
+        lines: &[Vec<(char, vt::Pen)>],
+        cursor: Option<(usize, usize)>,
+    ) {
         svg.push_str(r#"<text class="default-text-fill">"#);
 
         for (row, line) in lines.iter().enumerate() {
