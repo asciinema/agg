@@ -11,9 +11,6 @@ mod theme;
 use crate::renderer::Renderer;
 use crate::theme::Theme;
 
-// TODO:
-// time window (from/to)
-
 #[derive(Clone, ArgEnum)]
 enum RendererOpt {
     Fontdue,
