@@ -58,10 +58,12 @@ impl From<ThemeOpt> for Theme {
 
 impl Display for ThemeOpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ThemeOpt::*;
+
         match self {
-            ThemeOpt::Builtin(t) => write!(f, "{}", format!("{:?}", t).to_lowercase()),
-            ThemeOpt::Custom(_) => f.write_str("custom"),
-            ThemeOpt::Embedded(_) => f.write_str("embedded"),
+            Builtin(t) => write!(f, "{}", format!("{:?}", t).to_lowercase()),
+            Custom(_) => f.write_str("custom"),
+            Embedded(_) => f.write_str("embedded"),
         }
     }
 }
