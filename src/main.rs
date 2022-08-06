@@ -32,6 +32,7 @@ pub enum BuiltinTheme {
 pub enum ThemeOpt {
     Builtin(BuiltinTheme),
     Custom(Theme),
+    Embedded(Theme),
 }
 
 impl From<ThemeOpt> for Theme {
@@ -48,7 +49,9 @@ impl From<ThemeOpt> for Theme {
 
             Builtin(SolarizedLight) => "fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
 
-            Custom(t) => t
+            Custom(t) => t,
+
+            Embedded(t) => t,
         }
     }
 }
@@ -58,6 +61,7 @@ impl Display for ThemeOpt {
         match self {
             ThemeOpt::Builtin(t) => write!(f, "{}", format!("{:?}", t).to_lowercase()),
             ThemeOpt::Custom(_) => f.write_str("custom"),
+            ThemeOpt::Embedded(_) => f.write_str("embedded"),
         }
     }
 }
@@ -219,11 +223,14 @@ fn main() -> Result<()> {
 
     // =========== theme
 
-    let theme: Theme = cli
+    let theme_opt = cli
         .theme
-        .or_else(|| embedded_theme.map(ThemeOpt::Custom))
-        .unwrap_or(ThemeOpt::Builtin(BuiltinTheme::Asciinema))
-        .into();
+        .or_else(|| embedded_theme.map(ThemeOpt::Embedded))
+        .unwrap_or(ThemeOpt::Builtin(BuiltinTheme::Asciinema));
+
+    info!("selected theme: {}", theme_opt);
+
+    let theme: Theme = theme_opt.into();
 
     // =========== renderer
 
@@ -246,6 +253,12 @@ fn main() -> Result<()> {
             cli.zoom,
         )),
     };
+
+    info!(
+        "gif dimensions: {}x{}",
+        renderer.pixel_width(),
+        renderer.pixel_height()
+    );
 
     // ============ GIF writer
 
@@ -300,7 +313,10 @@ fn main() -> Result<()> {
 
     drop(collector);
     writer_handle.join().unwrap()?;
-    info!("finished in {}s", start_time.elapsed().as_secs_f32());
+    info!(
+        "rendering finished in {}s",
+        start_time.elapsed().as_secs_f32()
+    );
 
     Ok(())
 }
