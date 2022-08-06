@@ -312,6 +312,7 @@ fn main() -> Result<()> {
 
     drop(collector);
     writer_handle.join().unwrap()?;
+
     info!(
         "rendering finished in {}s",
         start_time.elapsed().as_secs_f32()
