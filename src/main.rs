@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::{ArgAction, ArgEnum, Parser};
-use log::info;
+use log::{debug, info};
 use std::fmt::{Debug, Display};
 use std::{fs::File, thread, time::Instant};
 use vt::VT;
@@ -186,10 +186,6 @@ fn main() -> Result<()> {
         )
     };
 
-    // ============ VT
-
-    let vt = VT::new(cols, rows);
-
     // ============ font database
 
     let mut font_db = fontdb::Database::new();
@@ -265,29 +261,40 @@ fn main() -> Result<()> {
 
     // ============= iterator
 
-    let count = events.len() as u64;
+    let mut vt = VT::new(cols, rows);
+    let mut prev_cursor = None;
 
-    let images = events
-        .iter()
-        .scan(vt, |vt, (t, d)| {
-            vt.feed_str(d);
-            let cursor = vt.get_cursor();
-            let lines = vt.lines();
-            Some((t, lines, cursor))
-        })
-        .map(move |(time, lines, cursor)| (renderer.render(lines, cursor), time));
+    let images = events.iter().filter_map(|(time, data)| {
+        let changed_lines = vt.feed_str(data);
+        let cursor = vt.get_cursor();
+
+        if !changed_lines.is_empty() || cursor != prev_cursor {
+            prev_cursor = cursor;
+
+            Some((time, renderer.render(vt.lines(), cursor)))
+        } else {
+            prev_cursor = cursor;
+            debug!("skipping frame with no visual changes: {:?}", data);
+
+            None
+        }
+    });
 
     // ======== goooooooooooooo
 
+    let count = events.len() as u64;
     let start_time = Instant::now();
     let file = File::create(cli.output_filename)?;
 
     let writer_handle = thread::spawn(move || {
         let mut pr = gifski::progress::ProgressBar::new(count);
-        writer.write(file, &mut pr)
+        let result = writer.write(file, &mut pr);
+        pr.finish();
+
+        result
     });
 
-    for (i, (image, time)) in images.enumerate() {
+    for (i, (time, image)) in images.enumerate() {
         collector.add_frame_rgba(i, image, *time)?;
     }
 
