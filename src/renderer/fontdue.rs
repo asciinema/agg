@@ -54,6 +54,7 @@ impl FontdueRenderer {
         font_db: fontdb::Database,
         font_family: &str,
         font_size: usize,
+        line_height: f32,
         theme: Theme,
     ) -> Self {
         let default_font = get_font(
@@ -109,7 +110,7 @@ impl FontdueRenderer {
             bold_italic_font,
             emoji_font,
             col_width: metrics.advance_width,
-            row_height: (font_size as f32) * 1.4,
+            row_height: (font_size as f32) * line_height,
             cache: HashMap::new(),
         }
     }

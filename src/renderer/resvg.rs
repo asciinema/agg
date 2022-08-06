@@ -62,11 +62,12 @@ impl ResvgRenderer {
         font_db: fontdb::Database,
         font_family: &str,
         font_size: usize,
+        line_height: f32,
         theme: Theme,
     ) -> Self {
         let char_width = 100.0 * 1.0 / (cols as f32 + 2.0);
         let font_size = font_size as f32;
-        let row_height = font_size * 1.4;
+        let row_height = font_size * line_height;
         let options = usvg::Options {
             fontdb: font_db,
             ..Default::default()

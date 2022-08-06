@@ -144,6 +144,10 @@ struct Cli {
     #[clap(long, default_value_t = 14)]
     font_size: usize,
 
+    /// Specify line height
+    #[clap(long, default_value_t = 1.4)]
+    line_height: f32,
+
     /// Select color theme
     #[clap(long, value_parser = ThemeOptValueParser)]
     theme: Option<ThemeOpt>,
@@ -242,6 +246,7 @@ fn main() -> Result<()> {
             font_db,
             &font_family,
             cli.font_size,
+            cli.line_height,
             theme,
         )),
 
@@ -251,6 +256,7 @@ fn main() -> Result<()> {
             font_db,
             &font_family,
             cli.font_size,
+            cli.line_height,
             theme,
         )),
     };
