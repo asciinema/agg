@@ -5,6 +5,7 @@ use std::fmt::{Debug, Display};
 use std::{fs::File, thread, time::Instant};
 use vt::VT;
 mod asciicast;
+mod fonts;
 mod frames;
 mod renderer;
 mod theme;
@@ -186,32 +187,8 @@ fn main() -> Result<()> {
 
     // ============ font database
 
-    let mut font_db = fontdb::Database::new();
-    font_db.load_system_fonts();
-
-    for dir in cli.font_dir {
-        font_db.load_fonts_dir(dir);
-    }
-
-    let families = cli
-        .font_family
-        .split(',')
-        .map(fontdb::Family::Name)
-        .collect::<Vec<_>>();
-
-    let query = fontdb::Query {
-        families: &families,
-        weight: fontdb::Weight::NORMAL,
-        stretch: fontdb::Stretch::Normal,
-        style: fontdb::Style::Normal,
-    };
-
-    let face_id = font_db
-        .query(&query)
+    let (font_db, font_family) = fonts::init(&cli.font_dir, &cli.font_family)
         .ok_or_else(|| anyhow!("no faces matching font family {}", cli.font_family))?;
-
-    let face_info = font_db.face(face_id).unwrap();
-    let font_family = face_info.family.clone();
 
     info!("selected font family: {}", &font_family);
 
