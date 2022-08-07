@@ -179,18 +179,10 @@ fn main() -> Result<()> {
 
     // =========== asciicast
 
-    let (cols, rows, embedded_theme, events) = {
-        let (header, events) = asciicast::open(&cli.input_filename)?;
+    let (header, events) = asciicast::open(&cli.input_filename)?;
+    let events = frames::stdout(events, cli.speed, cli.fps_cap as f64);
 
-        (
-            header.cols,
-            header.rows,
-            header.theme,
-            frames::stdout(events, cli.speed, cli.fps_cap as f64),
-        )
-    };
-
-    info!("terminal size: {}x{}", cols, rows);
+    info!("terminal size: {}x{}", header.cols, header.rows);
 
     // ============ font database
 
@@ -227,7 +219,7 @@ fn main() -> Result<()> {
 
     let theme_opt = cli
         .theme
-        .or_else(|| embedded_theme.map(ThemeOpt::Embedded))
+        .or_else(|| header.theme.map(ThemeOpt::Embedded))
         .unwrap_or(ThemeOpt::Builtin(BuiltinTheme::Asciinema));
 
     info!("selected theme: {}", theme_opt);
@@ -237,8 +229,8 @@ fn main() -> Result<()> {
     // =========== renderer
 
     let settings = renderer::Settings {
-        cols,
-        rows,
+        cols: header.cols,
+        rows: header.rows,
         font_db,
         font_family,
         font_size: cli.font_size,
@@ -271,7 +263,7 @@ fn main() -> Result<()> {
 
     // ============= iterator
 
-    let mut vt = VT::new(cols, rows);
+    let mut vt = VT::new(header.cols, header.rows);
     let mut prev_cursor = None;
 
     let images = events.iter().filter_map(|(time, data)| {
