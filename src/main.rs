@@ -222,7 +222,6 @@ fn main() -> Result<()> {
     let settings = gifski::Settings {
         width: Some(width as u32),
         height: Some(height as u32),
-        quality: 100,
         fast: true,
         ..Default::default()
     };
