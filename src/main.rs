@@ -1,14 +1,15 @@
 use anyhow::{anyhow, Result};
 use clap::{ArgAction, ArgEnum, Parser};
-use log::{debug, info};
+use log::info;
 use std::fmt::{Debug, Display};
+use std::iter;
 use std::{fs::File, thread, time::Instant};
-use vt::VT;
 mod asciicast;
+mod events;
 mod fonts;
-mod frames;
 mod renderer;
 mod theme;
+mod vt;
 use crate::renderer::Renderer;
 use crate::theme::Theme;
 
@@ -116,7 +117,7 @@ impl clap::builder::TypedValueParser for ThemeOptValueParser {
             BuiltinTheme::value_variants()
                 .iter()
                 .filter_map(|v| v.to_possible_value())
-                .chain(vec![clap::PossibleValue::new("custom")]),
+                .chain(iter::once(clap::PossibleValue::new("custom"))),
         ))
     }
 }
@@ -181,7 +182,12 @@ fn main() -> Result<()> {
     // =========== asciicast
 
     let (header, events) = asciicast::open(&cli.input_filename)?;
-    let events = frames::stdout(events, cli.speed, cli.fps_cap as f64);
+    let stdout = asciicast::stdout(events);
+    let stdout = events::accelerate(stdout, cli.speed);
+    let stdout = events::batch(stdout, cli.fps_cap);
+    let stdout = stdout.collect::<Vec<_>>();
+    let count = stdout.len() as u64;
+    let frames = vt::frames(stdout.into_iter(), header.cols, header.rows);
 
     info!("terminal size: {}x{}", header.cols, header.rows);
 
@@ -237,31 +243,6 @@ fn main() -> Result<()> {
     };
 
     let (mut collector, writer) = gifski::new(settings)?;
-
-    // ============= iterator
-
-    let mut vt = VT::new(header.cols, header.rows);
-    let mut prev_cursor = None;
-
-    let images = events.iter().filter_map(|(time, data)| {
-        let changed_lines = vt.feed_str(data);
-        let cursor = vt.get_cursor();
-
-        if !changed_lines.is_empty() || cursor != prev_cursor {
-            prev_cursor = cursor;
-
-            Some((time, renderer.render(vt.lines(), cursor)))
-        } else {
-            prev_cursor = cursor;
-            debug!("skipping frame with no visual changes: {:?}", data);
-
-            None
-        }
-    });
-
-    // ======== goooooooooooooo
-
-    let count = events.len() as u64;
     let start_time = Instant::now();
     let file = File::create(cli.output_filename)?;
 
@@ -273,8 +254,9 @@ fn main() -> Result<()> {
         result
     });
 
-    for (i, (time, image)) in images.enumerate() {
-        collector.add_frame_rgba(i, image, *time)?;
+    for (i, (time, lines, cursor)) in frames.enumerate() {
+        let image = renderer.render(lines, cursor);
+        collector.add_frame_rgba(i, image, time)?;
     }
 
     drop(collector);

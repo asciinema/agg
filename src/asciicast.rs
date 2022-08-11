@@ -141,3 +141,16 @@ fn parse_event(line: String) -> Result<Event, Error> {
         data,
     })
 }
+
+pub fn stdout(
+    events: impl Iterator<Item = Result<Event, Error>>,
+) -> impl Iterator<Item = (f64, String)> {
+    events.filter_map(|e| match e {
+        Ok(Event {
+            type_: EventType::Output,
+            time,
+            data,
+        }) => Some((time, data)),
+        _ => None,
+    })
+}

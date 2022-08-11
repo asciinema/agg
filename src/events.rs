@@ -1,10 +1,8 @@
-use crate::asciicast::{self, Event, EventType};
+type Event = (f64, String);
 
-type Frame = (f64, String);
-
-struct Batched<I>
+struct Batch<I>
 where
-    I: Iterator<Item = Frame>,
+    I: Iterator<Item = Event>,
 {
     iter: I,
     prev_time: f64,
@@ -12,8 +10,8 @@ where
     max_frame_time: f64,
 }
 
-impl<I: Iterator<Item = Frame>> Iterator for Batched<I> {
-    type Item = Frame;
+impl<I: Iterator<Item = Event>> Iterator for Batch<I> {
+    type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.iter.next() {
@@ -50,30 +48,15 @@ impl<I: Iterator<Item = Frame>> Iterator for Batched<I> {
     }
 }
 
-fn batched(iter: impl Iterator<Item = Frame>, fps_cap: f64) -> impl Iterator<Item = Frame> {
-    Batched {
+pub fn batch(iter: impl Iterator<Item = Event>, fps_cap: u8) -> impl Iterator<Item = Event> {
+    Batch {
         iter,
         prev_data: "".to_owned(),
         prev_time: 0.0,
-        max_frame_time: 1.0 / fps_cap,
+        max_frame_time: 1.0 / (fps_cap as f64),
     }
 }
 
-pub fn stdout(
-    events: impl Iterator<Item = Result<Event, asciicast::Error>>,
-    speed: f64,
-    fps_cap: f64,
-) -> Vec<Frame> {
-    let stdout = events
-        .filter_map(Result::ok)
-        .filter_map(|e| {
-            if e.type_ == EventType::Output {
-                Some((e.time, e.data))
-            } else {
-                None
-            }
-        })
-        .map(|(time, data)| (time / speed, data));
-
-    batched(stdout, fps_cap).collect::<Vec<_>>()
+pub fn accelerate(events: impl Iterator<Item = Event>, speed: f64) -> impl Iterator<Item = Event> {
+    events.map(move |(time, data)| (time / speed, data))
 }
