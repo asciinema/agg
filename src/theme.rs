@@ -3,7 +3,7 @@ use std::str::FromStr;
 use anyhow::bail;
 use rgb::RGB8;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     pub background: RGB8,
     pub foreground: RGB8,
@@ -85,5 +85,255 @@ impl Theme {
                 RGB8::new(v, v, v)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Theme;
+    use rgb::RGB8;
+
+    #[test]
+    fn parse_invalid() {
+        assert!("".parse::<Theme>().is_err());
+
+        assert!("foo".parse::<Theme>().is_err());
+
+        assert!("000000,111111,222222,333333,444444"
+            .parse::<Theme>()
+            .is_err());
+
+        assert!(
+            "xxxxxx,111111,222222,333333,444444,555555,666666,777777,888888,999999"
+                .parse::<Theme>()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn parse_8_color_palette() {
+        let result = "000000,111111,222222,333333,444444,555555,666666,777777,888888,999999"
+            .parse::<Theme>();
+
+        assert!(result.is_ok());
+
+        let theme = result.unwrap();
+
+        assert_eq!(
+            theme.background,
+            RGB8 {
+                r: 0x00,
+                g: 0x00,
+                b: 0x00
+            }
+        );
+
+        assert_eq!(
+            theme.foreground,
+            RGB8 {
+                r: 0x11,
+                g: 0x11,
+                b: 0x11
+            }
+        );
+
+        assert_eq!(
+            theme.palette,
+            [
+                RGB8 {
+                    r: 0x22,
+                    g: 0x22,
+                    b: 0x22
+                },
+                RGB8 {
+                    r: 0x33,
+                    g: 0x33,
+                    b: 0x33
+                },
+                RGB8 {
+                    r: 0x44,
+                    g: 0x44,
+                    b: 0x44
+                },
+                RGB8 {
+                    r: 0x55,
+                    g: 0x55,
+                    b: 0x55
+                },
+                RGB8 {
+                    r: 0x66,
+                    g: 0x66,
+                    b: 0x66
+                },
+                RGB8 {
+                    r: 0x77,
+                    g: 0x77,
+                    b: 0x77
+                },
+                RGB8 {
+                    r: 0x88,
+                    g: 0x88,
+                    b: 0x88
+                },
+                RGB8 {
+                    r: 0x99,
+                    g: 0x99,
+                    b: 0x99
+                },
+                RGB8 {
+                    r: 0x22,
+                    g: 0x22,
+                    b: 0x22
+                },
+                RGB8 {
+                    r: 0x33,
+                    g: 0x33,
+                    b: 0x33
+                },
+                RGB8 {
+                    r: 0x44,
+                    g: 0x44,
+                    b: 0x44
+                },
+                RGB8 {
+                    r: 0x55,
+                    g: 0x55,
+                    b: 0x55
+                },
+                RGB8 {
+                    r: 0x66,
+                    g: 0x66,
+                    b: 0x66
+                },
+                RGB8 {
+                    r: 0x77,
+                    g: 0x77,
+                    b: 0x77
+                },
+                RGB8 {
+                    r: 0x88,
+                    g: 0x88,
+                    b: 0x88
+                },
+                RGB8 {
+                    r: 0x99,
+                    g: 0x99,
+                    b: 0x99
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_16_color_palette() {
+        let result = "000000,111111,222222,333333,444444,555555,666666,777777,888888,999999,aaaaaa,bbbbbb,cccccc,dddddd,eeeeee,ffffff,012345,67890a".parse::<Theme>();
+
+        assert!(result.is_ok());
+
+        let theme = result.unwrap();
+
+        assert_eq!(
+            theme.background,
+            RGB8 {
+                r: 0x00,
+                g: 0x00,
+                b: 0x00
+            }
+        );
+
+        assert_eq!(
+            theme.foreground,
+            RGB8 {
+                r: 0x11,
+                g: 0x11,
+                b: 0x11
+            }
+        );
+
+        assert_eq!(
+            theme.palette,
+            [
+                RGB8 {
+                    r: 0x22,
+                    g: 0x22,
+                    b: 0x22
+                },
+                RGB8 {
+                    r: 0x33,
+                    g: 0x33,
+                    b: 0x33
+                },
+                RGB8 {
+                    r: 0x44,
+                    g: 0x44,
+                    b: 0x44
+                },
+                RGB8 {
+                    r: 0x55,
+                    g: 0x55,
+                    b: 0x55
+                },
+                RGB8 {
+                    r: 0x66,
+                    g: 0x66,
+                    b: 0x66
+                },
+                RGB8 {
+                    r: 0x77,
+                    g: 0x77,
+                    b: 0x77
+                },
+                RGB8 {
+                    r: 0x88,
+                    g: 0x88,
+                    b: 0x88
+                },
+                RGB8 {
+                    r: 0x99,
+                    g: 0x99,
+                    b: 0x99
+                },
+                RGB8 {
+                    r: 0xaa,
+                    g: 0xaa,
+                    b: 0xaa
+                },
+                RGB8 {
+                    r: 0xbb,
+                    g: 0xbb,
+                    b: 0xbb
+                },
+                RGB8 {
+                    r: 0xcc,
+                    g: 0xcc,
+                    b: 0xcc
+                },
+                RGB8 {
+                    r: 0xdd,
+                    g: 0xdd,
+                    b: 0xdd
+                },
+                RGB8 {
+                    r: 0xee,
+                    g: 0xee,
+                    b: 0xee
+                },
+                RGB8 {
+                    r: 0xff,
+                    g: 0xff,
+                    b: 0xff
+                },
+                RGB8 {
+                    r: 0x01,
+                    g: 0x23,
+                    b: 0x45
+                },
+                RGB8 {
+                    r: 0x67,
+                    g: 0x89,
+                    b: 0x0a
+                },
+            ]
+        );
     }
 }
