@@ -60,3 +60,21 @@ pub fn batch(iter: impl Iterator<Item = Event>, fps_cap: u8) -> impl Iterator<It
 pub fn accelerate(events: impl Iterator<Item = Event>, speed: f64) -> impl Iterator<Item = Event> {
     events.map(move |(time, data)| (time / speed, data))
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn accelerate() {
+        let stdout = [
+            (0.0, "foo".to_owned()),
+            (1.0, "bar".to_owned()),
+            (2.0, "baz".to_owned()),
+        ];
+
+        let stdout = super::accelerate(stdout.into_iter(), 2.0).collect::<Vec<_>>();
+
+        assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
+        assert_eq!(&stdout[1], &(0.5, "bar".to_owned()));
+        assert_eq!(&stdout[2], &(1.0, "baz".to_owned()));
+    }
+}
