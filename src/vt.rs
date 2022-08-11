@@ -23,3 +23,59 @@ pub fn frames(
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn frames() {
+        let stdout = [
+            (0.0, "foo".to_owned()),
+            (1.0, "\x1b[0m".to_owned()),
+            (2.0, "bar".to_owned()),
+            (3.0, "!".to_owned()),
+        ];
+
+        let fs = super::frames(stdout.into_iter(), (4, 2)).collect::<Vec<_>>();
+
+        assert_eq!(fs.len(), 3);
+
+        let (time, lines, cursor) = &fs[0];
+
+        assert_eq!(*time, 0.0);
+        assert_eq!(*cursor, Some((3, 0)));
+        assert_eq!(lines[0][0].0, 'f');
+        assert_eq!(lines[0][1].0, 'o');
+        assert_eq!(lines[0][2].0, 'o');
+        assert_eq!(lines[0][3].0, ' ');
+        assert_eq!(lines[1][0].0, ' ');
+        assert_eq!(lines[1][1].0, ' ');
+        assert_eq!(lines[1][2].0, ' ');
+        assert_eq!(lines[1][3].0, ' ');
+
+        let (time, lines, cursor) = &fs[1];
+
+        assert_eq!(*time, 2.0);
+        assert_eq!(*cursor, Some((2, 1)));
+        assert_eq!(lines[0][0].0, 'f');
+        assert_eq!(lines[0][1].0, 'o');
+        assert_eq!(lines[0][2].0, 'o');
+        assert_eq!(lines[0][3].0, 'b');
+        assert_eq!(lines[1][0].0, 'a');
+        assert_eq!(lines[1][1].0, 'r');
+        assert_eq!(lines[1][2].0, ' ');
+        assert_eq!(lines[1][3].0, ' ');
+
+        let (time, lines, cursor) = &fs[2];
+
+        assert_eq!(*time, 3.0);
+        assert_eq!(*cursor, Some((3, 1)));
+        assert_eq!(lines[0][0].0, 'f');
+        assert_eq!(lines[0][1].0, 'o');
+        assert_eq!(lines[0][2].0, 'o');
+        assert_eq!(lines[0][3].0, 'b');
+        assert_eq!(lines[1][0].0, 'a');
+        assert_eq!(lines[1][1].0, 'r');
+        assert_eq!(lines[1][2].0, '!');
+        assert_eq!(lines[1][3].0, ' ');
+    }
+}
