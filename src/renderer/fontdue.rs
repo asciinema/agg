@@ -8,9 +8,9 @@ use crate::theme::Theme;
 use super::{adjust_pen, color_to_rgb, Renderer, Settings};
 
 pub struct FontdueRenderer {
-    cols: usize,
-    rows: usize,
     theme: Theme,
+    pixel_width: usize,
+    pixel_height: usize,
     font_size: usize,
     default_font: fontdue::Font,
     bold_font: fontdue::Font,
@@ -90,19 +90,22 @@ impl FontdueRenderer {
         .unwrap_or_else(|| default_font.clone());
 
         let metrics = default_font.metrics('/', settings.font_size as f32);
+        let (cols, rows) = settings.terminal_size;
+        let col_width = metrics.advance_width as f64;
+        let row_height = (settings.font_size as f64) * settings.line_height;
 
         Self {
-            cols: settings.terminal_size.0,
-            rows: settings.terminal_size.1,
             theme: settings.theme,
+            pixel_width: ((cols + 2) as f64 * col_width).round() as usize,
+            pixel_height: ((rows + 1) as f64 * row_height).round() as usize,
             font_size: settings.font_size,
             default_font,
             bold_font,
             italic_font,
             bold_italic_font,
             emoji_font,
-            col_width: metrics.advance_width as f64,
-            row_height: (settings.font_size as f64) * settings.line_height,
+            col_width,
+            row_height,
             cache: HashMap::new(),
         }
     }
@@ -125,9 +128,8 @@ impl Renderer for FontdueRenderer {
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8> {
-        let width = self.pixel_width();
-        let height = self.pixel_height();
-        let mut buf: Vec<RGBA8> = vec![self.theme.background.alpha(255); width * height];
+        let mut buf: Vec<RGBA8> =
+            vec![self.theme.background.alpha(255); self.pixel_width * self.pixel_height];
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;
 
@@ -145,7 +147,7 @@ impl Renderer for FontdueRenderer {
                         let x_r = (margin_l + (col + 1) as f64 * self.col_width).round() as usize;
 
                         for x in x_l..x_r {
-                            buf[y * width + x] = c.alpha(255);
+                            buf[y * self.pixel_width + x] = c.alpha(255);
                         }
                     }
                 }
@@ -188,7 +190,7 @@ impl Renderer for FontdueRenderer {
                 for bmap_y in 0..metrics.height {
                     let y = y_offset + bmap_y as i32;
 
-                    if y < 0 || y >= height as i32 {
+                    if y < 0 || y >= self.pixel_height as i32 {
                         continue;
                     }
 
@@ -199,12 +201,12 @@ impl Renderer for FontdueRenderer {
                     for bmap_x in 0..metrics.width {
                         let x = x_offset + bmap_x as i32;
 
-                        if x < 0 || x >= width as i32 {
+                        if x < 0 || x >= self.pixel_width as i32 {
                             continue;
                         }
 
                         let v = bitmap[bmap_y * metrics.width + bmap_x];
-                        let idx = (y as usize) * width + (x as usize);
+                        let idx = (y as usize) * self.pixel_width + (x as usize);
                         let bg = buf[idx];
 
                         buf[idx] = mix_colors(fg, bg, v);
@@ -213,14 +215,10 @@ impl Renderer for FontdueRenderer {
             }
         }
 
-        ImgVec::new(buf, self.pixel_width(), self.pixel_height())
+        ImgVec::new(buf, self.pixel_width, self.pixel_height)
     }
 
-    fn pixel_width(&self) -> usize {
-        ((self.cols + 2) as f64 * self.col_width).round() as usize
-    }
-
-    fn pixel_height(&self) -> usize {
-        ((self.rows + 1) as f64 * self.row_height).round() as usize
+    fn pixel_size(&self) -> (usize, usize) {
+        (self.pixel_width, self.pixel_height)
     }
 }

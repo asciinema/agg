@@ -12,8 +12,7 @@ pub trait Renderer {
         lines: Vec<Vec<(char, vt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8>;
-    fn pixel_width(&self) -> usize;
-    fn pixel_height(&self) -> usize;
+    fn pixel_size(&self) -> (usize, usize);
 }
 
 pub struct Settings {

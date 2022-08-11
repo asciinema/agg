@@ -6,8 +6,7 @@ use crate::theme::Theme;
 use super::{adjust_pen, color_to_rgb, Renderer, Settings};
 
 pub struct ResvgRenderer {
-    cols: usize,
-    rows: usize,
+    terminal_size: (usize, usize),
     theme: Theme,
     pixel_width: usize,
     pixel_height: usize,
@@ -70,8 +69,7 @@ impl ResvgRenderer {
         let transform = tiny_skia::Transform::default();
 
         let header = Self::header(
-            settings.terminal_size.0,
-            settings.terminal_size.1,
+            settings.terminal_size,
             &settings.font_family,
             font_size,
             row_height,
@@ -87,8 +85,7 @@ impl ResvgRenderer {
         let pixel_height = screen_size.height() as usize;
 
         Self {
-            cols: settings.terminal_size.0,
-            rows: settings.terminal_size.1,
+            terminal_size: settings.terminal_size,
             theme: settings.theme,
             pixel_width,
             pixel_height,
@@ -102,8 +99,7 @@ impl ResvgRenderer {
     }
 
     fn header(
-        cols: usize,
-        rows: usize,
+        (cols, rows): (usize, usize),
         font_family: &str,
         font_size: f64,
         row_height: f64,
@@ -148,10 +144,12 @@ impl ResvgRenderer {
         lines: &[Vec<(char, vt::Pen)>],
         cursor: Option<(usize, usize)>,
     ) {
+        let (cols, rows) = self.terminal_size;
+
         svg.push_str(r#"<g style="shape-rendering: optimizeSpeed">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f64) / (self.rows as f64 + 1.0);
+            let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
 
             for (col, (_ch, mut pen)) in line.iter().enumerate() {
                 adjust_pen(&mut pen, &cursor, col, row, &self.theme);
@@ -160,7 +158,7 @@ impl ResvgRenderer {
                     continue;
                 }
 
-                let x = 100.0 * (col as f64) / (self.cols as f64 + 2.0);
+                let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
                 let style = rect_style(&pen, &self.theme);
 
                 svg.push_str(&format!(
@@ -179,10 +177,12 @@ impl ResvgRenderer {
         lines: &[Vec<(char, vt::Pen)>],
         cursor: Option<(usize, usize)>,
     ) {
+        let (cols, rows) = self.terminal_size;
+
         svg.push_str(r#"<text class="default-text-fill">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f64) / (self.rows as f64 + 1.0);
+            let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
             svg.push_str(&format!(r#"<tspan y="{:.3}%">"#, y));
             let mut did_dy = false;
 
@@ -200,7 +200,7 @@ impl ResvgRenderer {
                     did_dy = true;
                 }
 
-                let x = 100.0 * (col as f64) / (self.cols as f64 + 2.0);
+                let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
                 let class = text_class(&pen);
                 let style = text_style(&pen, &self.theme);
 
@@ -265,11 +265,7 @@ impl Renderer for ResvgRenderer {
         ImgVec::new(buf, self.pixel_width, self.pixel_height)
     }
 
-    fn pixel_width(&self) -> usize {
-        self.pixel_width
-    }
-
-    fn pixel_height(&self) -> usize {
-        self.pixel_height
+    fn pixel_size(&self) -> (usize, usize) {
+        (self.pixel_width, self.pixel_height)
     }
 }

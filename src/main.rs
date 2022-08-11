@@ -228,17 +228,15 @@ fn main() -> Result<()> {
         RendererOpt::Resvg => Box::new(renderer::resvg(settings)),
     };
 
-    info!(
-        "gif dimensions: {}x{}",
-        renderer.pixel_width(),
-        renderer.pixel_height()
-    );
+    let (width, height) = renderer.pixel_size();
+
+    info!("gif dimensions: {}x{}", width, height);
 
     // ============ GIF writer
 
     let settings = gifski::Settings {
-        width: Some(renderer.pixel_width() as u32),
-        height: Some(renderer.pixel_height() as u32),
+        width: Some(width as u32),
+        height: Some(height as u32),
         quality: 100,
         fast: true,
         ..Default::default()
