@@ -41,15 +41,10 @@ impl From<ThemeOpt> for Theme {
 
         match theme_opt {
             Builtin(Asciinema) => "121314,cccccc,000000,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,d9d9d9,4d4d4d,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,ffffff".parse().unwrap(),
-
             Builtin(Monokai) => "272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5".parse().unwrap(),
-
             Builtin(SolarizedDark) => "002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
-
             Builtin(SolarizedLight) => "fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
-
             Custom(t) => t,
-
             Embedded(t) => t,
         }
     }
@@ -179,8 +174,6 @@ fn main() -> Result<()> {
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
 
-    // =========== asciicast
-
     let (header, events) = asciicast::open(&cli.input_filename)?;
     let stdout = asciicast::stdout(events);
     let stdout = events::accelerate(stdout, cli.speed);
@@ -194,14 +187,10 @@ fn main() -> Result<()> {
         header.terminal_size.0, header.terminal_size.1
     );
 
-    // ============ font database
-
     let (font_db, font_family) = fonts::init(&cli.font_dir, &cli.font_family)
         .ok_or_else(|| anyhow!("no faces matching font family {}", cli.font_family))?;
 
     info!("selected font family: {}", &font_family);
-
-    // =========== theme
 
     let theme_opt = cli
         .theme
@@ -211,8 +200,6 @@ fn main() -> Result<()> {
     info!("selected theme: {}", theme_opt);
 
     let theme: Theme = theme_opt.into();
-
-    // =========== renderer
 
     let settings = renderer::Settings {
         terminal_size: header.terminal_size,
@@ -231,8 +218,6 @@ fn main() -> Result<()> {
     let (width, height) = renderer.pixel_size();
 
     info!("gif dimensions: {}x{}", width, height);
-
-    // ============ GIF writer
 
     let settings = gifski::Settings {
         width: Some(width as u32),
