@@ -9,7 +9,7 @@ pub fn frames(
 
     stdout.filter_map(move |(time, data)| {
         let changed_lines = vt.feed_str(&data);
-        let cursor = vt.get_cursor();
+        let cursor = vt.cursor();
 
         if !changed_lines.is_empty() || cursor != prev_cursor {
             prev_cursor = cursor;
