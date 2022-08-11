@@ -57,7 +57,7 @@ fn rect_style(pen: &vt::Pen, theme: &Theme) -> String {
 
 impl ResvgRenderer {
     pub fn new(settings: Settings) -> Self {
-        let char_width = 100.0 / (settings.cols as f64 + 2.0);
+        let char_width = 100.0 / (settings.terminal_size.0 as f64 + 2.0);
         let font_size = settings.font_size as f64;
         let row_height = font_size * settings.line_height;
 
@@ -70,8 +70,8 @@ impl ResvgRenderer {
         let transform = tiny_skia::Transform::default();
 
         let header = Self::header(
-            settings.cols,
-            settings.rows,
+            settings.terminal_size.0,
+            settings.terminal_size.1,
             &settings.font_family,
             font_size,
             row_height,
@@ -87,8 +87,8 @@ impl ResvgRenderer {
         let pixel_height = screen_size.height() as usize;
 
         Self {
-            cols: settings.cols,
-            rows: settings.rows,
+            cols: settings.terminal_size.0,
+            rows: settings.terminal_size.1,
             theme: settings.theme,
             pixel_width,
             pixel_height,

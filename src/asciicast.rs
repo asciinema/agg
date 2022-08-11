@@ -21,8 +21,7 @@ pub struct V2Header {
 }
 
 pub struct Header {
-    pub cols: usize,
-    pub rows: usize,
+    pub terminal_size: (usize, usize),
     pub theme: Option<Theme>,
 }
 
@@ -76,8 +75,7 @@ impl TryInto<Header> for V2Header {
         };
 
         Ok(Header {
-            cols: self.width,
-            rows: self.height,
+            terminal_size: (self.width, self.height),
             theme,
         })
     }

@@ -17,8 +17,7 @@ pub trait Renderer {
 }
 
 pub struct Settings {
-    pub cols: usize,
-    pub rows: usize,
+    pub terminal_size: (usize, usize),
     pub font_db: fontdb::Database,
     pub font_family: String,
     pub font_size: usize,

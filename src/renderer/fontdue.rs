@@ -92,8 +92,8 @@ impl FontdueRenderer {
         let metrics = default_font.metrics('/', settings.font_size as f32);
 
         Self {
-            cols: settings.cols,
-            rows: settings.rows,
+            cols: settings.terminal_size.0,
+            rows: settings.terminal_size.1,
             theme: settings.theme,
             font_size: settings.font_size,
             default_font,

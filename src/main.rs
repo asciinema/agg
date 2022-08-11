@@ -187,9 +187,12 @@ fn main() -> Result<()> {
     let stdout = events::batch(stdout, cli.fps_cap);
     let stdout = stdout.collect::<Vec<_>>();
     let count = stdout.len() as u64;
-    let frames = vt::frames(stdout.into_iter(), header.cols, header.rows);
+    let frames = vt::frames(stdout.into_iter(), header.terminal_size);
 
-    info!("terminal size: {}x{}", header.cols, header.rows);
+    info!(
+        "terminal size: {}x{}",
+        header.terminal_size.0, header.terminal_size.1
+    );
 
     // ============ font database
 
@@ -212,8 +215,7 @@ fn main() -> Result<()> {
     // =========== renderer
 
     let settings = renderer::Settings {
-        cols: header.cols,
-        rows: header.rows,
+        terminal_size: header.terminal_size,
         font_db,
         font_family,
         font_size: cli.font_size,
