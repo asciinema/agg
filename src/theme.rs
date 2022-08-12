@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn parse_8_color_palette() {
-        let result = "000000,111111,222222,333333,444444,555555,666666,777777,888888,999999"
+        let result = "bbbbbb,ffffff,000000,111111,222222,333333,444444,555555,666666,777777"
             .parse::<Theme>();
 
         assert!(result.is_ok());
@@ -122,18 +122,18 @@ mod tests {
         assert_eq!(
             theme.background,
             RGB8 {
-                r: 0x00,
-                g: 0x00,
-                b: 0x00
+                r: 0xbb,
+                g: 0xbb,
+                b: 0xbb
             }
         );
 
         assert_eq!(
             theme.foreground,
             RGB8 {
-                r: 0x11,
-                g: 0x11,
-                b: 0x11
+                r: 0xff,
+                g: 0xff,
+                b: 0xff
             }
         );
 
@@ -141,44 +141,14 @@ mod tests {
             theme.palette,
             [
                 RGB8 {
-                    r: 0x22,
-                    g: 0x22,
-                    b: 0x22
+                    r: 0x00,
+                    g: 0x00,
+                    b: 0x00
                 },
                 RGB8 {
-                    r: 0x33,
-                    g: 0x33,
-                    b: 0x33
-                },
-                RGB8 {
-                    r: 0x44,
-                    g: 0x44,
-                    b: 0x44
-                },
-                RGB8 {
-                    r: 0x55,
-                    g: 0x55,
-                    b: 0x55
-                },
-                RGB8 {
-                    r: 0x66,
-                    g: 0x66,
-                    b: 0x66
-                },
-                RGB8 {
-                    r: 0x77,
-                    g: 0x77,
-                    b: 0x77
-                },
-                RGB8 {
-                    r: 0x88,
-                    g: 0x88,
-                    b: 0x88
-                },
-                RGB8 {
-                    r: 0x99,
-                    g: 0x99,
-                    b: 0x99
+                    r: 0x11,
+                    g: 0x11,
+                    b: 0x11
                 },
                 RGB8 {
                     r: 0x22,
@@ -211,14 +181,44 @@ mod tests {
                     b: 0x77
                 },
                 RGB8 {
-                    r: 0x88,
-                    g: 0x88,
-                    b: 0x88
+                    r: 0x00,
+                    g: 0x00,
+                    b: 0x00
                 },
                 RGB8 {
-                    r: 0x99,
-                    g: 0x99,
-                    b: 0x99
+                    r: 0x11,
+                    g: 0x11,
+                    b: 0x11
+                },
+                RGB8 {
+                    r: 0x22,
+                    g: 0x22,
+                    b: 0x22
+                },
+                RGB8 {
+                    r: 0x33,
+                    g: 0x33,
+                    b: 0x33
+                },
+                RGB8 {
+                    r: 0x44,
+                    g: 0x44,
+                    b: 0x44
+                },
+                RGB8 {
+                    r: 0x55,
+                    g: 0x55,
+                    b: 0x55
+                },
+                RGB8 {
+                    r: 0x66,
+                    g: 0x66,
+                    b: 0x66
+                },
+                RGB8 {
+                    r: 0x77,
+                    g: 0x77,
+                    b: 0x77
                 },
             ]
         );
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn parse_16_color_palette() {
-        let result = "000000,111111,222222,333333,444444,555555,666666,777777,888888,999999,aaaaaa,bbbbbb,cccccc,dddddd,eeeeee,ffffff,012345,67890a".parse::<Theme>();
+        let result = "bbbbbb,ffffff,000000,111111,222222,333333,444444,555555,666666,777777,888888,999999,aaaaaa,bbbbbb,cccccc,dddddd,eeeeee,ffffff".parse::<Theme>();
 
         assert!(result.is_ok());
 
@@ -235,24 +235,34 @@ mod tests {
         assert_eq!(
             theme.background,
             RGB8 {
-                r: 0x00,
-                g: 0x00,
-                b: 0x00
+                r: 0xbb,
+                g: 0xbb,
+                b: 0xbb
             }
         );
 
         assert_eq!(
             theme.foreground,
             RGB8 {
-                r: 0x11,
-                g: 0x11,
-                b: 0x11
+                r: 0xff,
+                g: 0xff,
+                b: 0xff
             }
         );
 
         assert_eq!(
             theme.palette,
             [
+                RGB8 {
+                    r: 0x00,
+                    g: 0x00,
+                    b: 0x00
+                },
+                RGB8 {
+                    r: 0x11,
+                    g: 0x11,
+                    b: 0x11
+                },
                 RGB8 {
                     r: 0x22,
                     g: 0x22,
@@ -322,16 +332,6 @@ mod tests {
                     r: 0xff,
                     g: 0xff,
                     b: 0xff
-                },
-                RGB8 {
-                    r: 0x01,
-                    g: 0x23,
-                    b: 0x45
-                },
-                RGB8 {
-                    r: 0x67,
-                    g: 0x89,
-                    b: 0x0a
                 },
             ]
         );
