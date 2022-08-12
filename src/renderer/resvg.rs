@@ -1,5 +1,6 @@
 use imgref::ImgVec;
 use rgb::{FromSlice, RGBA8};
+use std::fmt::Write as _;
 
 use crate::theme::Theme;
 
@@ -161,10 +162,11 @@ impl ResvgRenderer {
                 let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
                 let style = rect_style(&pen, &self.theme);
 
-                svg.push_str(&format!(
+                let _ = write!(
+                    svg,
                     r#"<rect x="{:.3}%" y="{:.3}%" width="{:.3}%" height="{:.3}" style="{}" />"#,
                     x, y, self.char_width, self.row_height, style
-                ));
+                );
             }
         }
 
@@ -183,8 +185,9 @@ impl ResvgRenderer {
 
         for (row, line) in lines.iter().enumerate() {
             let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
-            svg.push_str(&format!(r#"<tspan y="{:.3}%">"#, y));
             let mut did_dy = false;
+
+            let _ = write!(svg, r#"<tspan y="{:.3}%">"#, y);
 
             for (col, (ch, mut pen)) in line.iter().enumerate() {
                 if ch == &' ' {
@@ -204,10 +207,7 @@ impl ResvgRenderer {
                 let class = text_class(&pen);
                 let style = text_style(&pen, &self.theme);
 
-                svg.push_str(&format!(
-                    r#"x="{:.3}%" class="{}" style="{}">"#,
-                    x, class, style
-                ));
+                let _ = write!(svg, r#"x="{:.3}%" class="{}" style="{}">"#, x, class, style);
 
                 match ch {
                     '\'' => {
