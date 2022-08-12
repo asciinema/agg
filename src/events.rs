@@ -77,4 +77,32 @@ mod tests {
         assert_eq!(&stdout[1], &(0.5, "bar".to_owned()));
         assert_eq!(&stdout[2], &(1.0, "baz".to_owned()));
     }
+
+    #[test]
+    fn batch() {
+        let stdout = [
+            (0.0, "foo".to_owned()),
+            (1.0, "bar".to_owned()),
+            (2.0, "baz".to_owned()),
+        ];
+
+        let stdout = super::batch(stdout.into_iter(), 30).collect::<Vec<_>>();
+
+        assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
+        assert_eq!(&stdout[1], &(1.0, "bar".to_owned()));
+        assert_eq!(&stdout[2], &(2.0, "baz".to_owned()));
+
+        let stdout = [
+            (0.0, "foo".to_owned()),
+            (0.033, "bar".to_owned()),
+            (0.066, "baz".to_owned()),
+            (1.0, "qux".to_owned()),
+        ];
+
+        let stdout = super::batch(stdout.into_iter(), 30).collect::<Vec<_>>();
+
+        assert_eq!(&stdout[0], &(0.0, "foobar".to_owned()));
+        assert_eq!(&stdout[1], &(0.066, "baz".to_owned()));
+        assert_eq!(&stdout[2], &(1.0, "qux".to_owned()));
+    }
 }
