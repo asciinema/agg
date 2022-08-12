@@ -25,7 +25,7 @@ pub struct Header {
     pub theme: Option<Theme>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum EventType {
     Output,
     Input,

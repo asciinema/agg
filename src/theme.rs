@@ -3,7 +3,7 @@ use std::str::FromStr;
 use anyhow::bail;
 use rgb::RGB8;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Theme {
     pub background: RGB8,
     pub foreground: RGB8,
