@@ -46,10 +46,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set the version
-      id: version
-      run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -82,5 +78,5 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
-        asset_name: agg-${{ steps.version.outputs.VERSION }}-${{ matrix.target }}${{ matrix.binary_ext }}
+        asset_name: agg-${{ matrix.target }}${{ matrix.binary_ext }}
         tag: ${{ github.ref }}
