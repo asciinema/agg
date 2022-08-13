@@ -105,7 +105,7 @@ great looking GIF files, although this often comes at a cost - file size.
 [gifsicle](https://www.lcdf.org/gifsicle/) can be used to shrink the produced GIF file:
 
 ```bash
-gifsicle --lossy=80 -k 64 -O2 -Okeep-empty demo.gif -o demo-opt.gif
+gifsicle --lossy=80 -k 128 -O2 -Okeep-empty demo.gif -o demo-opt.gif
 ```
 
 Every recording is different so you may need to tweak the lossiness level
