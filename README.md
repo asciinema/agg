@@ -12,6 +12,8 @@ high quality GIF output with accurate frame timing.
 agg is a successor to
 [asciicast2gif](https://github.com/asciinema/asciicast2gif).
 
+![Demo](demo.gif)
+
 ## Building
 
 Building from source requires [Rust](https://www.rust-lang.org/) compiler and
