@@ -37,7 +37,7 @@ Basic usage:
 agg demo.cast demo.gif
 ```
 
-The above command renders a GIF file with default theme (asciinema), font size
+The above command renders a GIF file with default theme (dracula), font size
 14px.
 
 Additional options are available for customization. For example, the following
