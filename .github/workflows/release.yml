@@ -15,26 +15,32 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             use-cross: false
+            strip: true
 
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             use-cross: false
+            strip: true
 
           - os: ubuntu-latest
             target: arm-unknown-linux-gnueabihf
             use-cross: true
+            strip: false
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             use-cross: false
+            strip: false
 
           - os: macos-latest
             target: x86_64-apple-darwin
             use-cross: false
+            strip: true
 
           - os: macos-latest
             target: aarch64-apple-darwin
             use-cross: false
+            strip: true
 
     steps:
     - uses: actions/checkout@v3
@@ -67,7 +73,7 @@ jobs:
         args: --target ${{ matrix.target }} --release --locked
 
     - name: Strip binary
-      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      if: matrix.strip
       run: strip target/${{ matrix.target }}/release/agg
 
     - name: Upload binaries to release
