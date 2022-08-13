@@ -64,6 +64,38 @@ Run `agg -h` to see all available options. Current options are:
 -V, --version                      Print version information
 ```
 
+### Color themes
+
+There are several built-in color themes you can use with `--theme` option:
+
+- asciinema (default)
+- monokai
+- solarized-dark
+- solarized-light
+
+If your asciicast file includes [theme
+definition](https://github.com/asciinema/asciinema/blob/develop/doc/asciicast-v2.md#theme)
+then it's used automatically unless `--theme` option is explicitly specified.
+
+A custom, ad-hoc theme can be used with `--theme` option by passing a series of
+comma-separated hex triplets defining terminal background color, default text
+color and a color palette:
+
+```
+--theme bbbbbb,ffffff,000000,111111,222222,333333,444444,555555,666666,777777
+```
+
+The above sets terminal background color to `bbbbbb`, default text color to `ffffff`,
+and uses remaining 8 colors as [SGR color
+palette](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors).
+
+Additional bright color variants can be specified by adding 8 more hex triplets
+at the end. For example, the equivalent of the built-in Monokai theme is:
+
+```
+--theme 272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5
+```
+
 ## Additional GIF optimization
 
 agg's GIF encoder, [gifski](https://github.com/ImageOptim/gifski), produces
