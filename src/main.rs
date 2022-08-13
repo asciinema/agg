@@ -22,6 +22,7 @@ enum RendererOpt {
 #[derive(Clone, Debug, ArgEnum)]
 pub enum BuiltinTheme {
     Asciinema,
+    Dracula,
     Monokai,
     SolarizedDark,
     SolarizedLight,
@@ -41,6 +42,7 @@ impl From<ThemeOpt> for Theme {
 
         match theme_opt {
             Builtin(Asciinema) => "121314,cccccc,000000,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,d9d9d9,4d4d4d,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,ffffff".parse().unwrap(),
+            Builtin(Dracula) => "282a36,f8f8f2,21222c,ff5555,50fa7b,f1fa8c,bd93f9,ff79c6,8be9fd,f8f8f2,6272a4,ff6e6e,69ff94,ffffa5,d6acff,ff92df,a4ffff,ffffff".parse().unwrap(),
             Builtin(Monokai) => "272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5".parse().unwrap(),
             Builtin(SolarizedDark) => "002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
             Builtin(SolarizedLight) => "fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3".parse().unwrap(),
@@ -195,7 +197,7 @@ fn main() -> Result<()> {
     let theme_opt = cli
         .theme
         .or_else(|| header.theme.map(ThemeOpt::Embedded))
-        .unwrap_or(ThemeOpt::Builtin(BuiltinTheme::Asciinema));
+        .unwrap_or(ThemeOpt::Builtin(BuiltinTheme::Dracula));
 
     info!("selected theme: {}", theme_opt);
 

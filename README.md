@@ -68,7 +68,8 @@ Run `agg -h` to see all available options. Current options are:
 
 There are several built-in color themes you can use with `--theme` option:
 
-- asciinema (default)
+- asciinema
+- dracula (default)
 - monokai
 - solarized-dark
 - solarized-light
