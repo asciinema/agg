@@ -21,7 +21,7 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        components: [clippy, rustfmt]
+        components: rustfmt, clippy
         override: true
 
     - name: Build
