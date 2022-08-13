@@ -31,6 +31,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             use-cross: false
             strip: false
+            binary_ext: '.exe'
 
           - os: macos-latest
             target: x86_64-apple-darwin
@@ -74,12 +75,12 @@ jobs:
 
     - name: Strip binary
       if: matrix.strip
-      run: strip target/${{ matrix.target }}/release/agg
+      run: strip target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
 
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/${{ matrix.target }}/release/agg
-        asset_name: agg-${{ steps.version.outputs.VERSION }}-${{ matrix.target }}
+        file: target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
+        asset_name: agg-${{ steps.version.outputs.VERSION }}-${{ matrix.target }}${{ matrix.binary_ext }}
         tag: ${{ github.ref }}
