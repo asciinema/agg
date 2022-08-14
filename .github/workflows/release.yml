@@ -69,6 +69,10 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y binutils-aarch64-linux-gnu
         fi
+        if [[ ${{ matrix.target }} == arm-unknown-linux-gnueabihf ]]; then
+            sudo apt-get update
+            sudo apt-get install -y binutils-arm-linux-gnueabihf
+        fi
 
     - name: Build
       uses: actions-rs/cargo@v1
