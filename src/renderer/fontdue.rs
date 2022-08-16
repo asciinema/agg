@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use imgref::ImgVec;
+use log::debug;
 use rgb::RGBA8;
 
 use crate::theme::Theme;
@@ -28,6 +29,11 @@ fn get_font(
     weight: fontdb::Weight,
     style: fontdb::Style,
 ) -> Option<fontdue::Font> {
+    debug!(
+        "looking up font for family={}, weight={}, style={:?}",
+        family, weight.0, style
+    );
+
     let query = fontdb::Query {
         families: &[fontdb::Family::Name(family)],
         weight,
@@ -36,6 +42,8 @@ fn get_font(
     };
 
     let font_id = db.query(&query)?;
+
+    debug!("found font with id={:?}", font_id);
 
     db.with_face_data(font_id, |font_data, face_index| {
         let settings = fontdue::FontSettings {
