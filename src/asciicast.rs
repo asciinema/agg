@@ -2,7 +2,7 @@ use fs::File;
 use serde::Deserialize;
 use std::fmt::Display;
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
 
 use crate::theme::Theme;
 
@@ -102,7 +102,12 @@ impl From<serde_json::Error> for Error {
 }
 
 pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Error>>), Error> {
-    let file = File::open(path)?;
+    let file: Box<dyn std::io::Read> = if path == "-" {
+        Box::new(io::stdin())
+    } else {
+        Box::new(File::open(path)?)
+    };
+
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
     let first_line = lines.next().ok_or(Error::EmptyFile)??;
