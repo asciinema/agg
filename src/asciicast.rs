@@ -1,4 +1,5 @@
 use fs::File;
+use reqwest::header;
 use serde::Deserialize;
 use std::fmt::Display;
 use std::fs;
@@ -40,6 +41,7 @@ pub struct Event {
 
 #[derive(Debug)]
 pub enum Error {
+    Download(String),
     Io(std::io::Error),
     EmptyFile,
     InvalidEventTime,
@@ -101,14 +103,55 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Error>>), Error> {
-    let file: Box<dyn std::io::Read> = if path == "-" {
-        Box::new(io::stdin())
-    } else {
-        Box::new(File::open(path)?)
-    };
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Self::Download(err.to_string())
+    }
+}
 
-    let reader = BufReader::new(file);
+static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+
+fn download(url: &str) -> Result<impl io::Read, Error> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(USER_AGENT)
+        .gzip(true)
+        .build()?;
+
+    let request = client
+        .get(url)
+        .header(
+            header::ACCEPT,
+            header::HeaderValue::from_static("application/x-asciicast,application/json"),
+        )
+        .build()?;
+
+    let response = client.execute(request)?.error_for_status()?;
+
+    let ct = response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|hv| hv.to_str().ok())
+        .ok_or_else(|| Error::Download("unknown content type".to_owned()))?;
+
+    if ct != "application/x-asciicast" && ct != "application/json" {
+        return Err(Error::Download(format!("{} is not supported", ct)));
+    }
+
+    Ok(Box::new(response))
+}
+
+fn reader(path: &str) -> Result<Box<dyn io::Read>, Error> {
+    if path == "-" {
+        Ok(Box::new(io::stdin()))
+    } else if path.starts_with("http://") || path.starts_with("https://") {
+        Ok(Box::new(download(path)?))
+    } else {
+        Ok(Box::new(File::open(path)?))
+    }
+}
+
+pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Error>>), Error> {
+    let reader = BufReader::new(reader(path)?);
     let mut lines = reader.lines();
     let first_line = lines.next().ok_or(Error::EmptyFile)??;
     let v2_header: V2Header = serde_json::from_str(&first_line)?;
