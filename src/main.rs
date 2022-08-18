@@ -122,7 +122,7 @@ impl clap::builder::TypedValueParser for ThemeOptValueParser {
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
-    /// asciicast path/filename
+    /// asciicast path/filename or URL
     input_filename: String,
 
     /// GIF path/filename
