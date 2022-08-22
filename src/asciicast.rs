@@ -18,11 +18,13 @@ pub struct V2Theme {
 pub struct V2Header {
     pub width: usize,
     pub height: usize,
+    pub idle_time_limit: Option<f64>,
     pub theme: Option<V2Theme>,
 }
 
 pub struct Header {
     pub terminal_size: (usize, usize),
+    pub idle_time_limit: Option<f64>,
     pub theme: Option<Theme>,
 }
 
@@ -78,6 +80,7 @@ impl TryInto<Header> for V2Header {
 
         Ok(Header {
             terminal_size: (self.width, self.height),
+            idle_time_limit: self.idle_time_limit,
             theme,
         })
     }
