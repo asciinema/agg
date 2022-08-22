@@ -156,9 +156,9 @@ struct Cli {
     #[clap(long, default_value_t = 1.0)]
     speed: f64,
 
-    /// Limit idle time to max number of seconds
-    #[clap(long, default_value_t = 5.0)]
-    idle_time_limit: f64,
+    /// Limit idle time to max number of seconds [default: 5]
+    #[clap(long)]
+    idle_time_limit: Option<f64>,
 
     /// Set FPS cap
     #[clap(long, default_value_t = 30)]
@@ -182,7 +182,13 @@ fn main() -> Result<()> {
 
     let (header, events) = asciicast::open(&cli.input_filename)?;
     let stdout = asciicast::stdout(events);
-    let stdout = events::limit_idle_time(stdout, cli.idle_time_limit);
+
+    let itl = cli
+        .idle_time_limit
+        .or(header.idle_time_limit)
+        .unwrap_or(5.0);
+
+    let stdout = events::limit_idle_time(stdout, itl);
     let stdout = events::accelerate(stdout, cli.speed);
     let stdout = events::batch(stdout, cli.fps_cap);
     let stdout = stdout.collect::<Vec<_>>();
