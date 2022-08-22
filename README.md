@@ -50,20 +50,43 @@ agg --theme monokai --font-size 20 --speed 2 demo.cast demo.gif
 Run `agg -h` to see all available options. Current options are:
 
 ```
-    --font-dir <FONT_DIR>          Use additional font directory
-    --font-family <FONT_FAMILY>    Specify font family [default: "JetBrains Mono,Fira Code,SF
-                                   Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono"]
-    --font-size <FONT_SIZE>        Specify font size (in pixels) [default: 14]
-    --fps-cap <FPS_CAP>            Set FPS cap [default: 30]
--h, --help                         Print help information
-    --line-height <LINE_HEIGHT>    Specify line height [default: 1.4]
-    --renderer <RENDERER>          Select frame rendering backend [default: fontdue] [possible
-                                   values: fontdue, resvg]
-    --speed <SPEED>                Adjust playback speed [default: 1]
-    --theme <THEME>                Select color theme [possible values: asciinema, monokai,
-                                   solarized-dark, solarized-light, custom]
--v, --verbose                      Enable verbose logging
--V, --version                      Print version information
+    --font-dir <FONT_DIR>
+        Use additional font directory
+
+    --font-family <FONT_FAMILY>
+        Specify font family [default: "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu
+        Sans Mono,Liberation Mono"]
+
+    --font-size <FONT_SIZE>
+        Specify font size (in pixels) [default: 14]
+
+    --fps-cap <FPS_CAP>
+        Set FPS cap [default: 30]
+
+-h, --help
+        Print help information
+
+    --idle-time-limit <IDLE_TIME_LIMIT>
+        Limit idle time to max number of seconds [default: 5]
+
+    --line-height <LINE_HEIGHT>
+        Specify line height [default: 1.4]
+
+    --renderer <RENDERER>
+        Select frame rendering backend [default: fontdue] [possible values: fontdue, resvg]
+
+    --speed <SPEED>
+        Adjust playback speed [default: 1]
+
+    --theme <THEME>
+        Select color theme [possible values: asciinema, dracula, monokai, solarized-dark,
+        solarized-light, custom]
+
+-v, --verbose
+        Enable verbose logging
+
+-V, --version
+        Print version information
 ```
 
 ### Color themes

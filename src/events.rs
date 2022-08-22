@@ -61,6 +61,27 @@ pub fn accelerate(events: impl Iterator<Item = Event>, speed: f64) -> impl Itera
     events.map(move |(time, data)| (time / speed, data))
 }
 
+pub fn limit_idle_time(
+    events: impl Iterator<Item = Event>,
+    limit: f64,
+) -> impl Iterator<Item = Event> {
+    let mut prev_time = 0.0;
+    let mut offset = 0.0;
+
+    events.map(move |(time, data)| {
+        let delay = time - prev_time;
+        let excess = delay - limit;
+
+        if excess > 0.0 {
+            offset += excess;
+        }
+
+        prev_time = time;
+
+        (time - offset, data)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -104,5 +125,24 @@ mod tests {
         assert_eq!(&stdout[0], &(0.0, "foobar".to_owned()));
         assert_eq!(&stdout[1], &(0.066, "baz".to_owned()));
         assert_eq!(&stdout[2], &(1.0, "qux".to_owned()));
+    }
+
+    #[test]
+    fn limit_idle_time() {
+        let stdout = [
+            (0.0, "foo".to_owned()),
+            (1.0, "bar".to_owned()),
+            (3.5, "baz".to_owned()),
+            (4.0, "qux".to_owned()),
+            (7.5, "quux".to_owned()),
+        ];
+
+        let stdout = super::limit_idle_time(stdout.into_iter(), 2.0).collect::<Vec<_>>();
+
+        assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
+        assert_eq!(&stdout[1], &(1.0, "bar".to_owned()));
+        assert_eq!(&stdout[2], &(3.0, "baz".to_owned()));
+        assert_eq!(&stdout[3], &(3.5, "qux".to_owned()));
+        assert_eq!(&stdout[4], &(5.5, "quux".to_owned()));
     }
 }
