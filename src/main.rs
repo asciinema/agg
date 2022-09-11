@@ -164,6 +164,14 @@ struct Cli {
     #[clap(long, default_value_t = 30)]
     fps_cap: u8,
 
+    /// Override terminal width (number of columns)
+    #[clap(long)]
+    cols: Option<usize>,
+
+    /// Override terminal height (number of rows)
+    #[clap(long)]
+    rows: Option<usize>,
+
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]
     verbose: u8,
@@ -181,24 +189,26 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
 
     let (header, events) = asciicast::open(&cli.input_filename)?;
-    let stdout = asciicast::stdout(events);
+
+    let terminal_size = (
+        cli.cols.unwrap_or(header.terminal_size.0),
+        cli.rows.unwrap_or(header.terminal_size.1),
+    );
 
     let itl = cli
         .idle_time_limit
         .or(header.idle_time_limit)
         .unwrap_or(5.0);
 
+    let stdout = asciicast::stdout(events);
     let stdout = events::limit_idle_time(stdout, itl);
     let stdout = events::accelerate(stdout, cli.speed);
     let stdout = events::batch(stdout, cli.fps_cap);
     let stdout = stdout.collect::<Vec<_>>();
     let count = stdout.len() as u64;
-    let frames = vt::frames(stdout.into_iter(), header.terminal_size);
+    let frames = vt::frames(stdout.into_iter(), terminal_size);
 
-    info!(
-        "terminal size: {}x{}",
-        header.terminal_size.0, header.terminal_size.1
-    );
+    info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
     let (font_db, font_family) = fonts::init(&cli.font_dir, &cli.font_family)
         .ok_or_else(|| anyhow!("no faces matching font family {}", cli.font_family))?;
@@ -215,7 +225,7 @@ fn main() -> Result<()> {
     let theme: Theme = theme_opt.into();
 
     let settings = renderer::Settings {
-        terminal_size: header.terminal_size,
+        terminal_size,
         font_db,
         font_family,
         font_size: cli.font_size,
