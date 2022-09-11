@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
   publish:
@@ -35,7 +35,7 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             use-cross: false
-            binary_ext: '.exe'
+            binary_ext: ".exe"
 
           - os: macos-latest
             target: x86_64-apple-darwin
@@ -48,47 +48,47 @@ jobs:
             strip: strip
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
-        target: ${{ matrix.target }}
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
 
-    - name: Install required dependencies
-      shell: bash
-      run: |
-        if [[ ${{ matrix.target }} == x86_64-unknown-linux-musl ]]; then
-            sudo apt-get update
-            sudo apt-get install -y musl-tools
-        fi
-        if [[ ${{ matrix.target }} == aarch64-unknown-linux-gnu ]]; then
-            sudo apt-get update
-            sudo apt-get install -y binutils-aarch64-linux-gnu
-        fi
-        if [[ ${{ matrix.target }} == arm-unknown-linux-gnueabihf ]]; then
-            sudo apt-get update
-            sudo apt-get install -y binutils-arm-linux-gnueabihf
-        fi
+      - name: Install required dependencies
+        shell: bash
+        run: |
+          if [[ ${{ matrix.target }} == x86_64-unknown-linux-musl ]]; then
+              sudo apt-get update
+              sudo apt-get install -y musl-tools
+          fi
+          if [[ ${{ matrix.target }} == aarch64-unknown-linux-gnu ]]; then
+              sudo apt-get update
+              sudo apt-get install -y binutils-aarch64-linux-gnu
+          fi
+          if [[ ${{ matrix.target }} == arm-unknown-linux-gnueabihf ]]; then
+              sudo apt-get update
+              sudo apt-get install -y binutils-arm-linux-gnueabihf
+          fi
 
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: ${{ matrix.use-cross }}
-        command: build
-        args: --target ${{ matrix.target }} --release --locked
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.use-cross }}
+          command: build
+          args: --target ${{ matrix.target }} --release --locked
 
-    - name: Strip binary
-      if: matrix.strip
-      run: ${{ matrix.strip }} target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
+      - name: Strip binary
+        if: matrix.strip
+        run: ${{ matrix.strip }} target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
 
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
-        asset_name: agg-${{ matrix.target }}${{ matrix.binary_ext }}
-        tag: ${{ github.ref }}
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
+          asset_name: agg-${{ matrix.target }}${{ matrix.binary_ext }}
+          tag: ${{ github.ref }}
