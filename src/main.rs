@@ -156,6 +156,10 @@ struct Cli {
     #[clap(long, default_value_t = 1.0)]
     speed: f64,
 
+    /// Disable animation loop
+    #[clap(long)]
+    no_loop: bool,
+
     /// Limit idle time to max number of seconds [default: 5]
     #[clap(long)]
     idle_time_limit: Option<f64>,
@@ -242,10 +246,17 @@ fn main() -> Result<()> {
 
     info!("gif dimensions: {}x{}", width, height);
 
+    let repeat = if cli.no_loop {
+        gifski::Repeat::Finite(0)
+    } else {
+        gifski::Repeat::Infinite
+    };
+
     let settings = gifski::Settings {
         width: Some(width as u32),
         height: Some(height as u32),
         fast: true,
+        repeat,
         ..Default::default()
     };
 
