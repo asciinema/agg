@@ -50,6 +50,9 @@ agg --theme monokai --font-size 20 --speed 2 demo.cast demo.gif
 Run `agg -h` to see all available options. Current options are:
 
 ```
+    --cols <COLS>
+        Override terminal width (number of columns)
+
     --font-dir <FONT_DIR>
         Use additional font directory
 
@@ -72,8 +75,14 @@ Run `agg -h` to see all available options. Current options are:
     --line-height <LINE_HEIGHT>
         Specify line height [default: 1.4]
 
+    --no-loop
+        Disable animation loop
+
     --renderer <RENDERER>
         Select frame rendering backend [default: fontdue] [possible values: fontdue, resvg]
+
+    --rows <ROWS>
+        Override terminal height (number of rows)
 
     --speed <SPEED>
         Adjust playback speed [default: 1]
