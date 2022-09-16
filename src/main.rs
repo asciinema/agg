@@ -260,7 +260,7 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let (mut collector, writer) = gifski::new(settings)?;
+    let (collector, writer) = gifski::new(settings)?;
     let start_time = Instant::now();
     let file = File::create(cli.output_filename)?;
 
