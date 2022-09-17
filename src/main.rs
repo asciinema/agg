@@ -168,6 +168,10 @@ struct Cli {
     #[clap(long, default_value_t = 30)]
     fps_cap: u8,
 
+    /// Set last frame duration
+    #[clap(long, default_value_t = 3.0)]
+    last_frame_duration: f64,
+
     /// Override terminal width (number of columns)
     #[clap(long)]
     cols: Option<usize>,
@@ -274,7 +278,8 @@ fn main() -> Result<()> {
 
     for (i, (time, lines, cursor)) in frames.enumerate() {
         let image = renderer.render(lines, cursor);
-        collector.add_frame_rgba(i, image, time)?;
+        let time = if i == 0 { 0.0 } else { time };
+        collector.add_frame_rgba(i, image, time + cli.last_frame_duration)?;
     }
 
     drop(collector);
