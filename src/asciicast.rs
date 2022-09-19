@@ -28,7 +28,7 @@ pub struct Header {
     pub theme: Option<Theme>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum EventType {
     Output,
     Input,
@@ -202,4 +202,30 @@ pub fn stdout(
         }) => Some((time, data)),
         _ => None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn open() {
+        let (header, events) = super::open("demo.cast").unwrap();
+
+        let events = events
+            .take(3)
+            .collect::<Result<Vec<super::Event>, super::Error>>()
+            .unwrap();
+
+        assert_eq!(header.terminal_size, (89, 22));
+
+        assert_eq!(events[0].time, 0.085923);
+        assert_eq!(events[0].type_, super::EventType::Output);
+        assert_eq!(events[0].data, "\u{1b}[?2004h");
+
+        assert_eq!(events[1].time, 0.096545);
+        assert_eq!(events[1].type_, super::EventType::Output);
+
+        assert_eq!(events[2].time, 1.184101);
+        assert_eq!(events[2].type_, super::EventType::Output);
+        assert_eq!(events[2].data, "r\r\u{1b}[17C");
+    }
 }
