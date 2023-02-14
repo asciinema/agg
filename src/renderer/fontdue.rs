@@ -6,7 +6,7 @@ use rgb::RGBA8;
 
 use crate::theme::Theme;
 
-use super::{adjust_pen, color_to_rgb, Renderer, Settings};
+use super::{color_to_rgb, text_attrs, Renderer, Settings};
 
 pub struct FontdueRenderer {
     theme: Theme,
@@ -143,9 +143,9 @@ impl Renderer for FontdueRenderer {
 
         for (row, chars) in lines.iter().enumerate() {
             for (col, (ch, mut pen)) in chars.iter().enumerate() {
-                adjust_pen(&mut pen, &cursor, col, row, &self.theme);
+                let attrs = text_attrs(&mut pen, &cursor, col, row, &self.theme);
 
-                if let Some(c) = pen.background {
+                if let Some(c) = attrs.background {
                     let c = color_to_rgb(&c, &self.theme);
                     let y_t = margin_t + (row as f64 * self.row_height).round() as usize;
                     let y_b = margin_t + ((row + 1) as f64 * self.row_height).round() as usize;
@@ -165,7 +165,8 @@ impl Renderer for FontdueRenderer {
                 }
 
                 let fg = color_to_rgb(
-                    &pen.foreground
+                    &attrs
+                        .foreground
                         .unwrap_or(vt::Color::RGB(self.theme.foreground)),
                     &self.theme,
                 )
@@ -173,9 +174,9 @@ impl Renderer for FontdueRenderer {
 
                 let (metrics, bitmap) = self
                     .cache
-                    .entry((*ch, pen.bold, pen.italic))
+                    .entry((*ch, attrs.bold, attrs.italic))
                     .or_insert_with(|| {
-                        let font = match (pen.bold, pen.italic) {
+                        let font = match (attrs.bold, attrs.italic) {
                             (false, false) => &self.default_font,
                             (true, false) => &self.bold_font,
                             (false, true) => &self.italic_font,

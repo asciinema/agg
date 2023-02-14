@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use crate::theme::Theme;
 
-use super::{adjust_pen, color_to_rgb, Renderer, Settings};
+use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
 
 pub struct ResvgRenderer {
     terminal_size: (usize, usize),
@@ -25,32 +25,34 @@ fn color_to_style(color: &vt::Color, theme: &Theme) -> String {
     format!("fill: rgb({},{},{})", c.r, c.g, c.b)
 }
 
-fn text_class(pen: &vt::Pen) -> String {
+fn text_class(attrs: &TextAttrs) -> String {
     let mut class = "".to_owned();
 
-    if pen.bold {
+    if attrs.bold {
         class.push_str("br");
     }
 
-    if pen.italic {
+    if attrs.italic {
         class.push_str(" it");
     }
 
-    if pen.underline {
+    if attrs.underline {
         class.push_str(" un");
     }
 
     class
 }
 
-fn text_style(pen: &vt::Pen, theme: &Theme) -> String {
-    pen.foreground
+fn text_style(attrs: &TextAttrs, theme: &Theme) -> String {
+    attrs
+        .foreground
         .map(|c| color_to_style(&c, theme))
         .unwrap_or_else(|| "".to_owned())
 }
 
-fn rect_style(pen: &vt::Pen, theme: &Theme) -> String {
-    pen.background
+fn rect_style(attrs: &TextAttrs, theme: &Theme) -> String {
+    attrs
+        .background
         .map(|c| color_to_style(&c, theme))
         .unwrap_or_else(|| "".to_owned())
 }
@@ -153,14 +155,14 @@ impl ResvgRenderer {
             let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
 
             for (col, (_ch, mut pen)) in line.iter().enumerate() {
-                adjust_pen(&mut pen, &cursor, col, row, &self.theme);
+                let attrs = text_attrs(&mut pen, &cursor, col, row, &self.theme);
 
-                if pen.background.is_none() {
+                if attrs.background.is_none() {
                     continue;
                 }
 
                 let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
-                let style = rect_style(&pen, &self.theme);
+                let style = rect_style(&attrs, &self.theme);
 
                 let _ = write!(
                     svg,
@@ -194,7 +196,7 @@ impl ResvgRenderer {
                     continue;
                 }
 
-                adjust_pen(&mut pen, &cursor, col, row, &self.theme);
+                let attrs = text_attrs(&mut pen, &cursor, col, row, &self.theme);
 
                 svg.push_str("<tspan ");
 
@@ -204,8 +206,8 @@ impl ResvgRenderer {
                 }
 
                 let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
-                let class = text_class(&pen);
-                let style = text_style(&pen, &self.theme);
+                let class = text_class(&attrs);
+                let style = text_style(&attrs, &self.theme);
 
                 let _ = write!(svg, r#"x="{:.3}%" class="{}" style="{}">"#, x, class, style);
 

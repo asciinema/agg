@@ -32,40 +32,54 @@ pub fn fontdue(settings: Settings) -> fontdue::FontdueRenderer {
     fontdue::FontdueRenderer::new(settings)
 }
 
-fn adjust_pen(
+struct TextAttrs {
+    foreground: Option<vt::Color>,
+    background: Option<vt::Color>,
+    bold: bool,
+    italic: bool,
+    underline: bool,
+}
+
+fn text_attrs(
     pen: &mut vt::Pen,
     cursor: &Option<(usize, usize)>,
     x: usize,
     y: usize,
     theme: &Theme,
-) {
-    if let Some((cx, cy)) = cursor {
-        if cx == &x && cy == &y {
-            pen.inverse = !pen.inverse;
-        }
-    }
+) -> TextAttrs {
+    let mut foreground = pen.foreground();
+    let mut background = pen.background();
+    let inverse = cursor.map_or(false, |(cx, cy)| cx == x && cy == y);
 
-    if pen.bold {
-        if let Some(vt::Color::Indexed(n)) = pen.foreground {
+    if pen.is_bold() {
+        if let Some(vt::Color::Indexed(n)) = foreground {
             if n < 8 {
-                pen.foreground = Some(vt::Color::Indexed(n + 8));
+                foreground = Some(vt::Color::Indexed(n + 8));
             }
         }
     }
 
-    if pen.blink {
-        if let Some(vt::Color::Indexed(n)) = pen.background {
+    if pen.is_blink() {
+        if let Some(vt::Color::Indexed(n)) = background {
             if n < 8 {
-                pen.background = Some(vt::Color::Indexed(n + 8));
+                background = Some(vt::Color::Indexed(n + 8));
             }
         }
     }
 
-    if pen.inverse {
-        let fg = pen.background.unwrap_or(vt::Color::RGB(theme.background));
-        let bg = pen.foreground.unwrap_or(vt::Color::RGB(theme.foreground));
-        pen.foreground = Some(fg);
-        pen.background = Some(bg);
+    if pen.is_inverse() ^ inverse {
+        let fg = background.unwrap_or(vt::Color::RGB(theme.background));
+        let bg = foreground.unwrap_or(vt::Color::RGB(theme.foreground));
+        foreground = Some(fg);
+        background = Some(bg);
+    }
+
+    TextAttrs {
+        foreground,
+        background,
+        bold: pen.is_bold(),
+        italic: pen.is_italic(),
+        underline: pen.is_underline(),
     }
 }
 
