@@ -147,6 +147,6 @@ Every recording is different so you may need to tweak the lossiness level
 
 ## License
 
-Copyright &copy; 2022 Marcin Kulik.
+© 2022 Marcin Kulik.
 
 All code is licensed under the Apache License, Version 2.0. See LICENSE file for details.
