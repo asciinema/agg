@@ -9,7 +9,7 @@ use crate::theme::Theme;
 pub trait Renderer {
     fn render(
         &mut self,
-        lines: Vec<Vec<(char, vt::Pen)>>,
+        lines: Vec<Vec<(char, avt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8>;
     fn pixel_size(&self) -> (usize, usize);
@@ -33,15 +33,15 @@ pub fn fontdue(settings: Settings) -> fontdue::FontdueRenderer {
 }
 
 struct TextAttrs {
-    foreground: Option<vt::Color>,
-    background: Option<vt::Color>,
+    foreground: Option<avt::Color>,
+    background: Option<avt::Color>,
     bold: bool,
     italic: bool,
     underline: bool,
 }
 
 fn text_attrs(
-    pen: &mut vt::Pen,
+    pen: &mut avt::Pen,
     cursor: &Option<(usize, usize)>,
     x: usize,
     y: usize,
@@ -52,24 +52,24 @@ fn text_attrs(
     let inverse = cursor.map_or(false, |(cx, cy)| cx == x && cy == y);
 
     if pen.is_bold() {
-        if let Some(vt::Color::Indexed(n)) = foreground {
+        if let Some(avt::Color::Indexed(n)) = foreground {
             if n < 8 {
-                foreground = Some(vt::Color::Indexed(n + 8));
+                foreground = Some(avt::Color::Indexed(n + 8));
             }
         }
     }
 
     if pen.is_blink() {
-        if let Some(vt::Color::Indexed(n)) = background {
+        if let Some(avt::Color::Indexed(n)) = background {
             if n < 8 {
-                background = Some(vt::Color::Indexed(n + 8));
+                background = Some(avt::Color::Indexed(n + 8));
             }
         }
     }
 
     if pen.is_inverse() ^ inverse {
-        let fg = background.unwrap_or(vt::Color::RGB(theme.background));
-        let bg = foreground.unwrap_or(vt::Color::RGB(theme.foreground));
+        let fg = background.unwrap_or(avt::Color::RGB(theme.background));
+        let bg = foreground.unwrap_or(avt::Color::RGB(theme.foreground));
         foreground = Some(fg);
         background = Some(bg);
     }
@@ -83,9 +83,9 @@ fn text_attrs(
     }
 }
 
-fn color_to_rgb(c: &vt::Color, theme: &Theme) -> RGB8 {
+fn color_to_rgb(c: &avt::Color, theme: &Theme) -> RGB8 {
     match c {
-        vt::Color::RGB(c) => *c,
-        vt::Color::Indexed(c) => theme.color(*c),
+        avt::Color::RGB(c) => *c,
+        avt::Color::Indexed(c) => theme.color(*c),
     }
 }

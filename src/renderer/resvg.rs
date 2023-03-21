@@ -19,7 +19,7 @@ pub struct ResvgRenderer {
     header: String,
 }
 
-fn color_to_style(color: &vt::Color, theme: &Theme) -> String {
+fn color_to_style(color: &avt::Color, theme: &Theme) -> String {
     let c = color_to_rgb(color, theme);
 
     format!("fill: rgb({},{},{})", c.r, c.g, c.b)
@@ -134,7 +134,7 @@ impl ResvgRenderer {
     fn push_lines(
         &self,
         svg: &mut String,
-        lines: Vec<Vec<(char, vt::Pen)>>,
+        lines: Vec<Vec<(char, avt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) {
         self.push_background(svg, &lines, cursor);
@@ -144,7 +144,7 @@ impl ResvgRenderer {
     fn push_background(
         &self,
         svg: &mut String,
-        lines: &[Vec<(char, vt::Pen)>],
+        lines: &[Vec<(char, avt::Pen)>],
         cursor: Option<(usize, usize)>,
     ) {
         let (cols, rows) = self.terminal_size;
@@ -178,7 +178,7 @@ impl ResvgRenderer {
     fn push_text(
         &self,
         svg: &mut String,
-        lines: &[Vec<(char, vt::Pen)>],
+        lines: &[Vec<(char, avt::Pen)>],
         cursor: Option<(usize, usize)>,
     ) {
         let (cols, rows) = self.terminal_size;
@@ -250,7 +250,7 @@ impl ResvgRenderer {
 impl Renderer for ResvgRenderer {
     fn render(
         &mut self,
-        lines: Vec<Vec<(char, vt::Pen)>>,
+        lines: Vec<Vec<(char, avt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8> {
         let mut svg = self.header.clone();

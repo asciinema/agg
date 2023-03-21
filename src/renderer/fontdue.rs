@@ -133,7 +133,7 @@ fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
 impl Renderer for FontdueRenderer {
     fn render(
         &mut self,
-        lines: Vec<Vec<(char, vt::Pen)>>,
+        lines: Vec<Vec<(char, avt::Pen)>>,
         cursor: Option<(usize, usize)>,
     ) -> ImgVec<RGBA8> {
         let mut buf: Vec<RGBA8> =
@@ -167,7 +167,7 @@ impl Renderer for FontdueRenderer {
                 let fg = color_to_rgb(
                     &attrs
                         .foreground
-                        .unwrap_or(vt::Color::RGB(self.theme.foreground)),
+                        .unwrap_or(avt::Color::RGB(self.theme.foreground)),
                     &self.theme,
                 )
                 .alpha(255);
