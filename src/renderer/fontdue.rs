@@ -142,26 +142,22 @@ impl Renderer for FontdueRenderer {
         let margin_t = (self.row_height / 2.0).round() as usize;
 
         for (row, chars) in lines.iter().enumerate() {
+            let y_t = margin_t + (row as f64 * self.row_height).round() as usize;
+            let y_b = margin_t + ((row + 1) as f64 * self.row_height).round() as usize;
+
             for (col, (ch, mut pen)) in chars.iter().enumerate() {
+                let x_l = (margin_l + col as f64 * self.col_width).round() as usize;
+                let x_r = (margin_l + (col + 1) as f64 * self.col_width).round() as usize;
                 let attrs = text_attrs(&mut pen, &cursor, col, row, &self.theme);
 
                 if let Some(c) = attrs.background {
                     let c = color_to_rgb(&c, &self.theme);
-                    let y_t = margin_t + (row as f64 * self.row_height).round() as usize;
-                    let y_b = margin_t + ((row + 1) as f64 * self.row_height).round() as usize;
 
                     for y in y_t..y_b {
-                        let x_l = (margin_l + col as f64 * self.col_width).round() as usize;
-                        let x_r = (margin_l + (col + 1) as f64 * self.col_width).round() as usize;
-
                         for x in x_l..x_r {
                             buf[y * self.pixel_width + x] = c.alpha(255);
                         }
                     }
-                }
-
-                if ch == &' ' {
-                    continue;
                 }
 
                 let fg = color_to_rgb(
@@ -171,6 +167,20 @@ impl Renderer for FontdueRenderer {
                     &self.theme,
                 )
                 .alpha(255);
+
+                if attrs.underline {
+                    let y = margin_t
+                        + (row as f64 * self.row_height + self.font_size as f64 * 1.2).round()
+                            as usize;
+
+                    for x in x_l..x_r {
+                        buf[y * self.pixel_width + x] = fg;
+                    }
+                }
+
+                if ch == &' ' {
+                    continue;
+                }
 
                 let (metrics, bitmap) = self
                     .cache
