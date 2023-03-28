@@ -8,7 +8,7 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database
 
     let families = font_family
         .split(',')
-        .map(fontdb::Family::Name)
+        .map(|f| fontdb::Family::Name(f.trim()))
         .collect::<Vec<_>>();
 
     let query = fontdb::Query {
