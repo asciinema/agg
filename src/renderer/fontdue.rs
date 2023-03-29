@@ -9,33 +9,36 @@ use crate::theme::Theme;
 use super::{color_to_rgb, text_attrs, Renderer, Settings};
 
 pub struct FontdueRenderer {
+    font_families: Vec<String>,
     theme: Theme,
     pixel_width: usize,
     pixel_height: usize,
     font_size: usize,
-    default_font: fontdue::Font,
-    bold_font: fontdue::Font,
-    italic_font: fontdue::Font,
-    bold_italic_font: fontdue::Font,
-    emoji_font: fontdue::Font,
     col_width: f64,
     row_height: f64,
-    cache: HashMap<(char, bool, bool), (fontdue::Metrics, Vec<u8>)>,
+    font_db: fontdb::Database,
+    glyph_cache: HashMap<(char, bool, bool), Option<(fontdue::Metrics, Vec<u8>)>>,
+    font_cache: HashMap<(String, bool, bool), Option<fontdue::Font>>,
 }
 
-fn get_font(
+fn get_font<T: AsRef<str> + std::fmt::Debug>(
     db: &fontdb::Database,
-    family: &str,
+    families: &[T],
     weight: fontdb::Weight,
     style: fontdb::Style,
 ) -> Option<fontdue::Font> {
     debug!(
-        "looking up font for family={}, weight={}, style={:?}",
-        family, weight.0, style
+        "looking up font for families={:?}, weight={}, style={:?}",
+        families, weight.0, style
     );
 
+    let families: Vec<fontdb::Family> = families
+        .iter()
+        .map(|name| fontdb::Family::Name(name.as_ref()))
+        .collect();
+
     let query = fontdb::Query {
-        families: &[fontdb::Family::Name(family)],
+        families: &families,
         weight,
         stretch: fontdb::Stretch::Normal,
         style,
@@ -59,43 +62,11 @@ impl FontdueRenderer {
     pub fn new(settings: Settings) -> Self {
         let default_font = get_font(
             &settings.font_db,
-            &settings.font_family,
+            &settings.font_families,
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         )
         .unwrap();
-
-        let bold_font = get_font(
-            &settings.font_db,
-            &settings.font_family,
-            fontdb::Weight::BOLD,
-            fontdb::Style::Normal,
-        )
-        .unwrap_or_else(|| default_font.clone());
-
-        let italic_font = get_font(
-            &settings.font_db,
-            &settings.font_family,
-            fontdb::Weight::NORMAL,
-            fontdb::Style::Italic,
-        )
-        .unwrap_or_else(|| default_font.clone());
-
-        let bold_italic_font = get_font(
-            &settings.font_db,
-            &settings.font_family,
-            fontdb::Weight::BOLD,
-            fontdb::Style::Italic,
-        )
-        .unwrap_or_else(|| default_font.clone());
-
-        let emoji_font = get_font(
-            &settings.font_db,
-            "Noto Emoji",
-            fontdb::Weight::NORMAL,
-            fontdb::Style::Normal,
-        )
-        .unwrap_or_else(|| default_font.clone());
 
         let metrics = default_font.metrics('/', settings.font_size as f32);
         let (cols, rows) = settings.terminal_size;
@@ -103,19 +74,93 @@ impl FontdueRenderer {
         let row_height = (settings.font_size as f64) * settings.line_height;
 
         Self {
+            font_db: settings.font_db,
+            font_families: settings.font_families,
             theme: settings.theme,
             pixel_width: ((cols + 2) as f64 * col_width).round() as usize,
             pixel_height: ((rows + 1) as f64 * row_height).round() as usize,
             font_size: settings.font_size,
-            default_font,
-            bold_font,
-            italic_font,
-            bold_italic_font,
-            emoji_font,
             col_width,
             row_height,
-            cache: HashMap::new(),
+            font_cache: HashMap::new(),
+            glyph_cache: HashMap::new(),
         }
+    }
+
+    fn get_font(&mut self, name: &String, bold: bool, italic: bool) -> &Option<fontdue::Font> {
+        let weight = if bold {
+            fontdb::Weight::BOLD
+        } else {
+            fontdb::Weight::NORMAL
+        };
+
+        let style = if italic {
+            fontdb::Style::Italic
+        } else {
+            fontdb::Style::Normal
+        };
+
+        &*self
+            .font_cache
+            .entry((name.clone(), bold, italic))
+            .or_insert_with(|| get_font(&self.font_db, &[name], weight, style))
+    }
+
+    fn ensure_glyph(&mut self, ch: char, bold: bool, italic: bool) {
+        let key = (ch, bold, italic);
+
+        if self.glyph_cache.contains_key(&key) {
+            return;
+        }
+
+        if let Some(glyph) = self.rasterize_glyph(ch, bold, italic) {
+            self.glyph_cache.insert(key, Some(glyph));
+            return;
+        }
+
+        if bold || italic {
+            if let Some(glyph) = self.rasterize_glyph(ch, false, false) {
+                self.glyph_cache.insert(key, Some(glyph));
+                return;
+            }
+        }
+
+        self.glyph_cache.insert(key, None);
+    }
+
+    fn get_glyph(
+        &self,
+        ch: char,
+        bold: bool,
+        italic: bool,
+    ) -> &Option<(fontdue::Metrics, Vec<u8>)> {
+        self.glyph_cache.get(&(ch, bold, italic)).unwrap()
+    }
+
+    fn rasterize_glyph(
+        &mut self,
+        ch: char,
+        bold: bool,
+        italic: bool,
+    ) -> Option<(fontdue::Metrics, Vec<u8>)> {
+        let font_size = self.font_size as f32;
+
+        self.font_families
+            .clone()
+            .iter()
+            .find_map(|name| match self.get_font(name, bold, italic) {
+                Some(font) => {
+                    let idx = font.lookup_glyph_index(ch);
+
+                    if idx > 0 {
+                        Some(font.rasterize_indexed(idx, font_size))
+                    } else {
+                        None
+                    }
+                }
+
+                None => None,
+            })
     }
 }
 
@@ -182,25 +227,14 @@ impl Renderer for FontdueRenderer {
                     continue;
                 }
 
-                let (metrics, bitmap) = self
-                    .cache
-                    .entry((*ch, attrs.bold, attrs.italic))
-                    .or_insert_with(|| {
-                        let font = match (attrs.bold, attrs.italic) {
-                            (false, false) => &self.default_font,
-                            (true, false) => &self.bold_font,
-                            (false, true) => &self.italic_font,
-                            (true, true) => &self.bold_italic_font,
-                        };
+                self.ensure_glyph(*ch, attrs.bold, attrs.italic);
+                let glyph = self.get_glyph(*ch, attrs.bold, attrs.italic);
 
-                        let idx = font.lookup_glyph_index(*ch);
+                if glyph.is_none() {
+                    continue;
+                }
 
-                        if idx > 0 {
-                            font.rasterize_indexed(idx, self.font_size as f32)
-                        } else {
-                            self.emoji_font.rasterize(*ch, self.font_size as f32)
-                        }
-                    });
+                let (metrics, bitmap) = glyph.as_ref().unwrap();
 
                 let y_offset = (margin_t + self.font_size - metrics.height) as i32
                     + (row as f64 * self.row_height).round() as i32

@@ -73,7 +73,7 @@ impl ResvgRenderer {
 
         let header = Self::header(
             settings.terminal_size,
-            &settings.font_family,
+            settings.font_families.join(","),
             font_size,
             row_height,
             &settings.theme,
@@ -103,7 +103,7 @@ impl ResvgRenderer {
 
     fn header(
         (cols, rows): (usize, usize),
-        font_family: &str,
+        font_family: String,
         font_size: f64,
         row_height: f64,
         theme: &Theme,
