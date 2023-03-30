@@ -115,7 +115,10 @@ fn main() -> Result<()> {
         _ => "debug",
     };
 
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
+    let env = env_logger::Env::default().default_filter_or(log_level);
+    env_logger::Builder::from_env(env)
+        .format_timestamp(None)
+        .init();
 
     let config = agg::Config {
         cols: cli.cols,
