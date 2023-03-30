@@ -15,8 +15,10 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database
     if families.is_empty() {
         None
     } else {
-        if let Some(name) = find_font_family(&font_db, "Noto Emoji") {
-            families.push(name);
+        for name in ["DejaVu Sans", "Noto Emoji"] {
+            if let Some(name) = find_font_family(&font_db, name) {
+                families.push(name);
+            }
         }
 
         Some((font_db, families))
