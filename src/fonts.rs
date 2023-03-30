@@ -3,7 +3,7 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database
     font_db.load_system_fonts();
 
     for dir in font_dirs {
-        font_db.load_fonts_dir(dir);
+        font_db.load_fonts_dir(shellexpand::tilde(dir).to_string());
     }
 
     let mut families = font_family
