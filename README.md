@@ -98,7 +98,70 @@ Run `agg -h` to see all available options. Current options are:
         Print version information
 ```
 
-### Color themes
+## Fonts
+
+By default agg uses common monospaced font for a given platform, that can be
+found on its default font family list. The list includes DejaVu Sans Mono and
+Liberation Mono (found on most Linux distros), SF Mono and Menlo (found on
+macOS), Consolas (found on Windows), with addition of my personal favourites
+like JetBrains Mono and Fira Code. The fonts are not included in agg and must be
+present on the system. To see the default value run `agg --help` and look for
+`--font-family`. In addition there's implicit fallback to DejaVu Sans (not Mono)
+which helps with rendering symbols like ⣽ or ✔ amongst others.
+
+If you want to use another font family then pass a comma-separated list like
+this:
+
+```bash
+agg --font-family "Source Code Pro,Fira Code" demo.cast demo.gif
+```
+
+As long as the fonts you want to use are installed in one of standard system
+locations (e.g. /usr/share/fonts or ~/.local/share/fonts on Linux) agg will find
+them. You can also use `--font-dir=/path/to/fonts` option to include extra
+fonts. `--font-dir` can be specified multiple times.
+
+To verify agg picks up your font run it with `-v` (verbose) flag:
+
+```bash
+agg -v --font-family "Source Code Pro,Fira Code" demo.cast demo.gif
+```
+It should print something similar to:
+
+```
+[INFO agg] selected font families: ["Source Code Pro", "Fira Code", "DejaVu Sans", "Noto Emoji"]
+```
+
+This list may also include implicit addition of DejaVu Sans fallback (mentioned
+earlier), as well as Noto Emoji (see section below).
+
+Here's how to use [Nerd Fonts](https://www.nerdfonts.com/) with agg:
+
+1. Download one of the patched font sets from
+   https://github.com/ryanoasis/nerd-fonts/releases/latest , e.g. JetBrainsMono.zip
+2. Unzip them into `~/.local/share/fonts` (on Linux) or install with system font
+   manager (macOS, Windows)
+3. Specify font family like this:
+
+```bash
+agg --font-family "JetBrainsMono Nerd Font Mono" demo.cast demo.gif
+```
+
+## Emoji
+
+Currently agg supports only monochrome emojis via [Noto Emoji
+font](https://fonts.google.com/noto/specimen/Noto+Emoji).
+
+Install Noto Emoji font on your system or, point agg to a folder containing
+`NotoEmoji-*.ttf` files with `--font-dir`.
+
+Note that [Noto Color Emoji
+font](https://fonts.google.com/noto/specimen/Noto+Color+Emoji) is not supported.
+Be aware that [some
+distros](https://archlinux.org/packages/extra/any/noto-fonts-emoji/) ship this
+color font by name like "noto-fonts-emoji". This is _not_ what you need.
+
+## Color themes
 
 There are several built-in color themes you can use with `--theme` option:
 
