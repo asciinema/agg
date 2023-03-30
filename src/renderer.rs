@@ -18,7 +18,7 @@ pub trait Renderer {
 pub struct Settings {
     pub terminal_size: (usize, usize),
     pub font_db: fontdb::Database,
-    pub font_family: String,
+    pub font_families: Vec<String>,
     pub font_size: usize,
     pub line_height: f64,
     pub theme: Theme,

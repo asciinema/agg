@@ -1,4 +1,5 @@
 use imgref::ImgVec;
+use resvg::usvg_text_layout::TreeTextToPath;
 use rgb::{FromSlice, RGBA8};
 use std::fmt::Write as _;
 
@@ -17,6 +18,7 @@ pub struct ResvgRenderer {
     transform: tiny_skia::Transform,
     fit_to: usvg::FitTo,
     header: String,
+    font_db: fontdb::Database,
 }
 
 fn color_to_style(color: &avt::Color, theme: &Theme) -> String {
@@ -62,18 +64,13 @@ impl ResvgRenderer {
         let char_width = 100.0 / (settings.terminal_size.0 as f64 + 2.0);
         let font_size = settings.font_size as f64;
         let row_height = font_size * settings.line_height;
-
-        let options = usvg::Options {
-            fontdb: settings.font_db,
-            ..Default::default()
-        };
-
+        let options = usvg::Options::default();
         let fit_to = usvg::FitTo::Original;
         let transform = tiny_skia::Transform::default();
 
         let header = Self::header(
             settings.terminal_size,
-            &settings.font_family,
+            settings.font_families.join(","),
             font_size,
             row_height,
             &settings.theme,
@@ -81,8 +78,8 @@ impl ResvgRenderer {
 
         let mut svg = header.clone();
         svg.push_str(Self::footer());
-        let tree = usvg::Tree::from_str(&svg, &options.to_ref()).unwrap();
-        let screen_size = tree.svg_node().size.to_screen_size();
+        let tree = usvg::Tree::from_str(&svg, &options).unwrap();
+        let screen_size = tree.size.to_screen_size();
         let screen_size = fit_to.fit_to(screen_size).unwrap();
         let pixel_width = screen_size.width() as usize;
         let pixel_height = screen_size.height() as usize;
@@ -98,12 +95,13 @@ impl ResvgRenderer {
             transform,
             fit_to,
             header,
+            font_db: settings.font_db,
         }
     }
 
     fn header(
         (cols, rows): (usize, usize),
-        font_family: &str,
+        font_family: String,
         font_size: f64,
         row_height: f64,
         theme: &Theme,
@@ -256,7 +254,8 @@ impl Renderer for ResvgRenderer {
         let mut svg = self.header.clone();
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
-        let tree = usvg::Tree::from_str(&svg, &self.options.to_ref()).unwrap();
+        let mut tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
+        tree.convert_text(&self.font_db, true);
 
         let mut pixmap =
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
