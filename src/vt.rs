@@ -13,8 +13,9 @@ pub fn frames(
 
         if !changed_lines.is_empty() || cursor != prev_cursor {
             prev_cursor = cursor;
+            let lines = vt.lines().map(|line| line.cells().collect()).collect();
 
-            Some((time, vt.lines(), cursor))
+            Some((time, lines, cursor))
         } else {
             prev_cursor = cursor;
             debug!("skipping frame with no visual changes: {:?}", data);
