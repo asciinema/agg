@@ -196,8 +196,9 @@ at the end. For example, the equivalent of the built-in Monokai theme is:
 
 ## Additional GIF optimization
 
-agg's GIF encoder, [gifski](https://github.com/ImageOptim/gifski), produces
-great looking GIF files, although this often comes at a cost - file size.
+GIF encoder used by agg, [gifski](https://github.com/ImageOptim/gifski),
+produces great looking GIF files, although this often comes at a cost - file
+size.
 
 [gifsicle](https://www.lcdf.org/gifsicle/) can be used to shrink the produced GIF file:
 
