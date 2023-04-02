@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
+use crate::renderer::{color_to_rgb, text_attrs, Renderer, Settings};
+use crate::theme::Theme;
 use imgref::ImgVec;
 use log::debug;
 use rgb::RGBA8;
-
-use crate::theme::Theme;
-
-use super::{color_to_rgb, text_attrs, Renderer, Settings};
+use std::collections::HashMap;
 
 pub struct FontdueRenderer {
     font_families: Vec<String>,
