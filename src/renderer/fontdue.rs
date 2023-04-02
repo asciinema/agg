@@ -5,6 +5,10 @@ use log::debug;
 use rgb::RGBA8;
 use std::collections::HashMap;
 
+type CharVariant = (char, bool, bool);
+type FontFace = (String, bool, bool);
+type Glyph = (fontdue::Metrics, Vec<u8>);
+
 pub struct FontdueRenderer {
     font_families: Vec<String>,
     theme: Theme,
@@ -14,8 +18,8 @@ pub struct FontdueRenderer {
     col_width: f64,
     row_height: f64,
     font_db: fontdb::Database,
-    glyph_cache: HashMap<(char, bool, bool), Option<(fontdue::Metrics, Vec<u8>)>>,
-    font_cache: HashMap<(String, bool, bool), Option<fontdue::Font>>,
+    glyph_cache: HashMap<CharVariant, Option<Glyph>>,
+    font_cache: HashMap<FontFace, Option<fontdue::Font>>,
 }
 
 fn get_font<T: AsRef<str> + std::fmt::Debug>(
@@ -125,21 +129,11 @@ impl FontdueRenderer {
         self.glyph_cache.insert(key, None);
     }
 
-    fn get_glyph(
-        &self,
-        ch: char,
-        bold: bool,
-        italic: bool,
-    ) -> &Option<(fontdue::Metrics, Vec<u8>)> {
+    fn get_glyph(&self, ch: char, bold: bool, italic: bool) -> &Option<Glyph> {
         self.glyph_cache.get(&(ch, bold, italic)).unwrap()
     }
 
-    fn rasterize_glyph(
-        &mut self,
-        ch: char,
-        bold: bool,
-        italic: bool,
-    ) -> Option<(fontdue::Metrics, Vec<u8>)> {
+    fn rasterize_glyph(&mut self, ch: char, bold: bool, italic: bool) -> Option<Glyph> {
         let font_size = self.font_size as f32;
 
         self.font_families
