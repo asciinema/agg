@@ -187,7 +187,7 @@ impl ResvgRenderer {
             let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
             let mut did_dy = false;
 
-            let _ = write!(svg, r#"<tspan y="{:.3}%">"#, y);
+            let _ = write!(svg, r#"<tspan y="{y:.3}%">"#);
 
             for (col, (ch, mut pen)) in line.iter().enumerate() {
                 if ch == &' ' {
@@ -207,7 +207,7 @@ impl ResvgRenderer {
                 let class = text_class(&attrs);
                 let style = text_style(&attrs, &self.theme);
 
-                let _ = write!(svg, r#"x="{:.3}%" class="{}" style="{}">"#, x, class, style);
+                let _ = write!(svg, r#"x="{x:.3}%" class="{class}" style="{style}">"#);
 
                 match ch {
                     '\'' => {

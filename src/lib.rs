@@ -112,7 +112,7 @@ impl Display for Theme {
         match self {
             Custom(_) => f.write_str("custom"),
             Embedded(_) => f.write_str("embedded"),
-            t => write!(f, "{}", format!("{:?}", t).to_lowercase()),
+            t => write!(f, "{}", format!("{t:?}").to_lowercase()),
         }
     }
 }

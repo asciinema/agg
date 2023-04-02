@@ -137,7 +137,7 @@ fn download(url: &str) -> Result<impl io::Read, Error> {
         .ok_or_else(|| Error::Download("unknown content type".to_owned()))?;
 
     if ct != "application/x-asciicast" && ct != "application/json" {
-        return Err(Error::Download(format!("{} is not supported", ct)));
+        return Err(Error::Download(format!("{ct} is not supported")));
     }
 
     Ok(Box::new(response))
