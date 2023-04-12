@@ -41,6 +41,28 @@ This produces an executable file in _release mode_ (`--release`) at
 `target/release/agg`. There are no other build artifacts so you can copy the
 binary to a directory in your `$PATH`.
 
+## Building via Docker (no Rust install needed)
+
+As an alternative to building with Rust locally, you can install Rancher
+Desktop or another docker-compatible tool. In the examples below,
+we are using `nerdctl` as the docker compatible tool, and this will
+also work with Docker Desktop, using the `docker` command.
+
+```sh
+nerdctl build -t agg .
+```
+
+Then you can do this:
+
+```sh
+mkdir -p ~/TMP 
+cp demo.cast ~/TMP
+nerdctl run --rm -it -v ~/TMP:/casts agg /casts/demo.cast /casts/demo.gif
+```
+
+This will create the `.gif` file in the `~/TMP` directory. If you don't want to build
+the image, you can always use the image here: <https://hub.docker.com/r/kayvan/agg>.
+
 ## Usage
 
 Basic usage:
@@ -61,7 +83,7 @@ agg --theme monokai --font-size 20 --speed 2 demo.cast demo.gif
 
 Run `agg -h` to see all available options. Current options are:
 
-```
+```text
     --cols <COLS>
         Override terminal width (number of columns)
 
@@ -138,9 +160,10 @@ To verify agg picks up your font run it with `-v` (verbose) flag:
 ```bash
 agg -v --font-family "Source Code Pro,Fira Code" demo.cast demo.gif
 ```
+
 It should print something similar to:
 
-```
+```text
 [INFO agg] selected font families: ["Source Code Pro", "Fira Code", "DejaVu Sans", "Noto Emoji"]
 ```
 
@@ -150,7 +173,7 @@ earlier), as well as Noto Emoji (see section below).
 Here's how to use [Nerd Fonts](https://www.nerdfonts.com/) with agg:
 
 1. Download one of the patched font sets from
-   https://github.com/ryanoasis/nerd-fonts/releases/latest , e.g. JetBrainsMono.zip
+   <https://github.com/ryanoasis/nerd-fonts/releases/latest> , e.g. JetBrainsMono.zip
 2. Unzip them into `~/.local/share/fonts` (on Linux) or install with system font
    manager (macOS, Windows)
 3. Specify font family like this:
@@ -191,7 +214,7 @@ A custom, ad-hoc theme can be used with `--theme` option by passing a series of
 comma-separated hex triplets defining terminal background color, default text
 color and a color palette:
 
-```
+```text
 --theme bbbbbb,ffffff,000000,111111,222222,333333,444444,555555,666666,777777
 ```
 
@@ -202,7 +225,7 @@ palette](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors).
 Additional bright color variants can be specified by adding 8 more hex triplets
 at the end. For example, the equivalent of the built-in Monokai theme is:
 
-```
+```text
 --theme 272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5
 ```
 
