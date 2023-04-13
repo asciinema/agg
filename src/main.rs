@@ -78,7 +78,7 @@ struct Cli {
     speed: f64,
 
     /// Disable animation loop
-    #[clap(long, default_value_t = agg::DEFAULT_NO_LOOP)]
+    #[clap(long)]
     no_loop: bool,
 
     /// Limit idle time to max number of seconds [default: 5]
