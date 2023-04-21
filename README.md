@@ -20,14 +20,26 @@ Building from source requires [Rust](https://www.rust-lang.org/) compiler
 (1.56.0 or later) and [Cargo package manager](https://doc.rust-lang.org/cargo/).
 You can install both with [rustup](https://rustup.rs/).
 
-To build agg run:
+To download source code, build agg binary and install it in `$HOME/.cargo/bin`
+run:
 
 ```bash
+cargo install --git https://github.com/asciinema/agg
+```
+
+You need to ensure `$HOME/.cargo/bin` is in your shell's `$PATH`.
+
+Alternatively, you can manually download source code and build agg binary with:
+
+```bash
+git clone https://github.com/asciinema/agg
+cd agg
 cargo build --release
 ```
 
-This produces an executable file in _release mode_ (`--release`) at `target/release/agg`. There are no other
-build artifacts so you can copy the binary to a directory in your `$PATH`.
+This produces an executable file in _release mode_ (`--release`) at
+`target/release/agg`. There are no other build artifacts so you can copy the
+binary to a directory in your `$PATH`.
 
 ## Usage
 
