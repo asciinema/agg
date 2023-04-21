@@ -23,10 +23,10 @@ with [rustup](https://rustup.rs/).
 To build agg run:
 
 ```bash
-cargo build -r
+cargo build --release
 ```
 
-This produces an executable file at `target/release/agg`. There are no other
+This produces an executable file in _release mode_ (`--release`) at `target/release/agg`. There are no other
 build artifacts so you can copy the binary to a directory in your `$PATH`.
 
 ## Usage
