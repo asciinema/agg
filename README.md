@@ -16,9 +16,9 @@ agg is a successor to
 
 ## Building
 
-Building from source requires [Rust](https://www.rust-lang.org/) compiler and
-[Cargo package manager](https://doc.rust-lang.org/cargo/). You can install both
-with [rustup](https://rustup.rs/).
+Building from source requires [Rust](https://www.rust-lang.org/) compiler
+(1.56.0 or later) and [Cargo package manager](https://doc.rust-lang.org/cargo/).
+You can install both with [rustup](https://rustup.rs/).
 
 To build agg run:
 
