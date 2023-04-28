@@ -3,7 +3,7 @@ use reqwest::header;
 use serde::Deserialize;
 use std::fmt::Display;
 use std::fs;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead};
 
 use crate::theme::Theme;
 
@@ -153,8 +153,9 @@ fn reader(path: &str) -> Result<Box<dyn io::Read>, Error> {
     }
 }
 
-pub fn open(path: &str) -> Result<(Header, impl Iterator<Item = Result<Event, Error>>), Error> {
-    let reader = BufReader::new(reader(path)?);
+pub fn open<'a, R: BufRead>(
+    reader: R,
+) -> Result<(Header, impl Iterator<Item = Result<Event, Error>>), Error> {
     let mut lines = reader.lines();
     let first_line = lines.next().ok_or(Error::EmptyFile)??;
     let v2_header: V2Header = serde_json::from_str(&first_line)?;
@@ -206,9 +207,12 @@ pub fn stdout(
 
 #[cfg(test)]
 mod tests {
+    use std::{fs::File, io::BufReader};
+
     #[test]
     fn open() {
-        let (header, events) = super::open("demo.cast").unwrap();
+        let file = File::open("demo.cast").unwrap();
+        let (header, events) = super::open(BufReader::new(file)).unwrap();
 
         let events = events
             .take(3)
