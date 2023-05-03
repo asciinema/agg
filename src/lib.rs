@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use asciicast::Header;
 use clap::ArgEnum;
+use gifski::progress::ProgressReporter;
 use log::info;
 use std::fmt::{Debug, Display};
 use std::io::{BufRead, BufReader, Write};
@@ -35,6 +36,7 @@ pub struct Config {
     pub rows: Option<usize>,
     pub speed: f64,
     pub theme: Option<Theme>,
+    pub show_progress_bar: bool,
 }
 
 impl Default for Config {
@@ -53,6 +55,7 @@ impl Default for Config {
             rows: None,
             speed: DEFAULT_SPEED,
             theme: Default::default(),
+            show_progress_bar: true,
         }
     }
 }
@@ -191,10 +194,16 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     thread::scope(|s| {
         let writer_handle = s.spawn(move || {
-            let mut pr = gifski::progress::ProgressBar::new(count);
-            let result = writer.write(output, &mut pr);
-            pr.finish();
-            result
+            if config.show_progress_bar {
+                let mut pr = gifski::progress::ProgressBar::new(count);
+                let result = writer.write(output, &mut pr);
+                pr.finish();
+                result
+            } else {
+                let mut pr = gifski::progress::NoProgress {};
+                let result = writer.write(output, &mut pr);
+                result
+            }
         });
         for (i, (time, lines, cursor)) in frames.enumerate() {
             let image = renderer.render(lines, cursor);
