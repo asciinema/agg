@@ -134,6 +134,7 @@ fn main() -> Result<()> {
         rows: cli.rows,
         speed: cli.speed,
         theme: cli.theme.map(|theme| theme.0),
+        show_progress_bar: true,
     };
 
     let input = BufReader::new(File::open(&cli.input_filename)?);

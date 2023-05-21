@@ -1,11 +1,9 @@
 use anyhow::{anyhow, Result};
-use asciicast::Header;
 use clap::ArgEnum;
-use gifski::progress::ProgressReporter;
 use log::info;
 use std::fmt::{Debug, Display};
-use std::io::{BufRead, BufReader, Write};
-use std::{fs::File, thread, time::Instant};
+use std::io::{BufRead, Write};
+use std::{thread, time::Instant};
 mod asciicast;
 mod events;
 mod fonts;
@@ -60,21 +58,17 @@ impl Default for Config {
     }
 }
 
-#[derive(Clone, ArgEnum)]
+#[derive(Clone, ArgEnum, Default)]
 pub enum Renderer {
+    #[default]
     Fontdue,
     Resvg,
 }
 
-impl Default for Renderer {
-    fn default() -> Self {
-        Renderer::Fontdue
-    }
-}
-
-#[derive(Clone, Debug, ArgEnum)]
+#[derive(Clone, Debug, ArgEnum, Default)]
 pub enum Theme {
     Asciinema,
+    #[default]
     Dracula,
     Monokai,
     SolarizedDark,
@@ -84,12 +78,6 @@ pub enum Theme {
     Custom(String),
     #[clap(skip)]
     Embedded(theme::Theme),
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Theme::Dracula
-    }
 }
 
 impl TryFrom<Theme> for theme::Theme {
@@ -201,8 +189,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
                 result
             } else {
                 let mut pr = gifski::progress::NoProgress {};
-                let result = writer.write(output, &mut pr);
-                result
+                writer.write(output, &mut pr)
             }
         });
         for (i, (time, lines, cursor)) in frames.enumerate() {
