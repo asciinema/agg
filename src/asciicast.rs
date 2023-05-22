@@ -102,7 +102,7 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-pub fn open<'a, R: BufRead>(
+pub fn open<R: BufRead>(
     reader: R,
 ) -> Result<(Header, impl Iterator<Item = Result<Event, Error>>), Error> {
     let mut lines = reader.lines();
