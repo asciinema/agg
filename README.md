@@ -56,7 +56,7 @@ docker build -t agg .
 Then run agg like this:
 
 ```sh
-docker run --rm -it -v $PWD:/data agg /data/demo.cast /data/demo.gif
+docker run --rm -it -v $PWD:/data agg demo.cast demo.gif
 ```
 
 ## Usage

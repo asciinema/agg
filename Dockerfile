@@ -12,5 +12,7 @@ LABEL org.opencontainers.image.authors="kayvan.sylvan@gmail.com"
 
 COPY --from=builder /usr/src/target/release/agg /usr/local/bin/
 
+WORKDIR /data
+
 ENTRYPOINT [ "/usr/local/bin/agg" ]
 
