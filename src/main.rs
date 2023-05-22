@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{ArgAction, ArgEnum, Parser};
-use std::iter;
+use std::{fs::File, io::BufReader, iter};
 
 #[derive(Clone)]
 pub struct Theme(agg::Theme);
@@ -134,7 +134,10 @@ fn main() -> Result<()> {
         rows: cli.rows,
         speed: cli.speed,
         theme: cli.theme.map(|theme| theme.0),
+        show_progress_bar: true,
     };
 
-    agg::run(&cli.input_filename, &cli.output_filename, config)
+    let input = BufReader::new(File::open(&cli.input_filename)?);
+    let mut output = File::create(&cli.output_filename)?;
+    agg::run(input, &mut output, config)
 }

@@ -2,7 +2,8 @@ use anyhow::{anyhow, Result};
 use clap::ArgEnum;
 use log::info;
 use std::fmt::{Debug, Display};
-use std::{fs::File, thread, time::Instant};
+use std::io::{BufRead, Write};
+use std::{thread, time::Instant};
 mod asciicast;
 mod events;
 mod fonts;
@@ -33,6 +34,7 @@ pub struct Config {
     pub rows: Option<usize>,
     pub speed: f64,
     pub theme: Option<Theme>,
+    pub show_progress_bar: bool,
 }
 
 impl Default for Config {
@@ -51,25 +53,22 @@ impl Default for Config {
             rows: None,
             speed: DEFAULT_SPEED,
             theme: Default::default(),
+            show_progress_bar: true,
         }
     }
 }
 
-#[derive(Clone, ArgEnum)]
+#[derive(Clone, ArgEnum, Default)]
 pub enum Renderer {
+    #[default]
     Fontdue,
     Resvg,
 }
 
-impl Default for Renderer {
-    fn default() -> Self {
-        Renderer::Fontdue
-    }
-}
-
-#[derive(Clone, Debug, ArgEnum)]
+#[derive(Clone, Debug, ArgEnum, Default)]
 pub enum Theme {
     Asciinema,
+    #[default]
     Dracula,
     Monokai,
     SolarizedDark,
@@ -79,12 +78,6 @@ pub enum Theme {
     Custom(String),
     #[clap(skip)]
     Embedded(theme::Theme),
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Theme::Dracula
-    }
 }
 
 impl TryFrom<Theme> for theme::Theme {
@@ -117,8 +110,8 @@ impl Display for Theme {
     }
 }
 
-pub fn run(input_filename: &str, output_filename: &str, config: Config) -> Result<()> {
-    let (header, events) = asciicast::open(input_filename)?;
+pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> Result<()> {
+    let (header, events) = asciicast::open(input)?;
 
     let terminal_size = (
         config.cols.unwrap_or(header.terminal_size.0),
@@ -186,24 +179,29 @@ pub fn run(input_filename: &str, output_filename: &str, config: Config) -> Resul
 
     let (collector, writer) = gifski::new(settings)?;
     let start_time = Instant::now();
-    let file = File::create(output_filename)?;
 
-    let writer_handle = thread::spawn(move || {
-        let mut pr = gifski::progress::ProgressBar::new(count);
-        let result = writer.write(file, &mut pr);
-        pr.finish();
+    thread::scope(|s| {
+        let writer_handle = s.spawn(move || {
+            if config.show_progress_bar {
+                let mut pr = gifski::progress::ProgressBar::new(count);
+                let result = writer.write(output, &mut pr);
+                pr.finish();
+                result
+            } else {
+                let mut pr = gifski::progress::NoProgress {};
+                writer.write(output, &mut pr)
+            }
+        });
+        for (i, (time, lines, cursor)) in frames.enumerate() {
+            let image = renderer.render(lines, cursor);
+            let time = if i == 0 { 0.0 } else { time };
+            collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
+        }
 
-        result
-    });
-
-    for (i, (time, lines, cursor)) in frames.enumerate() {
-        let image = renderer.render(lines, cursor);
-        let time = if i == 0 { 0.0 } else { time };
-        collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
-    }
-
-    drop(collector);
-    writer_handle.join().unwrap()?;
+        drop(collector);
+        writer_handle.join().unwrap()?;
+        Result::<()>::Ok(())
+    })?;
 
     info!(
         "rendering finished in {}s",
