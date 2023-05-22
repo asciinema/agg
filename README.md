@@ -41,27 +41,23 @@ This produces an executable file in _release mode_ (`--release`) at
 `target/release/agg`. There are no other build artifacts so you can copy the
 binary to a directory in your `$PATH`.
 
-## Building via Docker (no Rust install needed)
+### Building via Docker
 
-As an alternative to building with Rust locally, you can install Rancher
-Desktop or another docker-compatible tool. In the examples below,
-we are using `nerdctl` as the docker compatible tool, and this will
-also work with Docker Desktop, using the `docker` command.
+Alternatively, if you have Docker, Podman or another Docker-compatible tool
+installed you can use it to build agg container image. This doesn't require Rust
+toolchain installed on your machine.
 
-```sh
-nerdctl build -t agg .
-```
-
-Then you can do this:
+Build the image with the following command:
 
 ```sh
-mkdir -p ~/TMP 
-cp demo.cast ~/TMP
-nerdctl run --rm -it -v ~/TMP:/casts agg /casts/demo.cast /casts/demo.gif
+docker build -t agg .
 ```
 
-This will create the `.gif` file in the `~/TMP` directory. If you don't want to build
-the image, you can always use the image here: <https://hub.docker.com/r/kayvan/agg>.
+Then run agg like this:
+
+```sh
+docker run --rm -it -v $PWD:/data agg /data/demo.cast /data/demo.gif
+```
 
 ## Usage
 
