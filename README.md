@@ -56,7 +56,13 @@ docker build -t agg .
 Then run agg like this:
 
 ```sh
-docker run --rm -it -v $PWD:/data agg demo.cast demo.gif
+docker run --rm -it -u $(id -u):$(id -g) -v $PWD:/data agg demo.cast demo.gif
+```
+
+If you use Podman in root-less mode:
+
+```sh
+podman run --rm -it -v $PWD:/data agg demo.cast demo.gif
 ```
 
 ## Usage
