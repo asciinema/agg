@@ -1,6 +1,10 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{ArgAction, ArgEnum, Parser};
+use reqwest::header;
+use std::io;
 use std::{fs::File, io::BufReader, iter};
+
+static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Clone)]
 pub struct Theme(agg::Theme);
@@ -106,6 +110,45 @@ struct Cli {
     verbose: u8,
 }
 
+fn download(url: &str) -> Result<impl io::Read> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(USER_AGENT)
+        .gzip(true)
+        .build()?;
+
+    let request = client
+        .get(url)
+        .header(
+            header::ACCEPT,
+            header::HeaderValue::from_static("application/x-asciicast,application/json"),
+        )
+        .build()?;
+
+    let response = client.execute(request)?.error_for_status()?;
+
+    let ct = response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|hv| hv.to_str().ok())
+        .ok_or_else(|| anyhow!("unknown content type".to_owned()))?;
+
+    if ct != "application/x-asciicast" && ct != "application/json" {
+        return Err(anyhow!(format!("{ct} is not supported")));
+    }
+
+    Ok(Box::new(response))
+}
+
+fn reader(path: &str) -> Result<Box<dyn io::Read>> {
+    if path == "-" {
+        Ok(Box::new(io::stdin()))
+    } else if path.starts_with("http://") || path.starts_with("https://") {
+        Ok(Box::new(download(path)?))
+    } else {
+        Ok(Box::new(File::open(path)?))
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -137,7 +180,7 @@ fn main() -> Result<()> {
         show_progress_bar: true,
     };
 
-    let input = BufReader::new(File::open(&cli.input_filename)?);
+    let input = BufReader::new(reader(&cli.input_filename)?);
     let mut output = File::create(&cli.output_filename)?;
     agg::run(input, &mut output, config)
 }

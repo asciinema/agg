@@ -1,9 +1,6 @@
-use fs::File;
-use reqwest::header;
 use serde::Deserialize;
 use std::fmt::Display;
-use std::fs;
-use std::io::{self, BufRead};
+use std::io::BufRead;
 
 use crate::theme::Theme;
 
@@ -43,7 +40,6 @@ pub struct Event {
 
 #[derive(Debug)]
 pub enum Error {
-    Download(String),
     Io(std::io::Error),
     EmptyFile,
     InvalidEventTime,
@@ -103,53 +99,6 @@ impl From<std::io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
         Self::ParseJson(err)
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(err: reqwest::Error) -> Self {
-        Self::Download(err.to_string())
-    }
-}
-
-static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
-
-fn download(url: &str) -> Result<impl io::Read, Error> {
-    let client = reqwest::blocking::Client::builder()
-        .user_agent(USER_AGENT)
-        .gzip(true)
-        .build()?;
-
-    let request = client
-        .get(url)
-        .header(
-            header::ACCEPT,
-            header::HeaderValue::from_static("application/x-asciicast,application/json"),
-        )
-        .build()?;
-
-    let response = client.execute(request)?.error_for_status()?;
-
-    let ct = response
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|hv| hv.to_str().ok())
-        .ok_or_else(|| Error::Download("unknown content type".to_owned()))?;
-
-    if ct != "application/x-asciicast" && ct != "application/json" {
-        return Err(Error::Download(format!("{ct} is not supported")));
-    }
-
-    Ok(Box::new(response))
-}
-
-fn reader(path: &str) -> Result<Box<dyn io::Read>, Error> {
-    if path == "-" {
-        Ok(Box::new(io::stdin()))
-    } else if path.starts_with("http://") || path.starts_with("https://") {
-        Ok(Box::new(download(path)?))
-    } else {
-        Ok(Box::new(File::open(path)?))
     }
 }
 
