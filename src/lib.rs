@@ -3,7 +3,7 @@ use clap::ArgEnum;
 use log::info;
 use std::fmt::{Debug, Display};
 use std::io::{BufRead, Write};
-use std::{thread, time::Instant};
+use std::{iter, thread, time::Instant};
 mod asciicast;
 mod events;
 mod fonts;
@@ -124,6 +124,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         .unwrap_or(5.0);
 
     let stdout = asciicast::stdout(events);
+    let stdout = iter::once((0.0, "".to_owned())).chain(stdout);
     let stdout = events::limit_idle_time(stdout, itl);
     let stdout = events::accelerate(stdout, config.speed);
     let stdout = events::batch(stdout, config.fps_cap);

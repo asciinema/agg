@@ -20,7 +20,7 @@ impl<I: Iterator<Item = Event>> Iterator for Batch<I> {
                     self.prev_data.push_str(&data);
 
                     self.next()
-                } else if !self.prev_data.is_empty() {
+                } else if !self.prev_data.is_empty() || self.prev_time == 0.0 {
                     let prev_time = self.prev_time;
                     self.prev_time = time;
                     let prev_data = std::mem::replace(&mut self.prev_data, data);
@@ -125,6 +125,18 @@ mod tests {
         assert_eq!(&stdout[0], &(0.0, "foobar".to_owned()));
         assert_eq!(&stdout[1], &(0.066, "baz".to_owned()));
         assert_eq!(&stdout[2], &(1.0, "qux".to_owned()));
+
+        let stdout = [
+            (0.0, "".to_owned()),
+            (1.0, "foo".to_owned()),
+            (2.0, "bar".to_owned()),
+        ];
+
+        let stdout = super::batch(stdout.into_iter(), 30).collect::<Vec<_>>();
+
+        assert_eq!(&stdout[0], &(0.0, "".to_owned()));
+        assert_eq!(&stdout[1], &(1.0, "foo".to_owned()));
+        assert_eq!(&stdout[2], &(2.0, "bar".to_owned()));
     }
 
     #[test]
