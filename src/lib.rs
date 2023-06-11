@@ -19,6 +19,7 @@ pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
 pub const DEFAULT_LINE_HEIGHT: f64 = 1.4;
 pub const DEFAULT_NO_LOOP: bool = false;
 pub const DEFAULT_SPEED: f64 = 1.0;
+pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 
 pub struct Config {
     pub cols: Option<usize>,
@@ -121,7 +122,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let itl = config
         .idle_time_limit
         .or(header.idle_time_limit)
-        .unwrap_or(5.0);
+        .unwrap_or(DEFAULT_IDLE_TIME_LIMIT);
 
     let stdout = asciicast::stdout(events);
     let stdout = iter::once((0.0, "".to_owned())).chain(stdout);
