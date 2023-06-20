@@ -246,6 +246,10 @@ gifsicle --lossy=80 -k 128 -O2 -Okeep-empty demo.gif -o demo-opt.gif
 Every recording is different so you may need to tweak the lossiness level
 (`--lossy`), number of colors (`-k`) and other options to suit your needs.
 
+## Consulting
+
+I offer consulting services for asciinema project. See https://asciinema.org/consulting for more information.
+
 ## License
 
 © 2022 Marcin Kulik.
