@@ -14,6 +14,18 @@ agg is a successor to
 
 ![Demo](demo.gif)
 
+## Quick Install
+
+agg is available in some package managers.
+
+Homebrew ([formula](https://formulae.brew.sh/formula/agg)):
+
+```bash
+brew install agg
+```
+
+Nix ([package](https://search.nixos.org/packages?type=packages&query=asciinema-agg)): `asciinema-agg`
+
 ## Building
 
 Building from source requires [Rust](https://www.rust-lang.org/) compiler
