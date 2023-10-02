@@ -13,7 +13,12 @@ pub fn frames(
 
         if !changed_lines.is_empty() || cursor != prev_cursor {
             prev_cursor = cursor;
-            let lines = vt.lines().iter().map(|line| line.cells().collect()).collect();
+
+            let lines = vt
+                .lines()
+                .iter()
+                .map(|line| line.cells().collect())
+                .collect();
 
             Some((time, lines, cursor))
         } else {
