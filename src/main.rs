@@ -48,7 +48,7 @@ impl clap::builder::TypedValueParser for ThemeValueParser {
 #[clap(author, version, about, long_about = None)]
 struct Cli {
     /// asciicast path/filename or URL
-    input_filename: String,
+    input_filename_or_url: String,
 
     /// GIF path/filename
     output_filename: String,
@@ -180,7 +180,7 @@ fn main() -> Result<()> {
         show_progress_bar: true,
     };
 
-    let input = BufReader::new(reader(&cli.input_filename)?);
+    let input = BufReader::new(reader(&cli.input_filename_or_url)?);
     let mut output = File::create(&cli.output_filename)?;
     agg::run(input, &mut output, config)
 }

@@ -76,6 +76,12 @@ agg demo.cast demo.gif
 The above command renders a GIF file with default theme (dracula), font size
 14px.
 
+You can also provide an asciinema.org URL as the first argument:
+
+```bash
+agg https://asciinema.org/a/569727 starwars.gif
+```
+
 Additional options are available for customization. For example, the following
 command selects Monokai theme, larger font size, 2x playback speed:
 
