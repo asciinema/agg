@@ -9,13 +9,13 @@ pub fn frames(
 
     stdout.filter_map(move |(time, data)| {
         let (changed_lines, _) = vt.feed_str(&data);
-        let cursor = vt.cursor();
+        let cursor = cursor_option(vt.cursor());
 
         if !changed_lines.is_empty() || cursor != prev_cursor {
             prev_cursor = cursor;
 
             let lines = vt
-                .lines()
+                .view()
                 .iter()
                 .map(|line| line.cells().collect())
                 .collect();
@@ -28,6 +28,14 @@ pub fn frames(
             None
         }
     })
+}
+
+fn cursor_option((col, row, visible): (usize, usize, bool)) -> Option<(usize, usize)> {
+    if visible {
+        Some((col, row))
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
