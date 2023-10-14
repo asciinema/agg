@@ -188,6 +188,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
                 let mut pr = gifski::progress::ProgressBar::new(count);
                 let result = writer.write(output, &mut pr);
                 pr.finish();
+                println!();
                 result
             } else {
                 let mut pr = gifski::progress::NoProgress {};
