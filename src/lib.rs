@@ -93,7 +93,7 @@ impl TryFrom<Theme> for theme::Theme {
         match theme {
             Asciinema => "121314,cccccc,000000,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,d9d9d9,4d4d4d,dd3c69,4ebf22,ddaf3c,26b0d7,b954e1,54e1b9,ffffff".parse(),
             Dracula => "282a36,f8f8f2,21222c,ff5555,50fa7b,f1fa8c,bd93f9,ff79c6,8be9fd,f8f8f2,6272a4,ff6e6e,69ff94,ffffa5,d6acff,ff92df,a4ffff,ffffff".parse(),
-            GithubDark => "202327,eceff4,6a737d,f97583,a2fca2,fabb72,7db4f9,c4a0f5,1f6feb,6a737d".parse(),
+            GithubDark => "171b21,eceff4,6a737d,f97583,a2fca2,fabb72,7db4f9,c4a0f5,1f6feb,6a737d".parse(),
             GithubLight => "eceff4,202327,6a737d,f97583,a2fca2,fabb72,7db4f9,c4a0f5,1f6feb,6a737d".parse(),
             Monokai => "272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5".parse(),
             Nord => "2e3440,eceff4,3b4252,bf616a,a3be8c,ebcb8b,81a1c1,b48ead,88c0d0,eceff4,3b4252,bf616a,a3be8c,ebcb8b,81a1c1,b48ead,88c0d0,eceff4".parse(),
