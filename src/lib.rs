@@ -74,6 +74,7 @@ pub enum Theme {
     GithubDark,
     GithubLight,
     Monokai,
+    Nord,
     SolarizedDark,
     SolarizedLight,
 
@@ -95,6 +96,7 @@ impl TryFrom<Theme> for theme::Theme {
             GithubDark => "171b21,eceff4,6a737d,f97583,a2fca2,fabb72,7db4f9,c4a0f5,1f6feb,6a737d".parse(),
             GithubLight => "eceff4,202327,6a737d,f97583,a2fca2,fabb72,7db4f9,c4a0f5,1f6feb,6a737d".parse(),
             Monokai => "272822,f8f8f2,272822,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f8f8f2,75715e,f92672,a6e22e,f4bf75,66d9ef,ae81ff,a1efe4,f9f8f5".parse(),
+            Nord => "2e3440,eceff4,3b4252,bf616a,a3be8c,ebcb8b,81a1c1,b48ead,88c0d0,eceff4,3b4252,bf616a,a3be8c,ebcb8b,81a1c1,b48ead,88c0d0,eceff4".parse(),
             SolarizedDark => "002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3".parse(),
             SolarizedLight => "fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3".parse(),
             Custom(t) => t.parse(),
@@ -192,6 +194,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
                 let mut pr = gifski::progress::ProgressBar::new(count);
                 let result = writer.write(output, &mut pr);
                 pr.finish();
+                println!();
                 result
             } else {
                 let mut pr = gifski::progress::NoProgress {};
