@@ -18,7 +18,7 @@ agg is a successor to
 
 agg is available in some package managers.
 
-Homebrew ([formula](https://formulae.brew.sh/formula/agg)):
+[![homebrew version](https://img.shields.io/homebrew/v/agg)](https://formulae.brew.sh/formula/agg)
 
 ```bash
 brew install agg
