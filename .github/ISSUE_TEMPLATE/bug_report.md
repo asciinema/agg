@@ -9,11 +9,12 @@ assignees: ''
 
 To make life of the project maintainers easier please submit bug reports only.
 
-This is bug tracker for asciinema gif generator (aka agg). If your issue seems to be with another component (cli recorder, js player, server) then open an issue in related repository.
+This is a bug tracker for asciinema gif generator (aka agg).
+If your issue seems to be with another component (cli recorder, js player, server) then open an issue in the related repository.
 
-Ideas, feature requests, help requests, questions and general discussions should be discussed in project's Discussions instead: https://github.com/orgs/asciinema/discussions
+Ideas, feature requests, help requests, questions and general discussions should be discussed on the forum: https://discourse.asciinema.org
 
-If you think you've found a bug or regression, go ahead and delete this message and fill in the details below.
+If you think you've found a bug or regression, go ahead, delete this message, then fill in the details below.
 
 -----
 
