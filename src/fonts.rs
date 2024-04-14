@@ -9,21 +9,23 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database
     let mut families = font_family
         .split(',')
         .map(|name| name.trim())
-        .flat_map(|name| find_font_families(&font_db, name))
+        .filter_map(|name| find_font_family(&font_db, name))
         .collect::<Vec<_>>();
 
     if families.is_empty() {
         None
     } else {
         for name in ["DejaVu Sans", "Noto Emoji"] {
-            families.extend(find_font_families(&font_db, name));
+            if let Some(name) = find_font_family(&font_db, name) {
+                families.push(name);
+            }
         }
 
         Some((font_db, families))
     }
 }
 
-fn find_font_families(font_db: &fontdb::Database, name: &str) -> Vec<String> {
+fn find_font_family(font_db: &fontdb::Database, name: &str) -> Option<String> {
     let family = fontdb::Family::Name(name);
 
     let query = fontdb::Query {
@@ -33,15 +35,8 @@ fn find_font_families(font_db: &fontdb::Database, name: &str) -> Vec<String> {
         style: fontdb::Style::Normal,
     };
 
-    font_db
-        .query(&query)
-        .map(|face_id| {
-            let face_info = font_db.face(face_id).unwrap();
-            face_info
-                .families
-                .iter()
-                .map(|(family, _)| family.clone())
-                .collect()
-        })
-        .unwrap_or_default()
+    font_db.query(&query).and_then(|face_id| {
+        let face_info = font_db.face(face_id).unwrap();
+        face_info.families.first().map(|(family, _)| family.clone())
+    })
 }
