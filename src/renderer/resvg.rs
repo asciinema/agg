@@ -255,7 +255,7 @@ impl Renderer for ResvgRenderer {
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
         let mut tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
-        tree.convert_text(&self.font_db, true);
+        tree.convert_text(&self.font_db);
 
         let mut pixmap =
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
