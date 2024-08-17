@@ -204,6 +204,12 @@ Be aware that [some
 distros](https://archlinux.org/packages/extra/any/noto-fonts-emoji/) ship this
 color font by name like "noto-fonts-emoji". This is _not_ what you need.
 
+## CJK Characters
+
+Currently agg does not render CJK characters properly. They will be overlapped.
+
+See [#10](https://github.com/asciinema/agg/issues/10) and [#25](https://github.com/asciinema/agg/issues/25) for the current support progress.
+
 ## Color themes
 
 There are several built-in color themes you can use with `--theme` option:
