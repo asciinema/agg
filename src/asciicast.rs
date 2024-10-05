@@ -141,7 +141,7 @@ fn parse_event(line: String) -> Result<Event, Error> {
     })
 }
 
-pub fn stdout(
+pub fn output(
     events: impl Iterator<Item = Result<Event, Error>>,
 ) -> impl Iterator<Item = (f64, String)> {
     events.filter_map(|e| match e {

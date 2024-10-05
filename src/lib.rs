@@ -130,14 +130,14 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         .or(header.idle_time_limit)
         .unwrap_or(DEFAULT_IDLE_TIME_LIMIT);
 
-    let stdout = asciicast::stdout(events);
-    let stdout = iter::once((0.0, "".to_owned())).chain(stdout);
-    let stdout = events::limit_idle_time(stdout, itl);
-    let stdout = events::accelerate(stdout, config.speed);
-    let stdout = events::batch(stdout, config.fps_cap);
-    let stdout = stdout.collect::<Vec<_>>();
-    let count = stdout.len() as u64;
-    let frames = vt::frames(stdout.into_iter(), terminal_size);
+    let events = asciicast::output(events);
+    let events = iter::once((0.0, "".to_owned())).chain(events);
+    let events = events::limit_idle_time(events, itl);
+    let events = events::accelerate(events, config.speed);
+    let events = events::batch(events, config.fps_cap);
+    let events = events.collect::<Vec<_>>();
+    let count = events.len() as u64;
+    let events = vt::frames(events.into_iter(), terminal_size);
 
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
@@ -201,7 +201,8 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
                 writer.write(output, &mut pr)
             }
         });
-        for (i, (time, lines, cursor)) in frames.enumerate() {
+
+        for (i, (time, lines, cursor)) in events.enumerate() {
             let image = renderer.render(lines, cursor);
             let time = if i == 0 { 0.0 } else { time };
             collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
