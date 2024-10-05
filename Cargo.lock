@@ -152,11 +152,13 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "avt"
-version = "0.8.3"
-source = "git+https://github.com/asciinema/avt.git?tag=v0.8.3#28aed2b5a65a4ff07344fd6bc51b8ccb8542389c"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2c67dc0145986662262f8b0f0b791ec6de6b9fcd078f55fa2b31ac691516505"
 dependencies = [
  "rgb",
  "serde",
+ "unicode-width",
 ]
 
 [[package]]
@@ -1757,6 +1759,12 @@ name = "unicode-vo"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
+
+[[package]]
+name = "unicode-width"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
 
 [[package]]
 name = "untrusted"

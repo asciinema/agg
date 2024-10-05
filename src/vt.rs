@@ -12,7 +12,7 @@ pub fn frames(
     let mut prev_cursor = None;
 
     stdout.filter_map(move |(time, data)| {
-        let (changed_lines, _) = vt.feed_str(&data);
+        let changed_lines = vt.feed_str(&data).lines;
         let cursor: Option<(usize, usize)> = vt.cursor().into();
 
         if !changed_lines.is_empty() || cursor != prev_cursor {
