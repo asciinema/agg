@@ -137,7 +137,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let events = events::batch(events, config.fps_cap);
     let events = events.collect::<Vec<_>>();
     let count = events.len() as u64;
-    let events = vt::frames(events.into_iter(), terminal_size);
+    let frames = vt::frames(events.into_iter(), terminal_size);
 
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
@@ -202,7 +202,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
             }
         });
 
-        for (i, (time, lines, cursor)) in events.enumerate() {
+        for (i, (time, lines, cursor)) in frames.enumerate() {
             let image = renderer.render(lines, cursor);
             let time = if i == 0 { 0.0 } else { time };
             collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
