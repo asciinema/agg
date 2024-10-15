@@ -3,7 +3,7 @@ use log::debug;
 pub fn frames(
     stdout: impl Iterator<Item = (f64, String)>,
     terminal_size: (usize, usize),
-) -> impl Iterator<Item = (f64, Vec<Vec<(char, avt::Pen)>>, Option<(usize, usize)>)> {
+) -> impl Iterator<Item = (f64, Vec<avt::Line>, Option<(usize, usize)>)> {
     let mut vt = avt::Vt::builder()
         .size(terminal_size.0, terminal_size.1)
         .scrollback_limit(0)
@@ -17,12 +17,7 @@ pub fn frames(
 
         if !changed_lines.is_empty() || cursor != prev_cursor {
             prev_cursor = cursor;
-
-            let lines = vt
-                .view()
-                .iter()
-                .map(|line| line.cells().collect())
-                .collect();
+            let lines = vt.view().to_vec();
 
             Some((time, lines, cursor))
         } else {
@@ -50,42 +45,27 @@ mod tests {
         assert_eq!(fs.len(), 3);
 
         let (time, lines, cursor) = &fs[0];
+        let lines: Vec<String> = lines.iter().map(|l| l.text()).collect();
 
         assert_eq!(*time, 0.0);
         assert_eq!(*cursor, Some((3, 0)));
-        assert_eq!(lines[0][0].0, 'f');
-        assert_eq!(lines[0][1].0, 'o');
-        assert_eq!(lines[0][2].0, 'o');
-        assert_eq!(lines[0][3].0, ' ');
-        assert_eq!(lines[1][0].0, ' ');
-        assert_eq!(lines[1][1].0, ' ');
-        assert_eq!(lines[1][2].0, ' ');
-        assert_eq!(lines[1][3].0, ' ');
+        assert_eq!(lines[0], "foo ");
+        assert_eq!(lines[1], "    ");
 
         let (time, lines, cursor) = &fs[1];
+        let lines: Vec<String> = lines.iter().map(|l| l.text()).collect();
 
         assert_eq!(*time, 2.0);
         assert_eq!(*cursor, Some((2, 1)));
-        assert_eq!(lines[0][0].0, 'f');
-        assert_eq!(lines[0][1].0, 'o');
-        assert_eq!(lines[0][2].0, 'o');
-        assert_eq!(lines[0][3].0, 'b');
-        assert_eq!(lines[1][0].0, 'a');
-        assert_eq!(lines[1][1].0, 'r');
-        assert_eq!(lines[1][2].0, ' ');
-        assert_eq!(lines[1][3].0, ' ');
+        assert_eq!(lines[0], "foob");
+        assert_eq!(lines[1], "ar  ");
 
         let (time, lines, cursor) = &fs[2];
+        let lines: Vec<String> = lines.iter().map(|l| l.text()).collect();
 
         assert_eq!(*time, 3.0);
         assert_eq!(*cursor, Some((3, 1)));
-        assert_eq!(lines[0][0].0, 'f');
-        assert_eq!(lines[0][1].0, 'o');
-        assert_eq!(lines[0][2].0, 'o');
-        assert_eq!(lines[0][3].0, 'b');
-        assert_eq!(lines[1][0].0, 'a');
-        assert_eq!(lines[1][1].0, 'r');
-        assert_eq!(lines[1][2].0, '!');
-        assert_eq!(lines[1][3].0, ' ');
+        assert_eq!(lines[0], "foob");
+        assert_eq!(lines[1], "ar! ");
     }
 }

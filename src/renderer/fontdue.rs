@@ -167,24 +167,24 @@ fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
 }
 
 impl Renderer for FontdueRenderer {
-    fn render(
-        &mut self,
-        lines: Vec<Vec<(char, avt::Pen)>>,
-        cursor: Option<(usize, usize)>,
-    ) -> ImgVec<RGBA8> {
+    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut buf: Vec<RGBA8> =
             vec![self.theme.background.alpha(255); self.pixel_width * self.pixel_height];
+
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;
 
-        for (row, chars) in lines.iter().enumerate() {
+        for (row, line) in lines.iter().enumerate() {
             let y_t = margin_t + (row as f64 * self.row_height).round() as usize;
             let y_b = margin_t + ((row + 1) as f64 * self.row_height).round() as usize;
+            let mut col = 0;
 
-            for (col, (ch, mut pen)) in chars.iter().enumerate() {
+            for cell in line.cells() {
+                let ch = cell.char();
                 let x_l = (margin_l + col as f64 * self.col_width).round() as usize;
-                let x_r = (margin_l + (col + 1) as f64 * self.col_width).round() as usize;
-                let attrs = text_attrs(&mut pen, &cursor, col, row, &self.theme);
+                let x_r =
+                    (margin_l + (col + cell.width()) as f64 * self.col_width).round() as usize;
+                let attrs = text_attrs(cell.pen(), &cursor, col, row, &self.theme);
 
                 if let Some(c) = attrs.background {
                     let c = color_to_rgb(&c, &self.theme);
@@ -214,12 +214,13 @@ impl Renderer for FontdueRenderer {
                     }
                 }
 
-                if ch == &' ' {
+                if ch == ' ' {
+                    col += cell.width();
                     continue;
                 }
 
-                self.ensure_glyph(*ch, attrs.bold, attrs.italic);
-                let glyph = self.get_glyph(*ch, attrs.bold, attrs.italic);
+                self.ensure_glyph(ch, attrs.bold, attrs.italic);
+                let glyph = self.get_glyph(ch, attrs.bold, attrs.italic);
 
                 if glyph.is_none() {
                     continue;
@@ -256,6 +257,8 @@ impl Renderer for FontdueRenderer {
                         buf[idx] = mix_colors(fg, bg, v);
                     }
                 }
+
+                col += cell.width();
             }
         }
 

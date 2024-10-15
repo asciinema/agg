@@ -7,11 +7,7 @@ use rgb::{RGB8, RGBA8};
 use crate::theme::Theme;
 
 pub trait Renderer {
-    fn render(
-        &mut self,
-        lines: Vec<Vec<(char, avt::Pen)>>,
-        cursor: Option<(usize, usize)>,
-    ) -> ImgVec<RGBA8>;
+    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
     fn pixel_size(&self) -> (usize, usize);
 }
 
@@ -41,15 +37,15 @@ struct TextAttrs {
 }
 
 fn text_attrs(
-    pen: &mut avt::Pen,
+    pen: &avt::Pen,
     cursor: &Option<(usize, usize)>,
-    x: usize,
-    y: usize,
+    col: usize,
+    row: usize,
     theme: &Theme,
 ) -> TextAttrs {
     let mut foreground = pen.foreground();
     let mut background = pen.background();
-    let inverse = cursor.map_or(false, |(cx, cy)| cx == x && cy == y);
+    let inverse = cursor.map_or(false, |cursor| cursor.0 == col && cursor.1 == row);
 
     if pen.is_bold() {
         if let Some(avt::Color::Indexed(n)) = foreground {
