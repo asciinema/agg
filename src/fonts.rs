@@ -35,7 +35,8 @@ fn find_font_family(font_db: &fontdb::Database, name: &str) -> Option<String> {
         style: fontdb::Style::Normal,
     };
 
-    font_db
-        .query(&query)
-        .map(|face_id| font_db.face(face_id).unwrap().family.clone())
+    font_db.query(&query).and_then(|face_id| {
+        let face_info = font_db.face(face_id).unwrap();
+        face_info.families.first().map(|(family, _)| family.clone())
+    })
 }

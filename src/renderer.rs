@@ -20,7 +20,7 @@ pub struct Settings {
     pub theme: Theme,
 }
 
-pub fn resvg(settings: Settings) -> resvg::ResvgRenderer {
+pub fn resvg<'a>(settings: Settings) -> resvg::ResvgRenderer<'a> {
     resvg::ResvgRenderer::new(settings)
 }
 

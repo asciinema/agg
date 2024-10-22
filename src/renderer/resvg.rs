@@ -1,24 +1,19 @@
-use imgref::ImgVec;
-use resvg::usvg_text_layout::TreeTextToPath;
-use rgb::{FromSlice, RGBA8};
-use std::fmt::Write as _;
-
-use crate::theme::Theme;
-
 use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::theme::Theme;
+use imgref::ImgVec;
+use rgb::{FromSlice, RGBA8};
+use std::{fmt::Write, sync::Arc};
 
-pub struct ResvgRenderer {
+pub struct ResvgRenderer<'a> {
     terminal_size: (usize, usize),
     theme: Theme,
     pixel_width: usize,
     pixel_height: usize,
     char_width: f64,
     row_height: f64,
-    options: usvg::Options,
+    options: usvg::Options<'a>,
     transform: tiny_skia::Transform,
-    fit_to: usvg::FitTo,
     header: String,
-    font_db: fontdb::Database,
 }
 
 fn color_to_style(color: &avt::Color, theme: &Theme) -> String {
@@ -59,13 +54,17 @@ fn rect_style(attrs: &TextAttrs, theme: &Theme) -> String {
         .unwrap_or_else(|| "".to_owned())
 }
 
-impl ResvgRenderer {
+impl<'a> ResvgRenderer<'a> {
     pub fn new(settings: Settings) -> Self {
         let char_width = 100.0 / (settings.terminal_size.0 as f64 + 2.0);
         let font_size = settings.font_size as f64;
         let row_height = font_size * settings.line_height;
-        let options = usvg::Options::default();
-        let fit_to = usvg::FitTo::Original;
+
+        let options = usvg::Options {
+            fontdb: Arc::new(settings.font_db),
+            ..Default::default()
+        };
+
         let transform = tiny_skia::Transform::default();
 
         let header = Self::header(
@@ -79,10 +78,8 @@ impl ResvgRenderer {
         let mut svg = header.clone();
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options).unwrap();
-        let screen_size = tree.size.to_screen_size();
-        let screen_size = fit_to.fit_to(screen_size).unwrap();
-        let pixel_width = screen_size.width() as usize;
-        let pixel_height = screen_size.height() as usize;
+        let pixel_width = tree.size().width() as usize;
+        let pixel_height = tree.size().height() as usize;
 
         Self {
             terminal_size: settings.terminal_size,
@@ -93,9 +90,7 @@ impl ResvgRenderer {
             row_height,
             options,
             transform,
-            fit_to,
             header,
-            font_db: settings.font_db,
         }
     }
 
@@ -245,18 +240,17 @@ impl ResvgRenderer {
     }
 }
 
-impl Renderer for ResvgRenderer {
+impl<'a> Renderer for ResvgRenderer<'a> {
     fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut svg = self.header.clone();
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
-        let mut tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
-        tree.convert_text(&self.font_db, true);
+        let tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
 
         let mut pixmap =
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
 
-        resvg::render(&tree, self.fit_to, self.transform, pixmap.as_mut()).unwrap();
+        resvg::render(&tree, self.transform, &mut pixmap.as_mut());
         let buf = pixmap.take().as_rgba().to_vec();
 
         ImgVec::new(buf, self.pixel_width, self.pixel_height)
