@@ -250,11 +250,16 @@ impl Renderer for FontdueRenderer {
                             continue;
                         }
 
-                        let v = bitmap[bmap_y * metrics.width + bmap_x];
+                        let mut ratio = bitmap[bmap_y * metrics.width + bmap_x];
+
+                        if attrs.faint {
+                            ratio = (ratio as f32 * 0.5) as u8;
+                        }
+
                         let idx = (y as usize) * self.pixel_width + (x as usize);
                         let bg = buf[idx];
 
-                        buf[idx] = mix_colors(fg, bg, v);
+                        buf[idx] = mix_colors(fg, bg, ratio);
                     }
                 }
 

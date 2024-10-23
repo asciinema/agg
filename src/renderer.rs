@@ -32,6 +32,7 @@ struct TextAttrs {
     foreground: Option<avt::Color>,
     background: Option<avt::Color>,
     bold: bool,
+    faint: bool,
     italic: bool,
     underline: bool,
 }
@@ -74,6 +75,7 @@ fn text_attrs(
         foreground,
         background,
         bold: pen.is_bold(),
+        faint: pen.is_faint(),
         italic: pen.is_italic(),
         underline: pen.is_underline(),
     }
