@@ -62,8 +62,8 @@ impl Default for Config {
 #[derive(Clone, ArgEnum, Default)]
 pub enum Renderer {
     #[default]
-    Fontdue,
     Resvg,
+    Fontdue,
 }
 
 #[derive(Clone, Debug, ArgEnum, Default)]
