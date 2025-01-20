@@ -14,6 +14,7 @@ fontdb = "0.22.0"
 fontdue = "0.7"
 gifski = "1"
 imgref = "1"
+jpeg-encoder = "0.6.0"
 log = "0.4"
 reqwest = { version = "0.12.8", default-features = false, features = ["blocking", "rustls-tls-native-roots", "gzip"] }
 resvg = { version = "0.44.0", features = ["text"] } # TODO remove default features
