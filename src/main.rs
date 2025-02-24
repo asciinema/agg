@@ -50,8 +50,12 @@ struct Cli {
     /// asciicast path/filename or URL
     input_filename_or_url: String,
 
-    /// GIF path/filename
+    /// GIF path/filename (output directory if outputting frames)
     output_filename: String,
+
+    /// Output each frame as separate JPEG
+    #[clap(long)]
+    output_frames: bool,
 
     /// Select frame rendering backend
     #[clap(long, arg_enum, default_value_t = agg::Renderer::default())]
@@ -178,9 +182,10 @@ fn main() -> Result<()> {
         speed: cli.speed,
         theme: cli.theme.map(|theme| theme.0),
         show_progress_bar: true,
+        output_frames: cli.output_frames,
+        output_filename: cli.output_filename,
     };
 
     let input = BufReader::new(reader(&cli.input_filename_or_url)?);
-    let mut output = File::create(&cli.output_filename)?;
-    agg::run(input, &mut output, config)
+    agg::run(input, config)
 }

@@ -1,8 +1,10 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::ArgEnum;
+use gifski::progress::{ProgressReporter, ProgressBar, NoProgress};
 use log::info;
 use std::fmt::{Debug, Display};
-use std::io::{BufRead, Write};
+use std::io::BufRead;
+use std::fs::File;
 use std::{iter, thread, time::Instant};
 mod asciicast;
 mod events;
@@ -36,6 +38,8 @@ pub struct Config {
     pub speed: f64,
     pub theme: Option<Theme>,
     pub show_progress_bar: bool,
+    pub output_frames: bool,
+    pub output_filename: String,
 }
 
 impl Default for Config {
@@ -55,6 +59,8 @@ impl Default for Config {
             speed: DEFAULT_SPEED,
             theme: Default::default(),
             show_progress_bar: true,
+            output_frames: false,
+            output_filename: "".into(),
         }
     }
 }
@@ -117,7 +123,7 @@ impl Display for Theme {
     }
 }
 
-pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> Result<()> {
+pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
     let (header, events) = asciicast::open(input)?;
 
     let terminal_size = (
@@ -169,7 +175,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let (width, height) = renderer.pixel_size();
 
-    info!("gif dimensions: {}x{}", width, height);
+    info!("dimensions: {}x{}", width, height);
 
     let repeat = if config.no_loop {
         gifski::Repeat::Finite(0)
@@ -188,30 +194,70 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let (collector, writer) = gifski::new(settings)?;
     let start_time = Instant::now();
 
-    thread::scope(|s| {
-        let writer_handle = s.spawn(move || {
-            if config.show_progress_bar {
-                let mut pr = gifski::progress::ProgressBar::new(count);
-                let result = writer.write(output, &mut pr);
-                pr.finish();
-                println!();
-                result
-            } else {
-                let mut pr = gifski::progress::NoProgress {};
-                writer.write(output, &mut pr)
-            }
-        });
-
-        for (i, (time, lines, cursor)) in frames.enumerate() {
-            let image = renderer.render(lines, cursor);
-            let time = if i == 0 { 0.0 } else { time };
-            collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
+    if config.output_frames {
+        // check for existance of the output directory to provide a clear error message
+        if std::fs::exists(&config.output_filename)? {
+            return Err(anyhow!("Frame output directory {:?} already exists", config.output_filename));
         }
 
-        drop(collector);
-        writer_handle.join().unwrap()?;
-        Result::<()>::Ok(())
-    })?;
+        // create the directory in advance
+        std::fs::create_dir(&config.output_filename)?;
+
+        let mut pr: Box<dyn ProgressReporter> = if config.show_progress_bar {
+            Box::new(ProgressBar::new(count))
+        } else {
+            Box::new(NoProgress {})
+        };
+
+        for (i, (_, lines, cursor)) in frames.enumerate() {
+            let image = renderer.render(lines, cursor);
+            let buf = image.pixels().flat_map(|x| [x.r, x.g, x.g, x.b]).collect::<Vec<_>>();
+
+            let frame_file_path = std::path::PathBuf::new()
+                .join(&config.output_filename)
+                .join(format!("{}.jpeg", i));
+
+            let encoder = jpeg_encoder::Encoder::new_file(&frame_file_path, 100)
+                .with_context(|| anyhow!("Error creating frame file at {:?}", frame_file_path))?;
+
+            encoder.encode(&buf,
+                width.try_into().expect("width is larger than u16"),
+                height.try_into().expect("height is larger than u16"),
+                jpeg_encoder::ColorType::Rgba
+            ).with_context(|| anyhow!("Error while encoding frame {}", i))?;
+
+            if !pr.increase() {
+                return Err(anyhow!("Progress bar interrupted"));
+            }
+        }
+    } else {
+        let mut output = File::create(&config.output_filename)?;
+
+        thread::scope(|s| {
+            let writer_handle = s.spawn(move || {
+                if config.show_progress_bar {
+                    let mut pr = ProgressBar::new(count);
+                    let result = writer.write(&mut output, &mut pr);
+                    pr.finish();
+                    println!();
+                    result
+                } else {
+                    let mut pr = NoProgress {};
+                    writer.write(output, &mut pr)
+                }
+            });
+
+            for (i, (time, lines, cursor)) in frames.enumerate() {
+                let image = renderer.render(lines, cursor);
+                let time = if i == 0 { 0.0 } else { time };
+                collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
+            }
+
+            drop(collector);
+            writer_handle.join().unwrap()?;
+            Result::<()>::Ok(())
+        })?;
+    }
 
     info!(
         "rendering finished in {}s",
