@@ -1,7 +1,14 @@
 [package]
 name = "agg"
 version = "1.5.0"
+authors = ["Marcin Kulik <m@ku1ik.com>"]
 edition = "2021"
+rust-version = "1.70.0"
+description = "asciinema gif generator"
+readme = "README.md"
+homepage = "https://docs.asciinema.org/manual/agg/"
+repository = "https://github.com/asciinema/agg"
+license = "GPL-3.0-or-later"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
