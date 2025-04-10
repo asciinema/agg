@@ -81,6 +81,7 @@ pub enum Theme {
     Nord,
     SolarizedDark,
     SolarizedLight,
+    GruvboxDark,
 
     #[clap(skip)]
     Custom(String),
@@ -103,6 +104,7 @@ impl TryFrom<Theme> for theme::Theme {
             Nord => "2e3440,eceff4,3b4252,bf616a,a3be8c,ebcb8b,81a1c1,b48ead,88c0d0,eceff4,3b4252,bf616a,a3be8c,ebcb8b,81a1c1,b48ead,88c0d0,eceff4".parse(),
             SolarizedDark => "002b36,839496,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657b83,839496,6c71c4,93a1a1,fdf6e3".parse(),
             SolarizedLight => "fdf6e3,657b83,073642,dc322f,859900,b58900,268bd2,d33682,2aa198,eee8d5,002b36,cb4b16,586e75,657c83,839496,6c71c4,93a1a1,fdf6e3".parse(),
+            GruvboxDark => "fbf1c7,282828,282828,cc241d,98971a,d79921,458588,b16286,689d6a,a89984,7c6f64,fb4934,b8bb26,fabd2f,83a598,d3869b,8ec07c,fbf1c7".parse(),
             Custom(t) => t.parse(),
             Embedded(t) => Ok(t),
         }
