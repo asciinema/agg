@@ -3,11 +3,12 @@ name = "agg"
 version = "1.5.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# MSRV
+rust-version = "1.75.0"
 
 [dependencies]
 anyhow = "1"
-avt = "0.14.0"
+avt = "0.16.0"
 clap = { version = "3.2.15", features = ["derive"] }
 env_logger = "0.10"
 fontdb = "0.22.0"
