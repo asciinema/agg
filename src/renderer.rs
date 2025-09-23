@@ -46,7 +46,7 @@ fn text_attrs(
 ) -> TextAttrs {
     let mut foreground = pen.foreground();
     let mut background = pen.background();
-    let inverse = cursor.map_or(false, |cursor| cursor.0 == col && cursor.1 == row);
+    let inverse = cursor == &Some((col, row));
 
     if pen.is_bold() {
         if let Some(avt::Color::Indexed(n)) = foreground {
