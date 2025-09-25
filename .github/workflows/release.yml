@@ -3,12 +3,26 @@ name: Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - v[0-9]+.*
 
 jobs:
-  publish:
+  create-release:
+    name: Create GH release draft
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create ${{ github.ref_name }} --draft --verify-tag --title ${{ github.ref_name }}
+
+  upload-binary:
+    needs: create-release
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         include:
@@ -47,18 +61,29 @@ jobs:
             use-cross: false
             strip: strip
 
+    env:
+      CARGO: cargo
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
-          target: ${{ matrix.target }}
+          targets: ${{ matrix.target }}
 
-      - name: Install required dependencies
+      - name: Install cross
+        if: matrix.use-cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Overwrite build command env variable
+        if: matrix.use-cross
+        shell: bash
+        run: echo "CARGO=cross" >> $GITHUB_ENV
+
+      - name: Install build deps
         shell: bash
         run: |
           if [[ ${{ matrix.target }} == x86_64-unknown-linux-musl ]]; then
@@ -74,21 +99,16 @@ jobs:
               sudo apt-get install -y binutils-arm-linux-gnueabihf
           fi
 
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.use-cross }}
-          command: build
-          args: --target ${{ matrix.target }} --release --locked
+      - name: Build release binary
+        run: ${{ env.CARGO }} build --release --locked --target ${{ matrix.target }}
 
       - name: Strip binary
         if: matrix.strip
         run: ${{ matrix.strip }} target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
 
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }}
-          asset_name: agg-${{ matrix.target }}${{ matrix.binary_ext }}
-          tag: ${{ github.ref }}
+      - name: Upload the binary to the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv target/${{ matrix.target }}/release/agg${{ matrix.binary_ext }} target/release/agg-${{ matrix.target }}${{ matrix.binary_ext }}
+          gh release upload ${{ github.ref_name }} target/release/agg-${{ matrix.target }}${{ matrix.binary_ext }}
