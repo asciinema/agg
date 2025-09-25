@@ -7,7 +7,7 @@ use rgb::RGB8;
 pub struct Theme {
     pub background: RGB8,
     pub foreground: RGB8,
-    palette: [RGB8; 16],
+    pub palette: Vec<RGB8>,
 }
 
 fn parse_hex_triplet(triplet: &str) -> anyhow::Result<RGB8> {
@@ -26,7 +26,7 @@ impl FromStr for Theme {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut palette = [RGB8::default(); 16];
+        let mut palette = Vec::new();
 
         let colors = s
             .split(',')
@@ -41,8 +41,8 @@ impl FromStr for Theme {
         let background = colors[0];
         let foreground = colors[1];
 
-        for (i, color) in colors.into_iter().skip(2).cycle().take(16).enumerate() {
-            palette[i] = color;
+        for color in colors.into_iter().skip(2).cycle().take(16) {
+            palette.push(color);
         }
 
         Ok(Self {

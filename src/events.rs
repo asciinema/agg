@@ -1,8 +1,10 @@
-type Event = (f64, String);
+use anyhow::Result;
+
+use crate::asciicast::OutputEvent;
 
 struct Batch<I>
 where
-    I: Iterator<Item = Event>,
+    I: Iterator<Item = Result<OutputEvent>>,
 {
     iter: I,
     prev_time: f64,
@@ -10,12 +12,12 @@ where
     max_frame_time: f64,
 }
 
-impl<I: Iterator<Item = Event>> Iterator for Batch<I> {
-    type Item = Event;
+impl<I: Iterator<Item = Result<OutputEvent>>> Iterator for Batch<I> {
+    type Item = Result<OutputEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.iter.next() {
-            Some((time, data)) => {
+            Some(Ok((time, data))) => {
                 if time - self.prev_time < self.max_frame_time {
                     self.prev_data.push_str(&data);
 
@@ -25,7 +27,7 @@ impl<I: Iterator<Item = Event>> Iterator for Batch<I> {
                     self.prev_time = time;
                     let prev_data = std::mem::replace(&mut self.prev_data, data);
 
-                    Some((prev_time, prev_data))
+                    Some(Ok((prev_time, prev_data)))
                 } else {
                     self.prev_time = time;
                     self.prev_data = data;
@@ -34,12 +36,14 @@ impl<I: Iterator<Item = Event>> Iterator for Batch<I> {
                 }
             }
 
+            Some(Err(e)) => Some(Err(e)),
+
             None => {
                 if !self.prev_data.is_empty() {
                     let prev_time = self.prev_time;
                     let prev_data = std::mem::replace(&mut self.prev_data, "".to_owned());
 
-                    Some((prev_time, prev_data))
+                    Some(Ok((prev_time, prev_data)))
                 } else {
                     None
                 }
@@ -48,7 +52,10 @@ impl<I: Iterator<Item = Event>> Iterator for Batch<I> {
     }
 }
 
-pub fn batch(iter: impl Iterator<Item = Event>, fps_cap: u8) -> impl Iterator<Item = Event> {
+pub fn batch(
+    iter: impl Iterator<Item = Result<OutputEvent>>,
+    fps_cap: u8,
+) -> impl Iterator<Item = Result<OutputEvent>> {
     Batch {
         iter,
         prev_data: "".to_owned(),
@@ -57,33 +64,40 @@ pub fn batch(iter: impl Iterator<Item = Event>, fps_cap: u8) -> impl Iterator<It
     }
 }
 
-pub fn accelerate(events: impl Iterator<Item = Event>, speed: f64) -> impl Iterator<Item = Event> {
-    events.map(move |(time, data)| (time / speed, data))
+pub fn accelerate(
+    events: impl Iterator<Item = Result<OutputEvent>>,
+    speed: f64,
+) -> impl Iterator<Item = Result<OutputEvent>> {
+    events.map(move |event| event.map(|(time, data)| (time / speed, data)))
 }
 
 pub fn limit_idle_time(
-    events: impl Iterator<Item = Event>,
+    events: impl Iterator<Item = Result<OutputEvent>>,
     limit: f64,
-) -> impl Iterator<Item = Event> {
+) -> impl Iterator<Item = Result<OutputEvent>> {
     let mut prev_time = 0.0;
     let mut offset = 0.0;
 
-    events.map(move |(time, data)| {
-        let delay = time - prev_time;
-        let excess = delay - limit;
+    events.map(move |event| {
+        event.map(|(time, data)| {
+            let delay = time - prev_time;
+            let excess = delay - limit;
 
-        if excess > 0.0 {
-            offset += excess;
-        }
+            if excess > 0.0 {
+                offset += excess;
+            }
 
-        prev_time = time;
+            prev_time = time;
 
-        (time - offset, data)
+            (time - offset, data)
+        })
     })
 }
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
+
     #[test]
     fn accelerate() {
         let stdout = [
@@ -92,7 +106,9 @@ mod tests {
             (2.0, "baz".to_owned()),
         ];
 
-        let stdout = super::accelerate(stdout.into_iter(), 2.0).collect::<Vec<_>>();
+        let stdout = super::accelerate(stdout.into_iter().map(Ok), 2.0)
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
 
         assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
         assert_eq!(&stdout[1], &(0.5, "bar".to_owned()));
@@ -107,7 +123,9 @@ mod tests {
             (2.0, "baz".to_owned()),
         ];
 
-        let stdout = super::batch(stdout.into_iter(), 30).collect::<Vec<_>>();
+        let stdout = super::batch(stdout.into_iter().map(Ok), 30)
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
 
         assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
         assert_eq!(&stdout[1], &(1.0, "bar".to_owned()));
@@ -120,7 +138,9 @@ mod tests {
             (1.0, "qux".to_owned()),
         ];
 
-        let stdout = super::batch(stdout.into_iter(), 30).collect::<Vec<_>>();
+        let stdout = super::batch(stdout.into_iter().map(Ok), 30)
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
 
         assert_eq!(&stdout[0], &(0.0, "foobar".to_owned()));
         assert_eq!(&stdout[1], &(0.066, "baz".to_owned()));
@@ -132,7 +152,9 @@ mod tests {
             (2.0, "bar".to_owned()),
         ];
 
-        let stdout = super::batch(stdout.into_iter(), 30).collect::<Vec<_>>();
+        let stdout = super::batch(stdout.into_iter().map(Ok), 30)
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
 
         assert_eq!(&stdout[0], &(0.0, "".to_owned()));
         assert_eq!(&stdout[1], &(1.0, "foo".to_owned()));
@@ -149,7 +171,9 @@ mod tests {
             (7.5, "quux".to_owned()),
         ];
 
-        let stdout = super::limit_idle_time(stdout.into_iter(), 2.0).collect::<Vec<_>>();
+        let stdout = super::limit_idle_time(stdout.into_iter().map(Ok), 2.0)
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
 
         assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
         assert_eq!(&stdout[1], &(1.0, "bar".to_owned()));

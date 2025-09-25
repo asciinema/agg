@@ -1,15 +1,19 @@
-use anyhow::{anyhow, Result};
-use clap::ArgEnum;
-use log::info;
-use std::fmt::{Debug, Display};
-use std::io::{BufRead, Write};
-use std::{iter, thread, time::Instant};
 mod asciicast;
 mod events;
 mod fonts;
 mod renderer;
 mod theme;
 mod vt;
+
+use std::fmt::{Debug, Display};
+use std::io::{BufRead, Write};
+use std::{iter, thread, time::Instant};
+
+use anyhow::{anyhow, Result};
+use clap::ArgEnum;
+use log::info;
+
+use crate::asciicast::Asciicast;
 
 pub const DEFAULT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
@@ -118,11 +122,11 @@ impl Display for Theme {
 }
 
 pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> Result<()> {
-    let (header, events) = asciicast::open(input)?;
+    let Asciicast { header, events, .. } = asciicast::open(input)?;
 
     let terminal_size = (
-        config.cols.unwrap_or(header.terminal_size.0),
-        config.rows.unwrap_or(header.terminal_size.1),
+        config.cols.unwrap_or(header.term_cols as usize),
+        config.rows.unwrap_or(header.term_rows as usize),
     );
 
     let itl = config
@@ -130,8 +134,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         .or(header.idle_time_limit)
         .unwrap_or(DEFAULT_IDLE_TIME_LIMIT);
 
-    let events = asciicast::output(events);
-    let events = iter::once((0.0, "".to_owned())).chain(events);
+    let events = iter::once(Ok((0.0, "".to_owned()))).chain(events);
     let events = events::limit_idle_time(events, itl);
     let events = events::accelerate(events, config.speed);
     let events = events::batch(events, config.fps_cap);
@@ -148,7 +151,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let theme_opt = config
         .theme
-        .or_else(|| header.theme.map(Theme::Embedded))
+        .or_else(|| header.term_theme.map(Theme::Embedded))
         .unwrap_or(Theme::Dracula);
 
     info!("selected theme: {}", theme_opt);
@@ -202,7 +205,8 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
             }
         });
 
-        for (i, (time, lines, cursor)) in frames.enumerate() {
+        for (i, frame) in frames.enumerate() {
+            let (time, lines, cursor) = frame?;
             let image = renderer.render(lines, cursor);
             let time = if i == 0 { 0.0 } else { time };
             collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
