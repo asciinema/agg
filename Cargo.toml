@@ -1,7 +1,11 @@
 [package]
 name = "agg"
 version = "1.5.0"
+authors = ["Marcin Kulik <m@ku1ik.com>"]
 edition = "2021"
+homepage = "https://docs.asciinema.org/manual/agg/"
+repository = "https://github.com/asciinema/agg"
+description = "asciinema gif generator"
 
 # MSRV
 rust-version = "1.75.0"
