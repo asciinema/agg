@@ -6,6 +6,7 @@ edition = "2021"
 homepage = "https://docs.asciinema.org/manual/agg/"
 repository = "https://github.com/asciinema/agg"
 description = "asciinema gif generator"
+license = "GPL-3.0-or-later"
 
 # MSRV
 rust-version = "1.75.0"
