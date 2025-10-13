@@ -14,7 +14,7 @@
     utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = nixpkgs.legacyPackages.${system};
         naersk-lib = pkgs.callPackage naersk { };
       in
       {
@@ -36,6 +36,7 @@
               pre-commit
               rustPackages.clippy
             ];
+
             RUST_SRC_PATH = rustPlatform.rustLibSrc;
           };
       }
