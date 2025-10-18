@@ -182,5 +182,11 @@ fn main() -> Result<()> {
 
     let input = BufReader::new(reader(&cli.input_filename_or_url)?);
     let mut output = File::create(&cli.output_filename)?;
-    agg::run(input, &mut output, config)
+    match agg::run(input, &mut output, config) {
+        Ok(ok) => Ok(ok),
+        Err(err) => {
+            std::fs::remove_file(cli.output_filename)?;
+            Err(err)
+        }
+    }
 }
