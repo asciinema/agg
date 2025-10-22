@@ -108,6 +108,10 @@ struct Cli {
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]
     verbose: u8,
+
+    /// Quiet mode - suppress diagnostic messages and progress bars
+    #[clap(short, long)]
+    quiet: bool,
 }
 
 fn download(url: &str) -> Result<impl io::Read> {
@@ -182,7 +186,7 @@ fn main() -> Result<()> {
         rows: cli.rows,
         speed: cli.speed,
         theme: cli.theme.map(|theme| theme.0),
-        show_progress_bar: true,
+        show_progress_bar: !cli.quiet,
     };
 
     let input = BufReader::new(reader(&cli.input_filename_or_url)?);
