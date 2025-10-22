@@ -182,6 +182,7 @@ fn main() -> Result<()> {
 
     let input = BufReader::new(reader(&cli.input_filename_or_url)?);
     let mut output = File::create(&cli.output_filename)?;
+
     match agg::run(input, &mut output, config) {
         Ok(ok) => Ok(ok),
         Err(err) => {
