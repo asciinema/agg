@@ -120,7 +120,9 @@ fn download(url: &str) -> Result<impl io::Read> {
         .get(url)
         .header(
             header::ACCEPT,
-            header::HeaderValue::from_static("application/x-asciicast,application/json"),
+            header::HeaderValue::from_static(
+                "application/x-asciicast,application/json,application/octet-stream",
+            ),
         )
         .build()?;
 
@@ -132,7 +134,10 @@ fn download(url: &str) -> Result<impl io::Read> {
         .and_then(|hv| hv.to_str().ok())
         .ok_or_else(|| anyhow!("unknown content type".to_owned()))?;
 
-    if ct != "application/x-asciicast" && ct != "application/json" {
+    if ct != "application/x-asciicast"
+        && ct != "application/json"
+        && ct != "application/octet-stream"
+    {
         return Err(anyhow!(format!("{ct} is not supported")));
     }
 
