@@ -132,6 +132,14 @@ impl Display for Theme {
 pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> Result<()> {
     let Asciicast { header, events, .. } = asciicast::open(input)?;
 
+    if header.term_cols == 0 || header.term_rows == 0 {
+        return Err(anyhow!(
+            "the recording has invalid terminal size: {}x{}",
+            header.term_cols,
+            header.term_rows
+        ));
+    }
+
     let terminal_size = (
         config.cols.unwrap_or(header.term_cols as usize),
         config.rows.unwrap_or(header.term_rows as usize),
