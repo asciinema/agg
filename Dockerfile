@@ -1,4 +1,4 @@
-FROM rust:buster AS builder
+FROM rust:trixie AS builder
 
 COPY . /usr/src/
 
@@ -6,7 +6,7 @@ WORKDIR /usr/src
 
 RUN ["cargo", "build", "-r"]
 
-FROM rust:buster
+FROM rust:trixie
 
 LABEL org.opencontainers.image.authors="kayvan.sylvan@gmail.com"
 
