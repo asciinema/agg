@@ -1,6 +1,6 @@
 [package]
 name = "agg"
-version = "1.6.0"
+version = "1.7.0"
 authors = ["Marcin Kulik <m@ku1ik.com>"]
 edition = "2021"
 homepage = "https://docs.asciinema.org/manual/agg/"
