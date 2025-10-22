@@ -9,7 +9,7 @@ description = "asciinema gif generator"
 license = "GPL-3.0-or-later"
 
 # MSRV
-rust-version = "1.75.0"
+rust-version = "1.85.0"
 
 [dependencies]
 anyhow = "1"
