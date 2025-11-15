@@ -3,7 +3,7 @@ use std::io;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer};
 
-use super::{Asciicast, Header, Theme};
+use super::{Asciicast, Event, Header, Theme};
 
 #[derive(Deserialize)]
 struct V3Header {
@@ -90,7 +90,7 @@ impl Parser {
         Asciicast { header, events }
     }
 
-    fn parse_line(&mut self, line: io::Result<String>) -> Option<Result<(f64, String)>> {
+    fn parse_line(&mut self, line: io::Result<String>) -> Option<Result<Event>> {
         match line {
             Ok(line) => {
                 if line.is_empty() || line.starts_with('#') {
@@ -104,16 +104,16 @@ impl Parser {
         }
     }
 
-    fn parse_event(&mut self, line: String) -> Result<Option<(f64, String)>> {
+    fn parse_event(&mut self, line: String) -> Result<Option<Event>> {
         let event = serde_json::from_str::<V3Event>(&line).context("asciicast parse error")?;
 
         let time = self.prev_time + event.time;
         self.prev_time = time;
 
-        let output = if let V3EventCode::Output = event.code {
-            Some((time, event.data))
-        } else {
-            None
+        let output = match event.code {
+            V3EventCode::Output => Some(Event::Output(time, event.data)),
+            V3EventCode::Marker => Some(Event::Marker(time, event.data)),
+            _ => None,
         };
 
         Ok(output)

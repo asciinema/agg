@@ -3,6 +3,7 @@ use crate::theme::Theme;
 use imgref::ImgVec;
 use rgb::{FromSlice, RGBA8};
 use std::{fmt::Write, sync::Arc};
+use tiny_skia::Pixmap;
 
 pub struct ResvgRenderer<'a> {
     terminal_size: (usize, usize),
@@ -73,13 +74,16 @@ impl<'a> ResvgRenderer<'a> {
             font_size,
             row_height,
             &settings.theme,
+            settings.fill_background,
         );
 
         let mut svg = header.clone();
         svg.push_str(Self::footer());
         let tree = usvg::Tree::from_str(&svg, &options).unwrap();
-        let pixel_width = tree.size().width() as usize;
-        let pixel_height = tree.size().height() as usize;
+        let pixel_width = settings.pixel_width.unwrap_or(tree.size().width() as usize);
+        let pixel_height = settings
+            .pixel_height
+            .unwrap_or(tree.size().height() as usize);
 
         Self {
             terminal_size: settings.terminal_size,
@@ -100,13 +104,14 @@ impl<'a> ResvgRenderer<'a> {
         font_size: f64,
         row_height: f64,
         theme: &Theme,
+        fill_background: bool,
     ) -> String {
         let width = (cols + 2) as f64 * (font_size * 0.6);
         let height = (rows + 1) as f64 * row_height;
         let x = 1.0 * 100.0 / (cols as f64 + 2.0);
         let y = 0.5 * 100.0 / (rows as f64 + 1.0);
 
-        format!(
+        let mut header = format!(
             r#"<?xml version="1.0"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{}" height="{}" font-size="{}px" font-family="{}">
 <style>
@@ -114,17 +119,31 @@ impl<'a> ResvgRenderer<'a> {
 .it {{ font-style: italic }}
 .un {{ text-decoration: underline }}
 </style>
-<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />
-<svg x="{:.3}%" y="{:.3}%" style="fill: {}">"#,
-            width, height, font_size, font_family, 4, 4, theme.background, x, y, theme.foreground
+"#,
+            width, height, font_size, font_family
+        );
+        if fill_background {
+            writeln!(
+                &mut header,
+                r#"<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />"#,
+                4, 4, theme.background
+            )
+            .unwrap();
+        }
+        writeln!(
+            &mut header,
+            r#"<svg x="{:.3}%" y="{:.3}%" style="fill: {}">"#,
+            x, y, theme.foreground
         )
+        .unwrap();
+        header
     }
 
     fn footer() -> &'static str {
         "</svg></svg>"
     }
 
-    fn push_lines(&self, svg: &mut String, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) {
+    fn push_lines(&self, svg: &mut String, lines: &[avt::Line], cursor: Option<(usize, usize)>) {
         self.push_background(svg, &lines, cursor);
         self.push_text(svg, &lines, cursor);
     }
@@ -238,19 +257,29 @@ impl<'a> ResvgRenderer<'a> {
 
         svg.push_str("</text>");
     }
-}
 
-impl<'a> Renderer for ResvgRenderer<'a> {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+    pub fn render_svg(&self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> String {
         let mut svg = self.header.clone();
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
-        let tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
+        svg
+    }
+
+    pub fn render_pixmap(&self, svg: &str) -> Pixmap {
+        let tree = usvg::Tree::from_str(svg, &self.options).unwrap();
 
         let mut pixmap =
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
 
         resvg::render(&tree, self.transform, &mut pixmap.as_mut());
+        pixmap
+    }
+}
+
+impl<'a> Renderer for ResvgRenderer<'a> {
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+        let svg = self.render_svg(lines, cursor);
+        let pixmap = self.render_pixmap(&svg);
         let buf = pixmap.take().as_rgba().to_vec();
 
         ImgVec::new(buf, self.pixel_width, self.pixel_height)

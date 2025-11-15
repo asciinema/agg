@@ -12,6 +12,7 @@ type Glyph = (fontdue::Metrics, Vec<u8>);
 pub struct FontdueRenderer {
     font_families: Vec<String>,
     theme: Theme,
+    background_color: RGBA8,
     pixel_width: usize,
     pixel_height: usize,
     font_size: usize,
@@ -73,13 +74,23 @@ impl FontdueRenderer {
         let (cols, rows) = settings.terminal_size;
         let col_width = metrics.advance_width as f64;
         let row_height = (settings.font_size as f64) * settings.line_height;
+        let background_color = if settings.fill_background {
+            settings.theme.background.alpha(255)
+        } else {
+            settings.theme.background.alpha(0)
+        };
 
         Self {
             font_db: settings.font_db,
             font_families: settings.font_families,
             theme: settings.theme,
-            pixel_width: ((cols + 2) as f64 * col_width).round() as usize,
-            pixel_height: ((rows + 1) as f64 * row_height).round() as usize,
+            background_color,
+            pixel_width: settings
+                .pixel_width
+                .unwrap_or(((cols + 2) as f64 * col_width).round() as usize),
+            pixel_height: settings
+                .pixel_height
+                .unwrap_or(((rows + 1) as f64 * row_height).round() as usize),
             font_size: settings.font_size,
             col_width,
             row_height,
@@ -167,9 +178,9 @@ fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
 }
 
 impl Renderer for FontdueRenderer {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut buf: Vec<RGBA8> =
-            vec![self.theme.background.alpha(255); self.pixel_width * self.pixel_height];
+            vec![self.background_color; self.pixel_width * self.pixel_height];
 
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;

@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use serde::Deserialize;
 
-use super::{Asciicast, Header};
+use super::{Asciicast, Event, Header};
 
 #[derive(Deserialize)]
 struct V1 {
@@ -34,7 +34,7 @@ pub fn load(json: String) -> Result<Asciicast<'static>> {
         let time = *prev_time + event.time;
         *prev_time = time;
 
-        Some(Ok((time, event.data)))
+        Some(Ok(Event::Output(time, event.data)))
     }));
 
     Ok(Asciicast { header, events })

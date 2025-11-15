@@ -7,7 +7,7 @@ use rgb::{RGB8, RGBA8};
 use crate::theme::Theme;
 
 pub trait Renderer {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
     fn pixel_size(&self) -> (usize, usize);
 }
 
@@ -18,6 +18,9 @@ pub struct Settings {
     pub font_size: usize,
     pub line_height: f64,
     pub theme: Theme,
+    pub pixel_width: Option<usize>,
+    pub pixel_height: Option<usize>,
+    pub fill_background: bool,
 }
 
 pub fn resvg<'a>(settings: Settings) -> resvg::ResvgRenderer<'a> {

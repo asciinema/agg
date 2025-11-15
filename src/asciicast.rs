@@ -10,7 +10,7 @@ use crate::theme::Theme;
 
 pub struct Asciicast<'a> {
     pub header: Header,
-    pub events: Box<dyn Iterator<Item = Result<OutputEvent>> + 'a>,
+    pub events: Box<dyn Iterator<Item = Result<Event>> + 'a>,
 }
 
 pub struct Header {
@@ -18,6 +18,12 @@ pub struct Header {
     pub term_rows: u16,
     pub term_theme: Option<Theme>,
     pub idle_time_limit: Option<f64>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Event {
+    Output(f64, String),
+    Marker(f64, String),
 }
 
 pub type OutputEvent = (f64, String);

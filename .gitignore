@@ -2,3 +2,4 @@
 .direnv
 /target
 result
+.DS_Store

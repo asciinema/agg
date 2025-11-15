@@ -50,8 +50,12 @@ struct Cli {
     /// asciicast path/filename or URL
     input_filename_or_url: String,
 
-    /// GIF path/filename
+    /// Output path/filename
     output_filename: String,
+
+    /// Whether to write an animated GIF or snapshot PNGs at markers
+    #[clap(long, arg_enum, default_value_t = agg::OutputMode::default())]
+    mode: agg::OutputMode,
 
     /// Select frame rendering backend
     #[clap(long, arg_enum, default_value_t = agg::Renderer::default())]
@@ -112,6 +116,18 @@ struct Cli {
     /// Quiet mode - suppress diagnostic messages and progress bars
     #[clap(short, long)]
     quiet: bool,
+
+    /// Override output image width (in pixels)
+    #[clap(long)]
+    width: Option<usize>,
+
+    /// Override output image height (in pixels)
+    #[clap(long)]
+    height: Option<usize>,
+
+    /// Disable filling images with the background color
+    #[clap(long)]
+    transparent_background: bool,
 }
 
 fn download(url: &str) -> Result<impl io::Read> {
@@ -173,6 +189,8 @@ fn main() -> Result<()> {
         .init();
 
     let config = agg::Config {
+        width: cli.width,
+        height: cli.height,
         cols: cli.cols,
         font_dirs: cli.font_dir,
         font_family: cli.font_family,
@@ -187,16 +205,27 @@ fn main() -> Result<()> {
         speed: cli.speed,
         theme: cli.theme.map(|theme| theme.0),
         show_progress_bar: !cli.quiet,
+        fill_background: !cli.transparent_background,
     };
 
     let input = BufReader::new(reader(&cli.input_filename_or_url)?);
-    let mut output = File::create(&cli.output_filename)?;
 
-    match agg::run(input, &mut output, config) {
-        Ok(ok) => Ok(ok),
-        Err(err) => {
-            std::fs::remove_file(cli.output_filename)?;
-            Err(err)
+    match cli.mode {
+        agg::OutputMode::AnimatedGif => {
+            let mut output = File::create(&cli.output_filename)?;
+
+            match agg::run(input, &mut output, config) {
+                Ok(()) => (),
+                Err(err) => {
+                    std::fs::remove_file(&cli.output_filename)?;
+                    return Err(err);
+                }
+            }
+        }
+        agg::OutputMode::SnapshotMarkers => {
+            agg::write_snapshots(input, &cli.output_filename, config)?;
         }
     }
+
+    Ok(())
 }

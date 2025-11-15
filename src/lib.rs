@@ -5,6 +5,7 @@ mod renderer;
 mod theme;
 mod vt;
 
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::io::{BufRead, Write};
 use std::{iter, thread, time::Instant};
@@ -13,7 +14,8 @@ use anyhow::{anyhow, Result};
 use clap::ArgEnum;
 use log::info;
 
-use crate::asciicast::Asciicast;
+use crate::asciicast::{Asciicast, Event, Header};
+use crate::renderer::Renderer as _;
 
 pub const DEFAULT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
@@ -26,6 +28,8 @@ pub const DEFAULT_SPEED: f64 = 1.0;
 pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 
 pub struct Config {
+    pub width: Option<usize>,
+    pub height: Option<usize>,
     pub cols: Option<usize>,
     pub font_dirs: Vec<String>,
     pub font_family: String,
@@ -40,11 +44,14 @@ pub struct Config {
     pub speed: f64,
     pub theme: Option<Theme>,
     pub show_progress_bar: bool,
+    pub fill_background: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            width: None,
+            height: None,
             cols: None,
             font_dirs: vec![],
             font_family: String::from(DEFAULT_FONT_FAMILY),
@@ -59,6 +66,7 @@ impl Default for Config {
             speed: DEFAULT_SPEED,
             theme: Default::default(),
             show_progress_bar: true,
+            fill_background: true,
         }
     }
 }
@@ -68,6 +76,16 @@ pub enum Renderer {
     #[default]
     Resvg,
     Fontdue,
+}
+
+#[derive(Clone, Debug, ArgEnum, Default)]
+pub enum OutputMode {
+    /// Write a single animated GIF of the entire input
+    #[default]
+    AnimatedGif,
+
+    /// Write a snapshot PNG of each marker in the input
+    SnapshotMarkers,
 }
 
 #[derive(Clone, Debug, ArgEnum, Default)]
@@ -129,9 +147,7 @@ impl Display for Theme {
     }
 }
 
-pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> Result<()> {
-    let Asciicast { header, events, .. } = asciicast::open(input)?;
-
+fn renderer_settings(header: &Header, config: &Config) -> Result<renderer::Settings> {
     if header.term_cols == 0 || header.term_rows == 0 {
         return Err(anyhow!(
             "the recording has invalid terminal size: {}x{}",
@@ -145,19 +161,6 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         config.rows.unwrap_or(header.term_rows as usize),
     );
 
-    let itl = config
-        .idle_time_limit
-        .or(header.idle_time_limit)
-        .unwrap_or(DEFAULT_IDLE_TIME_LIMIT);
-
-    let events = iter::once(Ok((0.0, "".to_owned()))).chain(events);
-    let events = events::limit_idle_time(events, itl);
-    let events = events::accelerate(events, config.speed);
-    let events = events::batch(events, config.fps_cap);
-    let events = events.collect::<Vec<_>>();
-    let count = events.len() as u64;
-    let frames = vt::frames(events.into_iter(), terminal_size);
-
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
     let (font_db, font_families) = fonts::init(&config.font_dirs, &config.font_family)
@@ -167,7 +170,8 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let theme_opt = config
         .theme
-        .or_else(|| header.term_theme.map(Theme::Embedded))
+        .clone()
+        .or_else(|| header.term_theme.clone().map(Theme::Embedded))
         .unwrap_or(Theme::Dracula);
 
     info!("selected theme: {}", theme_opt);
@@ -179,8 +183,17 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         font_size: config.font_size,
         line_height: config.line_height,
         theme: theme_opt.try_into()?,
+        pixel_width: config.width,
+        pixel_height: config.height,
+        fill_background: config.fill_background,
     };
+    Ok(settings)
+}
 
+pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> Result<()> {
+    let Asciicast { header, events } = asciicast::open(input)?;
+    let settings = renderer_settings(&header, &config)?;
+    let terminal_size = settings.terminal_size;
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {
         Renderer::Fontdue => Box::new(renderer::fontdue(settings)),
         Renderer::Resvg => Box::new(renderer::resvg(settings)),
@@ -189,6 +202,24 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let (width, height) = renderer.pixel_size();
 
     info!("gif dimensions: {}x{}", width, height);
+
+    let itl = config
+        .idle_time_limit
+        .or(header.idle_time_limit)
+        .unwrap_or(DEFAULT_IDLE_TIME_LIMIT);
+
+    let events = events.into_iter().filter_map(|event| match event {
+        Ok(Event::Output(time, data)) => Some(Ok((time, data))),
+        Ok(Event::Marker(..)) => None,
+        Err(e) => Some(Err(e)),
+    });
+    let events = iter::once(Ok((0.0, "".to_owned()))).chain(events);
+    let events = events::limit_idle_time(events, itl);
+    let events = events::accelerate(events, config.speed);
+    let events = events::batch(events, config.fps_cap);
+    let events = events.collect::<Vec<_>>();
+    let count = events.len() as u64;
+    let frames = vt::frames(events.into_iter(), terminal_size);
 
     let repeat = if config.no_loop {
         gifski::Repeat::Finite(0)
@@ -223,7 +254,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
         for (i, frame) in frames.enumerate() {
             let (time, lines, cursor) = frame?;
-            let image = renderer.render(lines, cursor);
+            let image = renderer.render(&lines, cursor);
             let time = if i == 0 { 0.0 } else { time };
             collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
         }
@@ -239,4 +270,58 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     );
 
     Ok(())
+}
+
+pub fn write_snapshots<I: BufRead>(input: I, snapshots_path: &str, config: Config) -> Result<()> {
+    let Asciicast { header, events } = asciicast::open(input)?;
+    let settings = renderer_settings(&header, &config)?;
+    let terminal_size = settings.terminal_size;
+    let renderer = renderer::resvg(settings);
+
+    let (width, height) = renderer.pixel_size();
+
+    info!("snapshot dimensions: {}x{}", width, height);
+
+    let mut vt = avt::Vt::builder()
+        .size(terminal_size.0, terminal_size.1)
+        .scrollback_limit(0)
+        .build();
+
+    let mut label_counters: HashMap<String, u32> = HashMap::new();
+
+    for event in events {
+        match event? {
+            Event::Output(_time, data) => {
+                vt.feed_str(&data);
+            }
+            Event::Marker(_time, label) => {
+                let label = sanitize(&label);
+                let counter = label_counters.entry(label.clone()).or_insert(0);
+                let name = if label.is_empty() { "marker" } else { &label };
+                let filename = if *counter == 0 {
+                    format!("{snapshots_path}/{name}")
+                } else {
+                    format!("{snapshots_path}/{name}({counter:03})")
+                };
+                *counter += 1;
+
+                let lines = vt.view();
+                let cursor: Option<(usize, usize)> = vt.cursor().into();
+                info!("rendering {}.svg, {}.png, {}.txt", filename, filename, filename);
+                use std::fs;
+                let svg = renderer.render_svg(lines, cursor);
+                let pixmap = renderer.render_pixmap(&svg);
+                fs::write(format!("{}.txt", filename), vt.dump())?;
+                fs::write(format!("{}.svg", filename), &svg)?;
+                pixmap.save_png(format!("{}.png", filename))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn sanitize(s: &str) -> String {
+    s.chars()
+        .filter(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | ' ' | '.'))
+        .collect()
 }
