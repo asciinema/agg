@@ -1,4 +1,4 @@
-pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database, Vec<String>)> {
+pub fn init(font_dirs: &[String], font_family: &str, fallback_fonts: &str) -> Option<(fontdb::Database, Vec<String>)> {
     let mut font_db = fontdb::Database::new();
     font_db.load_system_fonts();
 
@@ -15,7 +15,7 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database
     if families.is_empty() {
         None
     } else {
-        for name in ["DejaVu Sans", "Noto Emoji"] {
+        for name in fallback_fonts.split(',').map(str::trim) {
             if let Some(name) = find_font_family(&font_db, name) {
                 if !families.contains(&name) {
                     families.push(name);
