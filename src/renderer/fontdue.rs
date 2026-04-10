@@ -3,6 +3,7 @@ use crate::theme::Theme;
 use imgref::ImgVec;
 use log::debug;
 use rgb::RGBA8;
+use tiny_skia::{PremultipliedColorU8, Pixmap};
 use std::collections::HashMap;
 
 type CharVariant = (char, bool, bool);
@@ -167,6 +168,19 @@ fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
 }
 
 impl Renderer for FontdueRenderer {
+    fn render_pixmap(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> tiny_skia::Pixmap {
+        let buf = self.render(lines, cursor);
+        let mut pixmap = Pixmap::new(buf.width() as u32, buf.height() as u32).unwrap();
+
+        // TODO could this be done more efficiently as it is currently copying all the data
+        let pixels = pixmap.pixels_mut();
+        for (i, color) in buf.pixels().enumerate() {
+            pixels[i] = PremultipliedColorU8::from_rgba(color.r, color.g, color.b, color.a).unwrap();
+        }
+
+        pixmap
+    }
+
     fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut buf: Vec<RGBA8> =
             vec![self.theme.background.alpha(255); self.pixel_width * self.pixel_height];

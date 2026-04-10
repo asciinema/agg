@@ -3,10 +3,12 @@ mod resvg;
 
 use imgref::ImgVec;
 use rgb::{RGB8, RGBA8};
+use tiny_skia::Pixmap;
 
 use crate::theme::Theme;
 
 pub trait Renderer {
+    fn render_pixmap(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> Pixmap;
     fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
     fn pixel_size(&self) -> (usize, usize);
 }

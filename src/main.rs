@@ -48,10 +48,14 @@ impl clap::builder::TypedValueParser for ThemeValueParser {
 #[clap(author, version, about, long_about = None)]
 struct Cli {
     /// asciicast path/filename or URL
-    input_filename_or_url: String,
+    #[clap(value_name = "INPUT_FILENAME_OR_URL")]
+    input: String,
 
     /// GIF path/filename
-    output_filename: String,
+    ///
+    /// If path ends with a slash or is a directory frames are saved instead
+    #[clap(value_name = "OUTPUT_FILENAME_OR_DIR")]
+    output: String,
 
     /// Select frame rendering backend
     #[clap(long, arg_enum, default_value_t = agg::Renderer::default())]
@@ -172,6 +176,10 @@ fn main() -> Result<()> {
         .format_timestamp(None)
         .init();
 
+    // output frames if path ends with a path separator or is a directory
+    let output_frames = cli.output.ends_with(std::path::MAIN_SEPARATOR_STR)
+        || std::fs::metadata(&cli.output).is_ok_and(|x| x.is_dir());
+
     let config = agg::Config {
         cols: cli.cols,
         font_dirs: cli.font_dir,
@@ -187,15 +195,19 @@ fn main() -> Result<()> {
         speed: cli.speed,
         theme: cli.theme.map(|theme| theme.0),
         show_progress_bar: !cli.quiet,
+        output_frames: output_frames,
+        output_filename: cli.output.clone(),
     };
 
-    let input = BufReader::new(reader(&cli.input_filename_or_url)?);
-    let mut output = File::create(&cli.output_filename)?;
-
-    match agg::run(input, &mut output, config) {
+    let input = BufReader::new(reader(&cli.input)?);
+    match agg::run(input, config) {
         Ok(ok) => Ok(ok),
         Err(err) => {
-            std::fs::remove_file(cli.output_filename)?;
+            // do not try to delete a directory
+            if !output_frames {
+                std::fs::remove_file(&cli.output)?;
+            }
+
             Err(err)
         }
     }
