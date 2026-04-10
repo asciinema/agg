@@ -241,7 +241,7 @@ impl<'a> ResvgRenderer<'a> {
 }
 
 impl<'a> Renderer for ResvgRenderer<'a> {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+    fn render_pixmap(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> tiny_skia::Pixmap {
         let mut svg = self.header.clone();
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
@@ -251,7 +251,12 @@ impl<'a> Renderer for ResvgRenderer<'a> {
             tiny_skia::Pixmap::new(self.pixel_width as u32, self.pixel_height as u32).unwrap();
 
         resvg::render(&tree, self.transform, &mut pixmap.as_mut());
-        let buf = pixmap.take().as_rgba().to_vec();
+
+        pixmap
+    }
+
+    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+        let buf = self.render_pixmap(lines, cursor).take().as_rgba().to_vec();
 
         ImgVec::new(buf, self.pixel_width, self.pixel_height)
     }
