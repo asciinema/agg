@@ -109,6 +109,14 @@ struct Cli {
     #[clap(long)]
     rows: Option<usize>,
 
+    /// Start at frame
+    #[clap(long)]
+    start: Option<usize>,
+
+    /// End at frame
+    #[clap(long)]
+    end: Option<usize>,
+
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]
     verbose: u8,
@@ -197,6 +205,8 @@ fn main() -> Result<()> {
         show_progress_bar: !cli.quiet,
         output_frames: output_frames,
         output_filename: cli.output.clone(),
+        start: cli.start,
+        end: cli.end,
     };
 
     let input = BufReader::new(reader(&cli.input)?);

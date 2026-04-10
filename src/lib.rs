@@ -44,6 +44,8 @@ pub struct Config {
     pub show_progress_bar: bool,
     pub output_frames: bool,
     pub output_filename: String,
+    pub start: Option<usize>,
+    pub end: Option<usize>,
 }
 
 impl Default for Config {
@@ -65,6 +67,8 @@ impl Default for Config {
             show_progress_bar: true,
             output_frames: false,
             output_filename: "".to_string(),
+            start: None,
+            end: None,
         }
     }
 }
@@ -161,7 +165,7 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
     let events = events::accelerate(events, config.speed);
     let events = events::batch(events, config.fps_cap);
     let events = events.collect::<Vec<_>>();
-    let count = events.len() as u64;
+    let mut frame_count = events.len() as u64;
     let frames = vt::frames(events.into_iter(), terminal_size);
 
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
@@ -196,6 +200,22 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
 
     info!("output dimensions: {}x{}", width, height);
 
+    let start = config.start.unwrap_or(0);
+    let end = config.end
+        .unwrap_or(frame_count as usize);
+
+    if end > (frame_count as usize) {
+        return Err(anyhow!("End frame is past the last frame ({end} > {frame_count})"));
+    }
+
+    if start >= end {
+        return Err(anyhow!("Output segment is invalid ({start} - {end})"));
+    }
+
+    frame_count = (end - start) as u64;
+
+    info!("output segment: {start} - {end}");
+
     let start_time = Instant::now();
 
     if config.output_frames {
@@ -212,12 +232,12 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
         }
 
         let mut pr: Box<dyn ProgressReporter> = if config.show_progress_bar {
-            Box::new(ProgressBar::new(count))
+            Box::new(ProgressBar::new(frame_count))
         } else {
             Box::new(NoProgress {})
         };
 
-        for (i, frame) in frames.enumerate() {
+        for (i, frame) in frames.enumerate().skip(start).take(frame_count as usize) {
             let (_, lines, cursor) = frame?;
 
             let svg = renderer.render_pixmap(lines, cursor);
@@ -249,7 +269,7 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
         thread::scope(|s| {
             let writer_handle = s.spawn(move || {
                 if config.show_progress_bar {
-                    let mut pr = gifski::progress::ProgressBar::new(count);
+                    let mut pr = gifski::progress::ProgressBar::new(frame_count);
                     let result = writer.write(output, &mut pr);
                     pr.finish();
                     println!();
@@ -260,7 +280,7 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
                 }
             });
 
-            for (i, frame) in frames.enumerate() {
+            for (i, frame) in frames.enumerate().skip(start).take(frame_count as usize) {
                 let (time, lines, cursor) = frame?;
                 let image = renderer.render(lines, cursor);
                 let time = if i == 0 { 0.0 } else { time };
