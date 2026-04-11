@@ -109,13 +109,13 @@ struct Cli {
     #[clap(long)]
     rows: Option<usize>,
 
-    /// Start at frame
+    /// Start at specific time (seconds)
     #[clap(long)]
-    start: Option<usize>,
+    start: Option<f64>,
 
-    /// End at frame
+    /// End at specific time (seconds)
     #[clap(long)]
-    end: Option<usize>,
+    end: Option<f64>,
 
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]

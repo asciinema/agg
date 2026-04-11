@@ -44,8 +44,8 @@ pub struct Config {
     pub show_progress_bar: bool,
     pub output_frames: bool,
     pub output_filename: String,
-    pub start: Option<usize>,
-    pub end: Option<usize>,
+    pub start: Option<f64>,
+    pub end: Option<f64>,
 }
 
 impl Default for Config {
@@ -165,8 +165,40 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
     let events = events::accelerate(events, config.speed);
     let events = events::batch(events, config.fps_cap);
     let events = events.collect::<Vec<_>>();
-    let mut frame_count = events.len() as u64;
-    let frames = vt::frames(events.into_iter(), terminal_size);
+
+    match (config.start, config.end) {
+        (Some(x), Some(y)) if x >= y => return Err(anyhow!("End time is before or equal to the start time ({x} - {y})")),
+        _ => {},
+    }
+
+    // find last frame if end is specified
+    let frame_count = if let Some(end) = config.end {
+        match events.iter().position(|x| x.as_ref().is_ok_and(|(time, _)| *time > end)) {
+            Some(x) => x,
+            // assume last frame
+            None => events.len(),
+        }
+    } else {
+        events.len()
+    };
+
+    let start = if let Some(start) = config.start {
+        match events.iter().position(|x| x.as_ref().is_ok_and(|(time, _)| *time > start)) {
+            Some(x) => x,
+            None => 0usize,
+        }
+    } else {
+        0usize
+    };
+
+    // take only the specified frames
+    let frames = vt::frames(events.into_iter().take(frame_count), terminal_size);
+
+    // skip frames that dont need to be rendered
+    let frames = frames.skip(start);
+
+    // subtract start so progress bar shows accurate number of frames
+    let frame_count = frame_count - start;
 
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
@@ -200,22 +232,6 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
 
     info!("output dimensions: {}x{}", width, height);
 
-    let start = config.start.unwrap_or(0);
-    let end = config.end
-        .unwrap_or(frame_count as usize);
-
-    if end > (frame_count as usize) {
-        return Err(anyhow!("End frame is past the last frame ({end} > {frame_count})"));
-    }
-
-    if start >= end {
-        return Err(anyhow!("Output segment is invalid ({start} - {end})"));
-    }
-
-    frame_count = (end - start) as u64;
-
-    info!("output segment: {start} - {end}");
-
     let start_time = Instant::now();
 
     if config.output_frames {
@@ -232,12 +248,12 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
         }
 
         let mut pr: Box<dyn ProgressReporter> = if config.show_progress_bar {
-            Box::new(ProgressBar::new(frame_count))
+            Box::new(ProgressBar::new(frame_count as u64))
         } else {
             Box::new(NoProgress {})
         };
 
-        for (i, frame) in frames.enumerate().skip(start).take(frame_count as usize) {
+        for (i, frame) in frames.enumerate() {
             let (_, lines, cursor) = frame?;
 
             let svg = renderer.render_pixmap(lines, cursor);
@@ -269,7 +285,7 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
         thread::scope(|s| {
             let writer_handle = s.spawn(move || {
                 if config.show_progress_bar {
-                    let mut pr = gifski::progress::ProgressBar::new(frame_count);
+                    let mut pr = gifski::progress::ProgressBar::new(frame_count as u64);
                     let result = writer.write(output, &mut pr);
                     pr.finish();
                     println!();
@@ -280,7 +296,7 @@ pub fn run<I: BufRead>(input: I, config: Config) -> Result<()> {
                 }
             });
 
-            for (i, frame) in frames.enumerate().skip(start).take(frame_count as usize) {
+            for (i, frame) in frames.enumerate() {
                 let (time, lines, cursor) = frame?;
                 let image = renderer.render(lines, cursor);
                 let time = if i == 0 { 0.0 } else { time };
