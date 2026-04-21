@@ -63,32 +63,58 @@ impl Default for Config {
     }
 }
 
-#[derive(Clone, ArgEnum, Default)]
+#[derive(serde::Deserialize, Clone, ArgEnum, Default)]
 pub enum Renderer {
     #[default]
     Resvg,
     Fontdue,
 }
 
-#[derive(Clone, Debug, ArgEnum, Default)]
+#[derive(serde::Deserialize, Clone, Debug, ArgEnum, Default)]
 pub enum Theme {
+    #[serde(rename = "asciinema")]
     Asciinema,
+
     #[default]
+    #[serde(rename = "dracula")]
     Dracula,
+
+    #[serde(rename = "github-dark")]
     GithubDark,
+
+    #[serde(rename = "github-light")]
     GithubLight,
+
+    #[serde(rename = "kanagawa")]
     Kanagawa,
+
+    #[serde(rename = "kanagawa-dragon")]
     KanagawaDragon,
+
+    #[serde(rename = "kanagawa-light")]
     KanagawaLight,
+
+    #[serde(rename = "monokai")]
     Monokai,
+
+    #[serde(rename = "nord")]
     Nord,
+
+    #[serde(rename = "solarized-dark")]
     SolarizedDark,
+
+    #[serde(rename = "solarized-light")]
     SolarizedLight,
+
+    #[serde(rename = "gruvbox-dark")]
     GruvboxDark,
 
     #[clap(skip)]
+    #[serde(rename = "custom")]
     Custom(String),
+
     #[clap(skip)]
+    #[serde(skip_deserializing)]
     Embedded(theme::Theme),
 }
 

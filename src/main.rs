@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use clap::{ArgAction, ArgEnum, Parser};
+use clap::{ArgAction, ArgEnum, CommandFactory, FromArgMatches, Parser};
 use reqwest::header;
 use std::io;
 use std::{fs::File, io::BufReader, iter};
@@ -52,6 +52,13 @@ struct Cli {
 
     /// GIF path/filename
     output_filename: String,
+
+    /// Path to TOML config file
+    #[clap(
+        long,
+        help = "Path to TOML config file (default: search for agg.toml in config directory)"
+    )]
+    config: Option<String>,
 
     /// Select frame rendering backend
     #[clap(long, arg_enum, default_value_t = agg::Renderer::default())]
@@ -114,6 +121,87 @@ struct Cli {
     quiet: bool,
 }
 
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+struct TomlConfig {
+    renderer: Option<agg::Renderer>,
+    font_family: Option<String>,
+    font_size: Option<usize>,
+    font_dirs: Option<Vec<String>>,
+    line_height: Option<f64>,
+    theme: Option<agg::Theme>,
+    speed: Option<f64>,
+    no_loop: Option<bool>,
+    idle_time_limit: Option<f64>,
+    fps_cap: Option<u8>,
+    last_frame_duration: Option<f64>,
+    cols: Option<usize>,
+    rows: Option<usize>,
+    show_progress_bar: Option<bool>,
+}
+
+fn apply_toml_config(cfg: &mut agg::Config, tml: TomlConfig, matches: clap::ArgMatches) {
+    let is_explicit =
+        move |id: &str| matches.value_source(id) == Some(clap::parser::ValueSource::CommandLine);
+
+    macro_rules! apply {
+        (opt, $field:ident) => {
+            if !is_explicit(stringify!($field)) {
+                if let Some(v) = tml.$field {
+                    cfg.$field = Some(v);
+                }
+            }
+        };
+
+        (opt, $field:ident, $id:expr) => {
+            if !is_explicit($id) {
+                if let Some(v) = tml.$field {
+                    cfg.$field = Some(v);
+                }
+            }
+        };
+
+        (not, $field:ident, $id:expr) => {
+            if !is_explicit($id) {
+                if let Some(v) = tml.$field {
+                    cfg.$field = !v;
+                }
+            }
+        };
+
+        ($field:ident) => {
+            if !is_explicit(stringify!($field)) {
+                if let Some(v) = tml.$field {
+                    cfg.$field = v;
+                }
+            }
+        };
+
+        ($field:ident, $id:expr) => {
+            if !is_explicit($id) {
+                if let Some(v) = tml.$field {
+                    cfg.$field = v;
+                }
+            }
+        };
+    }
+
+    apply!(renderer);
+    apply!(font_family, "font-family");
+    apply!(font_size, "font-size");
+    apply!(font_dirs, "font-dir");
+    apply!(line_height, "line-height");
+    apply!(opt, theme);
+    apply!(speed);
+    apply!(no_loop, "no-loop");
+    apply!(opt, idle_time_limit, "idle-time-limit");
+    apply!(fps_cap, "fps-cap");
+    apply!(last_frame_duration, "last-frame-duration");
+    apply!(opt, cols);
+    apply!(opt, rows);
+    apply!(not, show_progress_bar, "quiet");
+}
+
 fn download(url: &str) -> Result<impl io::Read> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(USER_AGENT)
@@ -159,7 +247,8 @@ fn reader(path: &str) -> Result<Box<dyn io::Read>> {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let matches = Cli::command().get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap();
 
     let log_level = match cli.verbose {
         0 => "error",
@@ -172,7 +261,7 @@ fn main() -> Result<()> {
         .format_timestamp(None)
         .init();
 
-    let config = agg::Config {
+    let mut config = agg::Config {
         cols: cli.cols,
         font_dirs: cli.font_dir,
         font_family: cli.font_family,
@@ -188,6 +277,23 @@ fn main() -> Result<()> {
         theme: cli.theme.map(|theme| theme.0),
         show_progress_bar: !cli.quiet,
     };
+
+    let config_path = cli.config.clone().or_else(|| {
+        dirs::config_dir().and_then(|config_dir| {
+            let path = config_dir.join("agg.toml");
+            if path.is_file() {
+                Some(path.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+    });
+
+    if let Some(path) = config_path {
+        let contents = std::fs::read_to_string(path)?;
+        let tml: TomlConfig = toml::from_str(&contents)?;
+        apply_toml_config(&mut config, tml, matches);
+    }
 
     let input = BufReader::new(reader(&cli.input_filename_or_url)?);
     let mut output = File::create(&cli.output_filename)?;
