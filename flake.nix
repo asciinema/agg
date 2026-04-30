@@ -1,6 +1,5 @@
 {
   inputs = {
-    naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
     utils.url = "github:numtide/flake-utils";
@@ -11,7 +10,6 @@
       nixpkgs,
       rust-overlay,
       utils,
-      naersk,
     }:
     let
       packageToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package;
@@ -24,7 +22,11 @@
           inherit system;
           overlays = [ (import rust-overlay) ];
         };
-        naersk-lib = pkgs.callPackage naersk { };
+        rust = pkgs.rust-bin.stable.latest.default;
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = rust;
+          rustc = rust;
+        };
         mkDevShell =
           rust:
           pkgs.mkShell {
@@ -42,14 +44,16 @@
           };
       in
       {
-        defaultPackage = naersk-lib.buildPackage {
-          pname = "agg";
+        packages.default = rustPlatform.buildRustPackage {
+          pname = packageToml.name;
+          version = packageToml.version;
           src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
         };
 
-        defaultApp = utils.lib.mkApp { drv = self.defaultPackage."${system}"; };
+        apps.default = utils.lib.mkApp { drv = self.packages.${system}.default; };
 
-        devShells.default = mkDevShell pkgs.rust-bin.stable.latest.default;
+        devShells.default = mkDevShell rust;
         devShells.msrv = mkDevShell pkgs.rust-bin.stable.${msrv}.default;
       }
     );
