@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use clap::{ArgAction, ArgEnum, Parser};
+use clap::{ArgAction, Parser, ValueEnum};
 use reqwest::header;
 use std::io;
 use std::{fs::File, io::BufReader, iter};
@@ -34,12 +34,12 @@ impl clap::builder::TypedValueParser for ThemeValueParser {
 
     fn possible_values(
         &self,
-    ) -> Option<Box<dyn Iterator<Item = clap::PossibleValue<'static>> + '_>> {
+    ) -> Option<Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_>> {
         Some(Box::new(
             agg::Theme::value_variants()
                 .iter()
                 .filter_map(|v| v.to_possible_value())
-                .chain(iter::once(clap::PossibleValue::new("custom"))),
+                .chain(iter::once(clap::builder::PossibleValue::new("custom"))),
         ))
     }
 }
@@ -54,7 +54,7 @@ struct Cli {
     output_filename: String,
 
     /// Select frame rendering backend
-    #[clap(long, arg_enum, default_value_t = agg::Renderer::default())]
+    #[clap(long, value_enum, default_value_t = agg::Renderer::default())]
     renderer: agg::Renderer,
 
     /// Specify font family

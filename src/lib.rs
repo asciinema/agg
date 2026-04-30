@@ -10,7 +10,7 @@ use std::io::{BufRead, Write};
 use std::{iter, thread, time::Instant};
 
 use anyhow::{anyhow, Result};
-use clap::ArgEnum;
+use clap::ValueEnum;
 use log::info;
 
 use crate::asciicast::Asciicast;
@@ -63,14 +63,14 @@ impl Default for Config {
     }
 }
 
-#[derive(Clone, ArgEnum, Default)]
+#[derive(Clone, ValueEnum, Default)]
 pub enum Renderer {
     #[default]
     Resvg,
     Fontdue,
 }
 
-#[derive(Clone, Debug, ArgEnum, Default)]
+#[derive(Clone, Debug, ValueEnum, Default)]
 pub enum Theme {
     Asciinema,
     #[default]
@@ -86,9 +86,9 @@ pub enum Theme {
     SolarizedLight,
     GruvboxDark,
 
-    #[clap(skip)]
+    #[value(skip)]
     Custom(String),
-    #[clap(skip)]
+    #[value(skip)]
     Embedded(theme::Theme),
 }
 
