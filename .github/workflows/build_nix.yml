@@ -1,4 +1,4 @@
-name: "Build legacy Nix package on Ubuntu"
+name: "Build Nix package on Ubuntu"
 
 on:
   push:
@@ -13,4 +13,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v20
       - name: Building package
-        run: nix-build . -A defaultPackage.x86_64-linux
+        run: nix build
