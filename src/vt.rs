@@ -22,7 +22,7 @@ pub fn frames(
 
                 if !changed_lines.is_empty() || cursor != prev_cursor {
                     prev_cursor = cursor;
-                    let lines = vt.view().to_vec();
+                    let lines = vt.view().cloned().collect();
 
                     Some((time, lines, cursor))
                 } else {

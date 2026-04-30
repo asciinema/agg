@@ -169,7 +169,7 @@ fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
 impl Renderer for FontdueRenderer {
     fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut buf: Vec<RGBA8> =
-            vec![self.theme.background.alpha(255); self.pixel_width * self.pixel_height];
+            vec![self.theme.background.with_alpha(255); self.pixel_width * self.pixel_height];
 
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;
@@ -191,7 +191,7 @@ impl Renderer for FontdueRenderer {
 
                     for y in y_t..y_b {
                         for x in x_l..x_r {
-                            buf[y * self.pixel_width + x] = c.alpha(255);
+                            buf[y * self.pixel_width + x] = c.with_alpha(255);
                         }
                     }
                 }
@@ -202,7 +202,7 @@ impl Renderer for FontdueRenderer {
                         .unwrap_or(avt::Color::RGB(self.theme.foreground)),
                     &self.theme,
                 )
-                .alpha(255);
+                .with_alpha(255);
 
                 if attrs.underline {
                     let y = margin_t
