@@ -20,6 +20,7 @@ pub struct FontdueRenderer {
     font_db: fontdb::Database,
     glyph_cache: HashMap<CharVariant, Option<Glyph>>,
     font_cache: HashMap<FontFace, Option<fontdue::Font>>,
+    bold_is_bright: bool,
 }
 
 fn get_font<T: AsRef<str> + std::fmt::Debug>(
@@ -85,6 +86,7 @@ impl FontdueRenderer {
             row_height,
             font_cache: HashMap::new(),
             glyph_cache: HashMap::new(),
+            bold_is_bright: settings.bold_is_bright,
         }
     }
 
@@ -184,7 +186,14 @@ impl Renderer for FontdueRenderer {
                 let x_l = (margin_l + col as f64 * self.col_width).round() as usize;
                 let x_r =
                     (margin_l + (col + cell.width()) as f64 * self.col_width).round() as usize;
-                let attrs = text_attrs(cell.pen(), &cursor, col, row, &self.theme);
+                let attrs = text_attrs(
+                    cell.pen(),
+                    &cursor,
+                    col,
+                    row,
+                    &self.theme,
+                    self.bold_is_bright,
+                );
 
                 if let Some(c) = attrs.background {
                     let c = color_to_rgb(&c, &self.theme);

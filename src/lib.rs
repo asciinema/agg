@@ -15,6 +15,7 @@ use log::info;
 
 use crate::asciicast::Asciicast;
 
+pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
 pub const DEFAULT_FONT_SIZE: usize = 16;
@@ -26,6 +27,7 @@ pub const DEFAULT_SPEED: f64 = 1.0;
 pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 
 pub struct Config {
+    pub bold_is_bright: bool,
     pub cols: Option<usize>,
     pub font_dirs: Vec<String>,
     pub font_family: String,
@@ -45,6 +47,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            bold_is_bright: DEFAULT_BOLD_IS_BRIGHT,
             cols: None,
             font_dirs: vec![],
             font_family: String::from(DEFAULT_FONT_FAMILY),
@@ -179,6 +182,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         font_size: config.font_size,
         line_height: config.line_height,
         theme: theme_opt.try_into()?,
+        bold_is_bright: config.bold_is_bright,
     };
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {

@@ -18,6 +18,7 @@ pub struct Settings {
     pub font_size: usize,
     pub line_height: f64,
     pub theme: Theme,
+    pub bold_is_bright: bool,
 }
 
 pub fn resvg<'a>(settings: Settings) -> resvg::ResvgRenderer<'a> {
@@ -43,23 +44,16 @@ fn text_attrs(
     col: usize,
     row: usize,
     theme: &Theme,
+    bold_is_bright: bool,
 ) -> TextAttrs {
     let mut foreground = pen.foreground();
     let mut background = pen.background();
     let inverse = cursor == &Some((col, row));
 
-    if pen.is_bold() {
+    if bold_is_bright && pen.is_bold() {
         if let Some(avt::Color::Indexed(n)) = foreground {
             if n < 8 {
                 foreground = Some(avt::Color::Indexed(n + 8));
-            }
-        }
-    }
-
-    if pen.is_blink() {
-        if let Some(avt::Color::Indexed(n)) = background {
-            if n < 8 {
-                background = Some(avt::Color::Indexed(n + 8));
             }
         }
     }

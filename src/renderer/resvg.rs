@@ -14,6 +14,7 @@ pub struct ResvgRenderer<'a> {
     options: usvg::Options<'a>,
     transform: tiny_skia::Transform,
     header: String,
+    bold_is_bright: bool,
 }
 
 fn color_to_style(color: &avt::Color, theme: &Theme) -> String {
@@ -95,6 +96,7 @@ impl<'a> ResvgRenderer<'a> {
             options,
             transform,
             header,
+            bold_is_bright: settings.bold_is_bright,
         }
     }
 
@@ -149,7 +151,14 @@ impl<'a> ResvgRenderer<'a> {
             let mut col = 0;
 
             for cell in line.cells() {
-                let attrs = text_attrs(cell.pen(), &cursor, col, row, &self.theme);
+                let attrs = text_attrs(
+                    cell.pen(),
+                    &cursor,
+                    col,
+                    row,
+                    &self.theme,
+                    self.bold_is_bright,
+                );
 
                 if attrs.background.is_none() {
                     col += cell.width();
@@ -194,7 +203,7 @@ impl<'a> ResvgRenderer<'a> {
                     continue;
                 }
 
-                let attrs = text_attrs(pen, &cursor, col, row, &self.theme);
+                let attrs = text_attrs(pen, &cursor, col, row, &self.theme, self.bold_is_bright);
 
                 svg.push_str("<tspan ");
 

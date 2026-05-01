@@ -112,6 +112,10 @@ struct Cli {
     /// Quiet mode - suppress diagnostic messages and progress bars
     #[clap(short, long)]
     quiet: bool,
+
+    /// Render bold text with bright colors (ANSI 0..7 → 8..15)
+    #[clap(long, default_value_t = agg::DEFAULT_BOLD_IS_BRIGHT)]
+    bold_is_bright: bool,
 }
 
 fn download(url: &str) -> Result<impl io::Read> {
@@ -173,6 +177,7 @@ fn main() -> Result<()> {
         .init();
 
     let config = agg::Config {
+        bold_is_bright: cli.bold_is_bright,
         cols: cli.cols,
         font_dirs: cli.font_dir,
         font_family: cli.font_family,
