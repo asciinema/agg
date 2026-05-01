@@ -37,6 +37,10 @@ fn text_class(attrs: &TextAttrs) -> String {
         class.push_str(" un");
     }
 
+    if attrs.faint {
+        class.push_str(" fa");
+    }
+
     class
 }
 
@@ -113,10 +117,11 @@ impl<'a> ResvgRenderer<'a> {
 .br {{ font-weight: bold }}
 .it {{ font-style: italic }}
 .un {{ text-decoration: underline }}
+.fa {{ fill-opacity: 0.5 }}
 </style>
-<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />
+<rect width="100%" height="100%" style="fill: {}" />
 <svg x="{:.3}%" y="{:.3}%" style="fill: {}">"#,
-            width, height, font_size, font_family, 4, 4, theme.background, x, y, theme.foreground
+            width, height, font_size, font_family, theme.background, x, y, theme.foreground
         )
     }
 
@@ -182,13 +187,14 @@ impl<'a> ResvgRenderer<'a> {
 
             for cell in line.cells() {
                 let ch = cell.char();
+                let pen = cell.pen();
 
-                if ch == ' ' {
+                if ch == ' ' && !pen.is_underline() {
                     col += cell.width();
                     continue;
                 }
 
-                let attrs = text_attrs(cell.pen(), &cursor, col, row, &self.theme);
+                let attrs = text_attrs(pen, &cursor, col, row, &self.theme);
 
                 svg.push_str("<tspan ");
 
