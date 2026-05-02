@@ -80,7 +80,7 @@ impl FontdueRenderer {
     pub fn new(settings: Settings) -> Self {
         let default_font = get_font(
             &settings.font_db,
-            &settings.font_families,
+            &[settings.text_family.as_str()],
             fontdb::Weight::NORMAL,
             fontdb::Style::Normal,
         )

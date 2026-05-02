@@ -163,10 +163,11 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
-    let (font_db, font_families) = fonts::init(&config.font_dirs, &config.font_family)
+    let fonts = fonts::init(&config.font_dirs, &config.font_family)
         .ok_or_else(|| anyhow!("no faces matching font families {}", config.font_family))?;
 
-    info!("selected font families: {:?}", font_families);
+    info!("selected font families: {:?}", fonts.families);
+    info!("selected text font family: {}", fonts.text_family);
 
     let theme_opt = config
         .theme
@@ -177,8 +178,9 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let settings = renderer::Settings {
         terminal_size,
-        font_db,
-        font_families,
+        font_db: fonts.db,
+        font_families: fonts.families,
+        text_family: fonts.text_family,
         font_size: config.font_size,
         line_height: config.line_height,
         theme: theme_opt.try_into()?,
