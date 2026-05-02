@@ -1,3 +1,5 @@
+const NOTO_EMOJI: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
+
 pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database, Vec<String>)> {
     let mut font_db = fontdb::Database::new();
     font_db.load_system_fonts();
@@ -5,6 +7,8 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<(fontdb::Database
     for dir in font_dirs {
         font_db.load_fonts_dir(shellexpand::tilde(dir).to_string());
     }
+
+    font_db.load_font_data(NOTO_EMOJI.to_vec());
 
     let mut families = font_family
         .split(',')

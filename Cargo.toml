@@ -13,6 +13,8 @@ include = [
     "/Cargo.toml",
     "/LICENSE",
     "/README.md",
+    "/fonts/NotoEmoji-OFL.txt",
+    "/fonts/NotoEmoji-Regular.ttf",
     "/src/**",
 ]
 
