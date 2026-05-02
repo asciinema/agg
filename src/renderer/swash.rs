@@ -272,6 +272,263 @@ impl SwashRenderer {
         }
     }
 
+    fn paint_mosaic_symbol(
+        &self,
+        buf: &mut [RGBA8],
+        ch: char,
+        layout: CellLayout,
+        attrs: &TextAttrs,
+        fg: RGBA8,
+    ) -> bool {
+        let cp = ch as u32;
+        let full = (layout.x_l, layout.y_t, layout.x_r, layout.y_b);
+        let x = |n, d| split(layout.x_l, layout.x_r, n, d);
+        let y = |n, d| split(layout.y_t, layout.y_b, n, d);
+        let unit_x = |n| x(n, 8);
+        let unit_y = |n| y(n, 8);
+        let half_x = x(1, 2);
+        let half_y = y(1, 2);
+        let stroke_w = layout
+            .x_r
+            .saturating_sub(layout.x_l)
+            .div_ceil(4)
+            .max(1)
+            .min(layout.x_r.saturating_sub(layout.x_l));
+        let stroke_l = layout.x_l + (layout.x_r.saturating_sub(layout.x_l) - stroke_w) / 2;
+        let stroke_r = stroke_l + stroke_w;
+
+        match cp {
+            // box drawings heavy vertical
+            0x2503 => self.paint_cell_rect(
+                buf,
+                (stroke_l, layout.y_t, stroke_r, layout.y_b),
+                fg,
+                attrs.faint,
+            ),
+
+            // box drawings heavy up
+            0x2579 => self.paint_cell_rect(
+                buf,
+                (stroke_l, layout.y_t, stroke_r, half_y),
+                fg,
+                attrs.faint,
+            ),
+
+            // box drawings heavy down
+            0x257B => self.paint_cell_rect(
+                buf,
+                (stroke_l, half_y, stroke_r, layout.y_b),
+                fg,
+                attrs.faint,
+            ),
+
+            // upper half block
+            0x2580 => self.paint_cell_rect(
+                buf,
+                (layout.x_l, layout.y_t, layout.x_r, half_y),
+                fg,
+                attrs.faint,
+            ),
+
+            // lower N eighths blocks ▁▂▃▄▅▆▇█ (n=8 places top edge at y_t)
+            0x2581..=0x2588 => {
+                let n = (cp - 0x2580) as usize;
+
+                self.paint_cell_rect(
+                    buf,
+                    (layout.x_l, unit_y(8 - n), layout.x_r, layout.y_b),
+                    fg,
+                    attrs.faint,
+                );
+            }
+
+            // left N eighths blocks ▉▊▋▌▍▎▏
+            0x2589..=0x258F => {
+                let n = (cp - 0x2588) as usize;
+
+                self.paint_cell_rect(
+                    buf,
+                    (layout.x_l, layout.y_t, unit_x(8 - n), layout.y_b),
+                    fg,
+                    attrs.faint,
+                );
+            }
+
+            // right half block
+            0x2590 => self.paint_cell_rect(
+                buf,
+                (half_x, layout.y_t, layout.x_r, layout.y_b),
+                fg,
+                attrs.faint,
+            ),
+
+            // light, medium, dark shade ░▒▓
+            0x2591..=0x2593 => {
+                let n = (cp - 0x2590) as u8;
+                let ratio = if attrs.faint { 32 * n } else { 64 * n };
+
+                self.paint_cell_rect_alpha(buf, full, fg, ratio);
+            }
+
+            // upper one eighth block
+            0x2594 => self.paint_cell_rect(
+                buf,
+                (layout.x_l, layout.y_t, layout.x_r, unit_y(1)),
+                fg,
+                attrs.faint,
+            ),
+
+            // right one eighth block
+            0x2595 => self.paint_cell_rect(
+                buf,
+                (unit_x(7), layout.y_t, layout.x_r, layout.y_b),
+                fg,
+                attrs.faint,
+            ),
+
+            // quadrant blocks ▖▗▘▙▚▛▜▝▞▟ (Unicode order doesn't match any
+            // quadrant-bit pattern, so look up each combination)
+            0x2596..=0x259F => {
+                // Bits, top-to-bottom, left-to-right: 0b1=UL 0b10=UR 0b100=LL 0b1000=LR
+                const QUADRANTS: [u8; 10] = [
+                    0b0100, // ▖ lower left
+                    0b1000, // ▗ lower right
+                    0b0001, // ▘ upper left
+                    0b1101, // ▙ ul + ll + lr
+                    0b1001, // ▚ ul + lr
+                    0b0111, // ▛ ul + ur + ll
+                    0b1011, // ▜ ul + ur + lr
+                    0b0010, // ▝ upper right
+                    0b0110, // ▞ ur + ll
+                    0b1110, // ▟ ur + ll + lr
+                ];
+
+                let mask = QUADRANTS[(cp - 0x2596) as usize];
+
+                self.paint_quadrants(buf, layout, fg, attrs.faint, mask);
+            }
+
+            // black square, rendered as a centered half-height mosaic block
+            0x25A0 => self.paint_cell_rect(
+                buf,
+                (layout.x_l, unit_y(2), layout.x_r, unit_y(6)),
+                fg,
+                attrs.faint,
+            ),
+
+            cp => {
+                let Some(mask) = sextant_mask(cp) else {
+                    return false;
+                };
+
+                self.paint_sextants(buf, layout, fg, attrs.faint, mask);
+            }
+        }
+
+        true
+    }
+
+    fn paint_quadrants(
+        &self,
+        buf: &mut [RGBA8],
+        layout: CellLayout,
+        fg: RGBA8,
+        faint: bool,
+        mask: u8,
+    ) {
+        let half_x = split(layout.x_l, layout.x_r, 1, 2);
+        let half_y = split(layout.y_t, layout.y_b, 1, 2);
+
+        if (mask & 0b0001) != 0 {
+            self.paint_cell_rect(buf, (layout.x_l, layout.y_t, half_x, half_y), fg, faint);
+        }
+
+        if (mask & 0b0010) != 0 {
+            self.paint_cell_rect(buf, (half_x, layout.y_t, layout.x_r, half_y), fg, faint);
+        }
+
+        if (mask & 0b0100) != 0 {
+            self.paint_cell_rect(buf, (layout.x_l, half_y, half_x, layout.y_b), fg, faint);
+        }
+
+        if (mask & 0b1000) != 0 {
+            self.paint_cell_rect(buf, (half_x, half_y, layout.x_r, layout.y_b), fg, faint);
+        }
+    }
+
+    fn paint_sextants(
+        &self,
+        buf: &mut [RGBA8],
+        layout: CellLayout,
+        fg: RGBA8,
+        faint: bool,
+        mask: u8,
+    ) {
+        let x_mid = split(layout.x_l, layout.x_r, 1, 2);
+        let y_1 = split(layout.y_t, layout.y_b, 1, 3);
+        let y_2 = split(layout.y_t, layout.y_b, 2, 3);
+
+        if (mask & 0b000001) != 0 {
+            self.paint_cell_rect(buf, (layout.x_l, layout.y_t, x_mid, y_1), fg, faint);
+        }
+
+        if (mask & 0b000010) != 0 {
+            self.paint_cell_rect(buf, (x_mid, layout.y_t, layout.x_r, y_1), fg, faint);
+        }
+
+        if (mask & 0b000100) != 0 {
+            self.paint_cell_rect(buf, (layout.x_l, y_1, x_mid, y_2), fg, faint);
+        }
+
+        if (mask & 0b001000) != 0 {
+            self.paint_cell_rect(buf, (x_mid, y_1, layout.x_r, y_2), fg, faint);
+        }
+
+        if (mask & 0b010000) != 0 {
+            self.paint_cell_rect(buf, (layout.x_l, y_2, x_mid, layout.y_b), fg, faint);
+        }
+
+        if (mask & 0b100000) != 0 {
+            self.paint_cell_rect(buf, (x_mid, y_2, layout.x_r, layout.y_b), fg, faint);
+        }
+    }
+
+    fn paint_cell_rect(
+        &self,
+        buf: &mut [RGBA8],
+        rect: (usize, usize, usize, usize),
+        fg: RGBA8,
+        faint: bool,
+    ) {
+        self.paint_cell_rect_alpha(buf, rect, fg, if faint { 127 } else { 255 });
+    }
+
+    fn paint_cell_rect_alpha(
+        &self,
+        buf: &mut [RGBA8],
+        (x_l, y_t, x_r, y_b): (usize, usize, usize, usize),
+        fg: RGBA8,
+        ratio: u8,
+    ) {
+        if x_r <= x_l || y_b <= y_t {
+            return;
+        }
+
+        let x_l = x_l.min(self.pixel_width);
+        let x_r = x_r.min(self.pixel_width);
+        let y_t = y_t.min(self.pixel_height);
+        let y_b = y_b.min(self.pixel_height);
+
+        for y in y_t..y_b {
+            for x in x_l..x_r {
+                let idx = y * self.pixel_width + x;
+                let bg = buf[idx];
+
+                buf[idx] = blend_straight_alpha(fg, bg, ratio);
+            }
+        }
+    }
+
     fn paint_glyph(
         &mut self,
         buf: &mut [RGBA8],
@@ -405,6 +662,25 @@ fn fade_color(mut color: RGBA8, premultiplied: bool) -> RGBA8 {
     color
 }
 
+fn split(start: usize, end: usize, numerator: usize, denominator: usize) -> usize {
+    start + ((end - start) * numerator + denominator / 2) / denominator
+}
+
+fn sextant_mask(cp: u32) -> Option<u8> {
+    if !(0x1FB00..=0x1FB3B).contains(&cp) {
+        return None;
+    }
+
+    let offset = (cp - 0x1FB00) as u8;
+    let shift = match offset / 20 {
+        0 => 1,
+        1 => 2,
+        _ => 3,
+    };
+
+    Some(offset + shift)
+}
+
 impl Renderer for SwashRenderer {
     fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut buf = self.new_frame();
@@ -431,12 +707,11 @@ impl Renderer for SwashRenderer {
                 self.paint_background(&mut buf, layout, &attrs);
                 self.paint_underline(&mut buf, layout, fg, attrs.underline);
 
-                if ch == ' ' {
-                    col += cell_width;
-                } else {
+                if ch != ' ' && !self.paint_mosaic_symbol(&mut buf, ch, layout, &attrs, fg) {
                     self.paint_glyph(&mut buf, ch, layout, &attrs, fg);
-                    col += cell_width;
                 }
+
+                col += cell_width;
             }
         }
 

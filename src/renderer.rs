@@ -465,6 +465,81 @@ mod tests {
         assert_rgb_close(cell_center(&image, 6, 5), PALETTE[YELLOW], 0);
     }
 
+    #[test]
+    fn swash_renders_mosaic_symbols_crunchy() {
+        let mut renderer = swash(settings(Emoji::Color, false));
+        let input = concat!(
+            "\x1b[38;5;2m",
+            "\u{2503}\u{2579}\u{257b}\u{2580}\u{259a}\u{25a0}\u{1fb00}\u{1fb3b}",
+            "\x1b[39m",
+            "\r\n",
+            "\x1b[38;5;6m██\x1b[39m",
+            "\r\n",
+            "\x1b[38;5;1m░▒▓\x1b[39m",
+            "\r\n",
+            "\x1b[2m█\x1b[22m",
+        );
+        let image = renderer.render(&lines_for(input), None);
+
+        // Heavy vertical and half-lines use centered crisp strokes.
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.5, 0.5), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.1, 0.5), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.25), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.75), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.25), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.75), PALETTE[GREEN], 0);
+
+        // Blocks, quadrants, and black square are cell-aligned geometry.
+        assert_rgb_close(cell_pixel(&image, 3, 0, 0.5, 0.25), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 3, 0, 0.5, 0.75), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 0, 0.25, 0.25), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 0, 0.75, 0.25), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 0, 0.25, 0.75), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 0, 0.75, 0.75), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.1), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.5), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.9), PALETTE[BG], 0);
+
+        // Sextants use 2x3 cell granularity, including the Unicode gap mapping.
+        assert_rgb_close(cell_pixel(&image, 6, 0, 0.25, 0.16), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 6, 0, 0.75, 0.16), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 6, 0, 0.25, 0.5), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.25, 0.16), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.75, 0.16), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.25, 0.5), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.75, 0.5), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.25, 0.84), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.75, 0.84), PALETTE[GREEN], 0);
+
+        // Adjacent full blocks must not leave a seam between cells.
+        assert_rgb_close(cell_pixel(&image, 0, 1, 0.98, 0.5), PALETTE[CYAN], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 1, 0.02, 0.5), PALETTE[CYAN], 0);
+
+        // Shades blend the foreground over the already-painted background.
+        assert_rgb_close(
+            cell_center(&image, 0, 2),
+            blend_rgb(PALETTE[RED], PALETTE[BG], 64),
+            0,
+        );
+        assert_rgb_close(
+            cell_center(&image, 1, 2),
+            blend_rgb(PALETTE[RED], PALETTE[BG], 128),
+            0,
+        );
+        assert_rgb_close(
+            cell_center(&image, 2, 2),
+            blend_rgb(PALETTE[RED], PALETTE[BG], 192),
+            0,
+        );
+
+        // Faint full blocks follow the raster renderer's existing half-intensity rule.
+        assert_rgb_close(
+            cell_center(&image, 0, 3),
+            blend_rgb(PALETTE[FG], PALETTE[BG], 127),
+            0,
+        );
+    }
+
     // The col-2 (ANSI white, n=7) assertions probe the n < 8 boundary —
     // they catch off-by-one regressions like `n < 7` that the col-0 (red,
     // n=1) assertion alone would miss.
@@ -618,6 +693,16 @@ mod tests {
             rgb_distance(actual, expected) <= threshold,
             "expected {actual:?} to be within {threshold} of {expected:?}",
         );
+    }
+
+    fn blend_rgb(fg: RGB8, bg: RGB8, ratio: u8) -> RGB8 {
+        let ratio = ratio as u16;
+
+        RGB8::new(
+            ((bg.r as u16) * (255 - ratio) / 255) as u8 + ((fg.r as u16) * ratio / 255) as u8,
+            ((bg.g as u16) * (255 - ratio) / 255) as u8 + ((fg.g as u16) * ratio / 255) as u8,
+            ((bg.b as u16) * (255 - ratio) / 255) as u8 + ((fg.b as u16) * ratio / 255) as u8,
+        )
     }
 
     // Asserts that the styled cell at (col, row, x_ratio, y_ratio) carries at least
