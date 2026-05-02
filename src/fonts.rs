@@ -1,4 +1,13 @@
 const NOTO_EMOJI: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
+const GENERIC_FALLBACK_FAMILIES: &[&str] = &["DejaVu Sans"];
+const EMOJI_FALLBACK_FAMILIES: &[&str] = &[
+    "Apple Color Emoji",
+    "Noto Color Emoji",
+    "Segoe UI Emoji",
+    "Twemoji Mozilla",
+    "EmojiOne Color",
+    "Noto Emoji",
+];
 
 pub struct Fonts {
     pub db: fontdb::Database,
@@ -25,13 +34,7 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
     if families.is_empty() {
         None
     } else {
-        for name in ["DejaVu Sans", "Noto Emoji"] {
-            if let Some(name) = find_font_family(&font_db, name) {
-                if !families.contains(&name) {
-                    families.push(name);
-                }
-            }
-        }
+        append_font_fallbacks(&font_db, &mut families);
 
         let text_family = default_text_family(&font_db, &families)?;
 
@@ -40,6 +43,19 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
             families,
             text_family,
         })
+    }
+}
+
+fn append_font_fallbacks(font_db: &fontdb::Database, families: &mut Vec<String>) {
+    for name in GENERIC_FALLBACK_FAMILIES
+        .iter()
+        .chain(EMOJI_FALLBACK_FAMILIES)
+    {
+        if let Some(name) = find_font_family(font_db, name) {
+            if !families.contains(&name) {
+                families.push(name);
+            }
+        }
     }
 }
 
@@ -89,17 +105,10 @@ fn is_text_family(font_db: &fontdb::Database, name: &str, require_monospace: boo
 }
 
 fn is_emoji_family(face_info: &fontdb::FaceInfo) -> bool {
-    face_info.families.iter().any(|(family, _)| {
-        matches!(
-            family.as_str(),
-            "Apple Color Emoji"
-                | "EmojiOne Color"
-                | "Noto Color Emoji"
-                | "Noto Emoji"
-                | "Segoe UI Emoji"
-                | "Twemoji Mozilla"
-        )
-    })
+    face_info
+        .families
+        .iter()
+        .any(|(family, _)| EMOJI_FALLBACK_FAMILIES.contains(&family.as_str()))
 }
 
 #[cfg(test)]
@@ -112,6 +121,7 @@ mod tests {
     fn test_font_db() -> fontdb::Database {
         let mut font_db = fontdb::Database::new();
         font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
+        font_db.load_font_data(include_bytes!("../fonts/NotoColorEmoji.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoSansCJKjp-Regular.otf").to_vec());
         font_db
@@ -145,5 +155,22 @@ mod tests {
         let families = vec!["Noto Emoji".to_owned()];
 
         assert_eq!(default_text_family(&font_db, &families), None);
+    }
+
+    #[test]
+    fn font_fallbacks_append_color_emoji_before_monochrome_emoji() {
+        let font_db = test_font_db();
+        let mut families = vec!["JetBrains Mono".to_owned()];
+
+        append_font_fallbacks(&font_db, &mut families);
+
+        assert_eq!(
+            families,
+            vec![
+                "JetBrains Mono".to_owned(),
+                "Noto Color Emoji".to_owned(),
+                "Noto Emoji".to_owned(),
+            ]
+        );
     }
 }

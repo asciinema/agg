@@ -17,7 +17,7 @@ use crate::asciicast::Asciicast;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_FONT_FAMILY: &str =
-    "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono,Noto Color Emoji";
+    "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
 pub const DEFAULT_FONT_SIZE: usize = 16;
 pub const DEFAULT_FPS_CAP: u8 = 30;
 pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
