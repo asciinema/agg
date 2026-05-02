@@ -7,7 +7,7 @@ use rgb::{RGB8, RGBA8};
 use crate::theme::Theme;
 
 pub trait Renderer {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
     fn pixel_size(&self) -> (usize, usize);
 }
 
@@ -213,7 +213,7 @@ mod tests {
         let mut renderer = resvg(settings(Emoji::Color, false));
         let lines = vt_lines();
 
-        let mut render = |cur| renderer.render(lines.clone(), cur);
+        let mut render = |cur| renderer.render(&lines, cur);
 
         // First render: cursor over (0, 5) — covers every assertion except
         // the two alternate-cursor-position cases (cursor-over-plain-colored,
@@ -311,7 +311,7 @@ mod tests {
         let mut renderer = fontdue(settings(Emoji::Mono, false));
         let lines = vt_lines();
 
-        let mut render = |cur| renderer.render(lines.clone(), cur);
+        let mut render = |cur| renderer.render(&lines, cur);
 
         // Same shape as the resvg test; thresholds tuned to fontdue's exact
         // solid-fill rasterization (background samples can use 0).
@@ -393,7 +393,8 @@ mod tests {
     #[test]
     fn resvg_bold_is_bright_brightens() {
         let mut renderer = resvg(settings(Emoji::Color, true));
-        let image = renderer.render(vt_lines(), None);
+        let lines = vt_lines();
+        let image = renderer.render(&lines, None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 3);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 3);
     }
@@ -401,7 +402,8 @@ mod tests {
     #[test]
     fn fontdue_bold_is_bright_brightens() {
         let mut renderer = fontdue(settings(Emoji::Mono, true));
-        let image = renderer.render(vt_lines(), None);
+        let lines = vt_lines();
+        let image = renderer.render(&lines, None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 4);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
     }

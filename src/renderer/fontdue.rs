@@ -90,7 +90,7 @@ impl FontdueRenderer {
         }
     }
 
-    fn get_font(&mut self, name: &String, bold: bool, italic: bool) -> &Option<fontdue::Font> {
+    fn get_font(&mut self, name: &str, bold: bool, italic: bool) -> &Option<fontdue::Font> {
         let weight = if bold {
             fontdb::Weight::BOLD
         } else {
@@ -105,7 +105,7 @@ impl FontdueRenderer {
 
         &*self
             .font_cache
-            .entry((name.clone(), bold, italic))
+            .entry((name.to_owned(), bold, italic))
             .or_insert_with(|| get_font(&self.font_db, &[name], weight, style))
     }
 
@@ -169,7 +169,7 @@ fn mix_colors(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
 }
 
 impl Renderer for FontdueRenderer {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut buf: Vec<RGBA8> =
             vec![self.theme.background.with_alpha(255); self.pixel_width * self.pixel_height];
 

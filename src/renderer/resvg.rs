@@ -131,9 +131,9 @@ impl<'a> ResvgRenderer<'a> {
         "</svg></svg>"
     }
 
-    fn push_lines(&self, svg: &mut String, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) {
-        self.push_background(svg, &lines, cursor);
-        self.push_text(svg, &lines, cursor);
+    fn push_lines(&self, svg: &mut String, lines: &[avt::Line], cursor: Option<(usize, usize)>) {
+        self.push_background(svg, lines, cursor);
+        self.push_text(svg, lines, cursor);
     }
 
     fn push_background(
@@ -256,7 +256,7 @@ impl<'a> ResvgRenderer<'a> {
 }
 
 impl<'a> Renderer for ResvgRenderer<'a> {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
         let mut svg = self.header.clone();
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
