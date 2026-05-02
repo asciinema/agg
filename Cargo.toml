@@ -8,6 +8,14 @@ repository = "https://github.com/asciinema/agg"
 description = "asciinema gif generator"
 license = "GPL-3.0-or-later"
 
+include = [
+    "/Cargo.lock",
+    "/Cargo.toml",
+    "/LICENSE",
+    "/README.md",
+    "/src/**",
+]
+
 # MSRV
 rust-version = "1.85.0"
 
