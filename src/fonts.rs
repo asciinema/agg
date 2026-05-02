@@ -18,6 +18,7 @@ pub struct Fonts {
 pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
     let mut font_db = fontdb::Database::new();
     font_db.load_system_fonts();
+    load_platform_emoji_fonts(&mut font_db);
 
     for dir in font_dirs {
         font_db.load_fonts_dir(shellexpand::tilde(dir).to_string());
@@ -45,6 +46,20 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
         })
     }
 }
+
+#[cfg(target_os = "macos")]
+fn load_platform_emoji_fonts(font_db: &mut fontdb::Database) {
+    const APPLE_COLOR_EMOJI: &str = "/System/Library/Fonts/Apple Color Emoji.ttc";
+
+    if find_font_family(font_db, "Apple Color Emoji").is_none() {
+        if let Err(e) = font_db.load_font_file(APPLE_COLOR_EMOJI) {
+            log::debug!("failed to load {APPLE_COLOR_EMOJI}: {e}");
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn load_platform_emoji_fonts(_font_db: &mut fontdb::Database) {}
 
 fn append_font_fallbacks(font_db: &fontdb::Database, families: &mut Vec<String>) {
     for name in GENERIC_FALLBACK_FAMILIES
@@ -171,6 +186,19 @@ mod tests {
                 "Noto Color Emoji".to_owned(),
                 "Noto Emoji".to_owned(),
             ]
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn platform_fonts_load_apple_color_emoji() {
+        let mut font_db = fontdb::Database::new();
+
+        load_platform_emoji_fonts(&mut font_db);
+
+        assert_eq!(
+            find_font_family(&font_db, "Apple Color Emoji"),
+            Some("Apple Color Emoji".to_owned())
         );
     }
 }

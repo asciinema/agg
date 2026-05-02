@@ -495,6 +495,37 @@ mod tests {
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn swash_renders_apple_color_emoji() {
+        let mut font_db = fontdb::Database::new();
+        font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
+        font_db
+            .load_font_file("/System/Library/Fonts/Apple Color Emoji.ttc")
+            .unwrap();
+        font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
+
+        let settings = Settings {
+            terminal_size: (COLS, ROWS),
+            font_db,
+            font_families: vec![
+                FONT_FAMILY.to_owned(),
+                "Apple Color Emoji".to_owned(),
+                "Noto Emoji".to_owned(),
+            ],
+            text_family: FONT_FAMILY.to_owned(),
+            font_size: FONT_SIZE,
+            line_height: LINE_HEIGHT,
+            theme: theme(),
+            bold_is_bright: false,
+        };
+        let mut renderer = swash(settings);
+        let lines = lines_for("⭐");
+        let image = renderer.render(&lines, None);
+
+        assert_color_emoji_rendered(&image, 0, 0, 2);
+    }
+
     enum Emoji {
         Color, // CBDT bitmap-based; for color renderers
         Mono,  // outline-only; for fontdue
@@ -546,12 +577,16 @@ mod tests {
     }
 
     fn vt_lines() -> Vec<avt::Line> {
+        lines_for(SEED)
+    }
+
+    fn lines_for(input: &str) -> Vec<avt::Line> {
         let mut vt = avt::Vt::builder()
             .size(COLS, ROWS)
             .scrollback_limit(0)
             .build();
 
-        vt.feed_str(SEED);
+        vt.feed_str(input);
 
         vt.view().cloned().collect()
     }
@@ -622,6 +657,34 @@ mod tests {
         assert!(
             d_target < d_than,
             "expected {actual:?} to be closer to {target:?} (distance {d_target}) than to {than:?} (distance {d_than})",
+        );
+    }
+
+    // Apple Color Emoji ships with macOS and its exact pixels drift between OS
+    // versions, so we can't pin a hue. A saturated pixel anywhere in the cell is
+    // enough to prove the color-emoji path reached us, as opposed to a
+    // monochrome-outline fallback or a missing glyph.
+    #[cfg(target_os = "macos")]
+    fn assert_color_emoji_rendered(image: &ImgVec<RGBA8>, col: usize, row: usize, width: usize) {
+        let cell_width = image.width() as f64 / (COLS + 2) as f64;
+        let cell_height = image.height() as f64 / (ROWS + 1) as f64;
+        let x_l = ((1.0 + col as f64) * cell_width).round() as usize;
+        let x_r = ((1.0 + (col + width) as f64) * cell_width).round() as usize;
+        let y_t = ((0.5 + row as f64) * cell_height).round() as usize;
+        let y_b = ((0.5 + (row + 1) as f64) * cell_height).round() as usize;
+
+        let saturated = (y_t..y_b).any(|y| {
+            (x_l..x_r).any(|x| {
+                let px = image.buf()[y * image.width() + x];
+                let max = px.r.max(px.g).max(px.b) as i16;
+                let min = px.r.min(px.g).min(px.b) as i16;
+                max - min > 60
+            })
+        });
+
+        assert!(
+            saturated,
+            "expected the color emoji font to produce a saturated pixel"
         );
     }
 
