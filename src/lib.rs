@@ -17,7 +17,7 @@ use crate::asciicast::Asciicast;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_FONT_FAMILY: &str =
-    "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
+    "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono,Noto Color Emoji";
 pub const DEFAULT_FONT_SIZE: usize = 16;
 pub const DEFAULT_FPS_CAP: u8 = 30;
 pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
@@ -69,6 +69,7 @@ impl Default for Config {
 #[derive(Clone, ValueEnum, Default)]
 pub enum Renderer {
     #[default]
+    Swash,
     Resvg,
     Fontdue,
 }
@@ -188,6 +189,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     };
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {
+        Renderer::Swash => Box::new(renderer::swash(settings)),
         Renderer::Fontdue => Box::new(renderer::fontdue(settings)),
         Renderer::Resvg => Box::new(renderer::resvg(settings)),
     };

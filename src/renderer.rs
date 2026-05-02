@@ -1,5 +1,6 @@
 mod fontdue;
 mod resvg;
+mod swash;
 
 use imgref::ImgVec;
 use rgb::{RGB8, RGBA8};
@@ -28,6 +29,10 @@ pub fn resvg<'a>(settings: Settings) -> resvg::ResvgRenderer<'a> {
 
 pub fn fontdue(settings: Settings) -> fontdue::FontdueRenderer {
     fontdue::FontdueRenderer::new(settings)
+}
+
+pub fn swash(settings: Settings) -> swash::SwashRenderer {
+    swash::SwashRenderer::new(settings)
 }
 
 struct TextAttrs {
@@ -144,7 +149,7 @@ mod tests {
     //          underlined default-fg space at col 4
     //   row 7: regular M at col 0; bold M at col 2; italic M at col 4; bold-italic M at col 6
     //   row 8: 日 with yellow bg at cols 0..1; default-fg █ at col 2
-    //   row 9: ⭐ at cols 0..1 (resvg renders as color emoji; fontdue as mono outline)
+    //   row 9: ⭐ at cols 0..1 (color renderers use emoji bitmap; fontdue uses mono outline)
     //   row 10: faint █ at col 0; & at col 2  (resvg-only assertions)
     //   row 11: bold + ANSI-red █ at col 0; bold + ANSI-white █ at col 2.
     //          col 0 catches generic flag-off / flag-on behavior; col 2
@@ -169,20 +174,20 @@ mod tests {
     );
 
     // 50/50 blend of theme.foreground and theme.background — the expected
-    // pixel for resvg's faint glyph (fill-opacity: 0.5).
+    // pixel for a solid foreground glyph after faint intensity is applied.
     const MID_FG_BG: RGB8 = RGB8::new(144, 145, 148);
 
-    // Per-backend y_ratio for the underline stroke. fontdue places it
-    // exactly at `font_size * 1.2 / row_height = 24/28`; resvg's CSS
-    // text-decoration is positioned by the SVG rasterizer, sitting a
-    // little higher in the cell.
+    // Per-renderer y_ratio for the underline stroke. Raster renderers place
+    // their explicit underline at `font_size * 1.2 / row_height = 24/28`;
+    // resvg's CSS text-decoration is positioned by the SVG rasterizer, sitting
+    // a little higher in the cell.
     const RESVG_UND_Y: f64 = 0.82;
-    const FONTDUE_UND_Y: f64 = 0.857;
+    const RASTER_UND_Y: f64 = 0.857;
 
     // Probe positions for the bold/italic/bold-italic 'M' comparison on row 7.
     // Empirically chosen so the styled cell paints solid fg ink while the
     // regular control cell is bg or its stroke's AA edge — see assert_inkier.
-    // Both backends agree on these positions for the same character + font.
+    // All renderers agree on these positions for the same character + font.
     const M_BOLD_PROBE: (f64, f64) = (0.1, 0.4); // AA edge of regular's left stroke; bold's wider stroke fills here
     const M_ITALIC_PROBE: (f64, f64) = (0.7, 0.3); // italic shifts the right stroke up-right at this height
     const M_BOLD_ITALIC_PROBE: (f64, f64) = (0.4, 0.3); // combined width + slant places ink in regular's interior bg
@@ -194,20 +199,19 @@ mod tests {
     // fontdb returns the Italic face for the bold-italic SGR).
     const M_BOLD_ITALIC_INK_DIFF: u16 = 575;
 
-    // Probe positions for ⭐ on row 9. The two backends render emoji
-    // fundamentally differently — resvg paints the color bitmap (yellow body),
-    // fontdue paints the outline strokes — so the probe positions diverge.
-    const STAR_RESVG_PROBE: (f64, f64) = (0.5, 0.5); // center of left half — star body
+    // Probe positions for ⭐ on row 9. Color renderers paint the yellow body,
+    // while fontdue paints the outline strokes, so their probe positions diverge.
+    const STAR_BODY_PROBE: (f64, f64) = (0.5, 0.5); // center of left half
     const STAR_FONTDUE_PROBE: (f64, f64) = (0.5, 0.7); // bottom-left of left half — outline stroke
 
     // resvg's color emoji renders ⭐ in NotoColorEmoji's signature yellow.
     const STAR_YELLOW: RGB8 = RGB8::new(253, 216, 53);
     const SWASH_STAR_YELLOW: RGB8 = RGB8::new(245, 208, 51);
 
-    // Per-assertion thresholds differ between backends: resvg's SVG rasterizer drifts
-    // a couple of units even on solid fills (3 is the floor for "should be exactly
-    // this color"); fontdue paints solid fills exactly, so its background samples can
-    // use 0, while glyph bodies still pick up a few units of AA.
+    // Per-assertion thresholds differ between renderers: resvg's SVG rasterizer
+    // drifts a couple of units even on solid fills (3 is the floor for "should
+    // be exactly this color"); raster renderers paint solid backgrounds exactly,
+    // while glyph bodies still pick up a few units of AA.
 
     #[test]
     fn resvg_renders_expected_pixels() {
@@ -244,7 +248,7 @@ mod tests {
         // resvg renders CSS text-decoration as a sub-pixel AA stroke that
         // never produces a solid foreground pixel — the strongest underline
         // pixel in this config is ~50% magenta blended with bg. So instead
-        // of an exact-RGB assertion (used by fontdue) we check that the
+        // of an exact-RGB assertion (used by raster renderers) we check that the
         // pixel is closer to the foreground color than to the background.
         assert_closer_to(
             cell_pixel(&image, 0, 6, 0.5, RESVG_UND_Y),
@@ -279,7 +283,7 @@ mod tests {
         assert_rgb_close(cell_center(&image, 2, 8), PALETTE[FG], 3);
 
         // ── emoji (row 9) ──
-        let (px, py) = STAR_RESVG_PROBE;
+        let (px, py) = STAR_BODY_PROBE;
         assert_rgb_close(cell_pixel(&image, 0, 9, px, py), STAR_YELLOW, 3);
 
         // ── faint / escape (row 10) ──
@@ -340,12 +344,12 @@ mod tests {
         // across the full cell width regardless of glyph — so the pixel
         // over a space cell is solid FG (no AA), unlike resvg.
         assert_rgb_close(
-            cell_pixel(&image, 0, 6, 0.5, FONTDUE_UND_Y),
+            cell_pixel(&image, 0, 6, 0.5, RASTER_UND_Y),
             PALETTE[MAGENTA],
             4,
         );
-        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, FONTDUE_UND_Y), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, FONTDUE_UND_Y), PALETTE[FG], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RASTER_UND_Y), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, RASTER_UND_Y), PALETTE[FG], 0);
 
         // ── bold / italic (row 7) ──
         assert_inkier(&image, (2, 7), (0, 7), M_BOLD_PROBE, M_STYLED_INK_DIFF);
@@ -388,6 +392,79 @@ mod tests {
         assert_rgb_close(cell_center(&image, 6, 5), PALETTE[YELLOW], 0);
     }
 
+    #[test]
+    fn swash_renders_expected_pixels() {
+        let mut renderer = swash(settings(Emoji::Color, false));
+        let lines = vt_lines();
+
+        let mut render = |cur| renderer.render(&lines, cur);
+        let image = render(Some((0, 5)));
+
+        // ── color paths ──
+        assert_rgb_close(cell_center(&image, 38, 0), PALETTE[BG], 0);
+        assert_rgb_close(cell_center(&image, 0, 0), PALETTE[FG], 4);
+        assert_rgb_close(cell_center(&image, 0, 1), PALETTE[RED], 4);
+        assert_rgb_close(cell_center(&image, 3, 1), RGB8::new(0x40, 0x20, 0x70), 0);
+        assert_rgb_close(cell_center(&image, 0, 2), PALETTE[GREEN], 4);
+        assert_rgb_close(cell_center(&image, 3, 2), PALETTE[CYAN], 0);
+        assert_rgb_close(cell_center(&image, 0, 3), RGB8::new(255, 0, 0), 4);
+        assert_rgb_close(cell_center(&image, 3, 3), RGB8::new(95, 95, 135), 0);
+        assert_rgb_close(cell_center(&image, 0, 4), RGB8::new(128, 128, 128), 4);
+        assert_rgb_close(cell_center(&image, 3, 4), RGB8::new(208, 208, 208), 0);
+
+        // ── reverse + cursor matrix (row 5) ──
+        assert_rgb_close(cell_center(&image, 0, 5), PALETTE[FG], 0);
+        assert_rgb_close(cell_center(&image, 2, 5), PALETTE[FG], 0);
+        assert_rgb_close(cell_center(&image, 6, 5), PALETTE[BLUE], 0);
+
+        // ── underline (row 6) ──
+        assert_rgb_close(
+            cell_pixel(&image, 0, 6, 0.5, RASTER_UND_Y),
+            PALETTE[MAGENTA],
+            4,
+        );
+        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RASTER_UND_Y), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, RASTER_UND_Y), PALETTE[FG], 0);
+
+        // ── bold / italic (row 7) ──
+        assert_inkier(&image, (2, 7), (0, 7), M_BOLD_PROBE, M_STYLED_INK_DIFF);
+        assert_inkier(&image, (4, 7), (0, 7), M_ITALIC_PROBE, M_STYLED_INK_DIFF);
+        assert_inkier(
+            &image,
+            (6, 7),
+            (0, 7),
+            M_BOLD_ITALIC_PROBE,
+            M_BOLD_ITALIC_INK_DIFF,
+        );
+
+        // ── wide CJK (row 8) ──
+        assert_rgb_close(cell_center(&image, 0, 8), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_center(&image, 1, 8), PALETTE[YELLOW], 0);
+        assert_closer_to(
+            cell_pixel(&image, 1, 8, 0.3, 0.5),
+            PALETTE[FG],
+            PALETTE[YELLOW],
+        );
+        assert_rgb_close(cell_center(&image, 2, 8), PALETTE[FG], 4);
+
+        // ── emoji (row 9) ──
+        let (px, py) = STAR_BODY_PROBE;
+        assert_rgb_close(cell_pixel(&image, 0, 9, px, py), SWASH_STAR_YELLOW, 3);
+
+        // ── faint (row 10) ──
+        assert_rgb_close(cell_center(&image, 0, 10), MID_FG_BG, 4);
+
+        // ── bold-is-bright (row 11, default off) ──
+        assert_rgb_close(cell_center(&image, 0, 11), PALETTE[RED], 4);
+        assert_rgb_close(cell_center(&image, 2, 11), PALETTE[FG], 4);
+
+        let image = render(Some((4, 5)));
+        assert_rgb_close(cell_center(&image, 4, 5), PALETTE[BLUE], 0);
+
+        let image = render(Some((6, 5)));
+        assert_rgb_close(cell_center(&image, 6, 5), PALETTE[YELLOW], 0);
+    }
+
     // The col-2 (ANSI white, n=7) assertions probe the n < 8 boundary —
     // they catch off-by-one regressions like `n < 7` that the col-0 (red,
     // n=1) assertion alone would miss.
@@ -409,8 +486,17 @@ mod tests {
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
     }
 
+    #[test]
+    fn swash_bold_is_bright_brightens() {
+        let mut renderer = swash(settings(Emoji::Color, true));
+        let lines = vt_lines();
+        let image = renderer.render(&lines, None);
+        assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 4);
+        assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
+    }
+
     enum Emoji {
-        Color, // CBDT bitmap-based; for resvg
+        Color, // CBDT bitmap-based; for color renderers
         Mono,  // outline-only; for fontdue
     }
 
