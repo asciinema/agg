@@ -98,6 +98,10 @@ fn col_width(db: &fontdb::Database, family: &str, font_size: usize) -> Option<f6
     })?
 }
 
+fn glyph_image_is_visible(img: &Image) -> bool {
+    img.placement.width > 0 && img.placement.height > 0 && !img.data.is_empty()
+}
+
 impl SwashRenderer {
     pub fn new(settings: Settings) -> Self {
         let col_width = col_width(&settings.font_db, &settings.text_family, settings.font_size)
@@ -204,13 +208,12 @@ impl SwashRenderer {
                     .hint(true)
                     .build();
 
-                // swash returns an empty Mask (placement 0×0, data empty) when
-                // the font's glyph is in a table swash can't decompose — most
-                // notably COLRv1 outlines. Drop the empty result so the family
-                // fallback loop can try the next font.
+                // Swash returns an empty image when a mapped glyph is in a
+                // table it can't decompose, most notably COLRv1. Drop that
+                // result so the family fallback loop can try the next font.
                 Render::new(GLYPH_SOURCES)
                     .render(&mut scaler, glyph_id)
-                    .filter(|img| img.placement.width > 0 && img.placement.height > 0)
+                    .filter(glyph_image_is_visible)
             })?
     }
 
@@ -726,6 +729,19 @@ impl Renderer for SwashRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn glyph_image_visibility_rejects_empty_images() {
+        let mut image = Image::new();
+        assert!(!glyph_image_is_visible(&image));
+
+        image.placement.width = 1;
+        image.placement.height = 1;
+        assert!(!glyph_image_is_visible(&image));
+
+        image.data.push(255);
+        assert!(glyph_image_is_visible(&image));
+    }
 
     #[test]
     fn color_bitmap_edges_use_straight_alpha() {

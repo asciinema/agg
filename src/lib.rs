@@ -72,7 +72,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Clone, ValueEnum, Default)]
+#[derive(Clone, ValueEnum, Default, PartialEq)]
 pub enum Renderer {
     #[default]
     Swash,
@@ -181,6 +181,13 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     info!("selected font families: {:?}", fonts.families);
     info!("selected text font family: {}", fonts.text_family);
+
+    if config.renderer == Renderer::Swash && !fonts.colrv1_families.is_empty() {
+        warn!(
+            "selected font families {:?} contain COLRv1 color glyphs, which the swash renderer does not support yet; glyph fallback will be attempted, or try --renderer resvg",
+            fonts.colrv1_families
+        );
+    }
 
     if !fonts.text_family_monospaced {
         warn!(

@@ -586,6 +586,37 @@ mod tests {
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
     }
 
+    #[test]
+    fn swash_falls_back_from_unrenderable_color_emoji_glyphs() {
+        let Ok(colrv1_font) = std::fs::read("fonts/NotoColorEmoji-COLRv1.ttf") else {
+            return;
+        };
+
+        let mut font_db = fontdb::Database::new();
+        font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
+        font_db.load_font_data(colrv1_font);
+        font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
+
+        let settings = Settings {
+            terminal_size: (COLS, ROWS),
+            font_db,
+            font_families: vec![
+                FONT_FAMILY.to_owned(),
+                "Noto Color Emoji".to_owned(),
+                "Noto Emoji".to_owned(),
+            ],
+            text_family: FONT_FAMILY.to_owned(),
+            font_size: FONT_SIZE,
+            line_height: LINE_HEIGHT,
+            theme: theme(),
+            bold_is_bright: false,
+        };
+        let mut renderer = swash(settings);
+        let image = renderer.render(&lines_for("😀"), None);
+
+        assert_cell_has_ink(&image, 0, 0, 2);
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn swash_renders_apple_color_emoji() {
@@ -807,6 +838,22 @@ mod tests {
             saturated,
             "expected the color emoji font to produce a saturated pixel"
         );
+    }
+
+    fn assert_cell_has_ink(image: &ImgVec<RGBA8>, col: usize, row: usize, width: usize) {
+        let cell_width = image.width() as f64 / (COLS + 2) as f64;
+        let cell_height = image.height() as f64 / (ROWS + 1) as f64;
+        let x_l = ((1.0 + col as f64) * cell_width).round() as usize;
+        let x_r = ((1.0 + (col + width) as f64) * cell_width).round() as usize;
+        let y_t = ((0.5 + row as f64) * cell_height).round() as usize;
+        let y_b = ((0.5 + (row + 1) as f64) * cell_height).round() as usize;
+
+        let inked_pixels = (y_t..y_b)
+            .flat_map(|y| (x_l..x_r).map(move |x| image.buf()[y * image.width() + x]))
+            .filter(|px| rgb_distance(RGB8::new(px.r, px.g, px.b), PALETTE[BG]) > 20)
+            .count();
+
+        assert!(inked_pixels > 10, "expected the cell to contain glyph ink");
     }
 
     fn rgb_distance(a: RGB8, b: RGB8) -> u16 {
