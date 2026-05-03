@@ -540,6 +540,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn resvg_renders_nerd_font_symbols() {
+        let mut renderer = resvg(settings(Emoji::Color, false));
+        let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
+
+        assert_nerd_font_symbol_rendered(&image, 3);
+    }
+
+    #[test]
+    fn swash_renders_nerd_font_symbols() {
+        let mut renderer = swash(settings(Emoji::Color, false));
+        let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
+
+        assert_nerd_font_symbol_rendered(&image, 0);
+    }
+
     // The col-2 (ANSI white, n=7) assertions probe the n < 8 boundary —
     // they catch off-by-one regressions like `n < 7` that the col-0 (red,
     // n=1) assertion alone would miss.
@@ -613,6 +629,7 @@ mod tests {
         font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Italic.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-BoldItalic.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoSansCJKjp-Regular.otf").to_vec());
+        font_db.load_font_data(include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf").to_vec());
 
         let emoji_family = match emoji {
             Emoji::Color => {
@@ -631,6 +648,7 @@ mod tests {
             font_families: vec![
                 FONT_FAMILY.to_owned(),
                 "Noto Sans CJK JP".to_owned(),
+                "Symbols Nerd Font".to_owned(),
                 emoji_family.to_owned(),
             ],
             text_family: FONT_FAMILY.to_owned(),
@@ -730,6 +748,24 @@ mod tests {
             diff >= min_diff,
             "expected styled cell at ({styled_col}, {styled_row}) probed ({x_ratio}, {y_ratio}) to have ≥ {min_diff} more ink than control: styled={styled_ink}, control={control_ink}, diff={diff}",
         );
+    }
+
+    fn assert_nerd_font_symbol_rendered(image: &ImgVec<RGBA8>, background_threshold: u16) {
+        for (x_ratio, y_ratio) in [(0.75, 0.18), (0.25, 0.25), (0.08, 0.50), (0.83, 0.50)] {
+            assert_closer_to(
+                cell_pixel(image, 0, 0, x_ratio, y_ratio),
+                PALETTE[GREEN],
+                PALETTE[BG],
+            );
+        }
+
+        for (x_ratio, y_ratio) in [(0.50, 0.50), (0.72, 0.72), (0.06, 0.06)] {
+            assert_rgb_close(
+                cell_pixel(image, 0, 0, x_ratio, y_ratio),
+                PALETTE[BG],
+                background_threshold,
+            );
+        }
     }
 
     // Asserts that `actual` lies along the bg → target gradient on the target side

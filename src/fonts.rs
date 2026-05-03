@@ -1,5 +1,7 @@
 const NOTO_EMOJI: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
+const SYMBOLS_NERD_FONT: &[u8] = include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf");
 const GENERIC_FALLBACK_FAMILIES: &[&str] = &["DejaVu Sans"];
+const SYMBOL_FALLBACK_FAMILIES: &[&str] = &["Symbols Nerd Font"];
 const EMOJI_FALLBACK_FAMILIES: &[&str] = &[
     "Apple Color Emoji",
     "Noto Color Emoji",
@@ -25,6 +27,7 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
     }
 
     font_db.load_font_data(NOTO_EMOJI.to_vec());
+    font_db.load_font_data(SYMBOLS_NERD_FONT.to_vec());
 
     let mut families = font_family
         .split(',')
@@ -62,16 +65,21 @@ fn load_platform_emoji_fonts(font_db: &mut fontdb::Database) {
 fn load_platform_emoji_fonts(_font_db: &mut fontdb::Database) {}
 
 fn append_font_fallbacks(font_db: &fontdb::Database, families: &mut Vec<String>) {
-    for name in GENERIC_FALLBACK_FAMILIES
-        .iter()
-        .chain(EMOJI_FALLBACK_FAMILIES)
-    {
+    for name in fallback_family_names() {
         if let Some(name) = find_font_family(font_db, name) {
             if !families.contains(&name) {
                 families.push(name);
             }
         }
     }
+}
+
+fn fallback_family_names() -> impl Iterator<Item = &'static str> {
+    SYMBOL_FALLBACK_FAMILIES
+        .iter()
+        .chain(GENERIC_FALLBACK_FAMILIES)
+        .chain(EMOJI_FALLBACK_FAMILIES)
+        .copied()
 }
 
 fn find_font_family(font_db: &fontdb::Database, name: &str) -> Option<String> {
@@ -114,9 +122,18 @@ fn is_text_family(font_db: &fontdb::Database, name: &str, require_monospace: boo
 
     font_db.query(&query).is_some_and(|face_id| {
         font_db.face(face_id).is_some_and(|face_info| {
-            !is_emoji_family(face_info) && (!require_monospace || face_info.monospaced)
+            !is_symbol_family(face_info)
+                && !is_emoji_family(face_info)
+                && (!require_monospace || face_info.monospaced)
         })
     })
+}
+
+fn is_symbol_family(face_info: &fontdb::FaceInfo) -> bool {
+    face_info
+        .families
+        .iter()
+        .any(|(family, _)| SYMBOL_FALLBACK_FAMILIES.contains(&family.as_str()))
 }
 
 fn is_emoji_family(face_info: &fontdb::FaceInfo) -> bool {
@@ -139,6 +156,7 @@ mod tests {
         font_db.load_font_data(include_bytes!("../fonts/NotoColorEmoji.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoSansCJKjp-Regular.otf").to_vec());
+        font_db.load_font_data(include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf").to_vec());
         font_db
     }
 
@@ -173,7 +191,15 @@ mod tests {
     }
 
     #[test]
-    fn font_fallbacks_append_color_emoji_before_monochrome_emoji() {
+    fn text_family_rejects_symbol_only_families() {
+        let font_db = test_font_db();
+        let families = vec!["Symbols Nerd Font".to_owned()];
+
+        assert_eq!(default_text_family(&font_db, &families), None);
+    }
+
+    #[test]
+    fn font_fallbacks_append_symbols_before_emoji() {
         let font_db = test_font_db();
         let mut families = vec!["JetBrains Mono".to_owned()];
 
@@ -183,10 +209,45 @@ mod tests {
             families,
             vec![
                 "JetBrains Mono".to_owned(),
+                "Symbols Nerd Font".to_owned(),
                 "Noto Color Emoji".to_owned(),
                 "Noto Emoji".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn font_fallbacks_do_not_duplicate_symbols() {
+        let font_db = test_font_db();
+        let mut families = vec!["JetBrains Mono".to_owned(), "Symbols Nerd Font".to_owned()];
+
+        append_font_fallbacks(&font_db, &mut families);
+
+        assert_eq!(
+            families,
+            vec![
+                "JetBrains Mono".to_owned(),
+                "Symbols Nerd Font".to_owned(),
+                "Noto Color Emoji".to_owned(),
+                "Noto Emoji".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn font_fallbacks_prefer_symbols_before_generic_text_fonts() {
+        let fallbacks = fallback_family_names().collect::<Vec<_>>();
+
+        let symbols_index = fallbacks
+            .iter()
+            .position(|name| *name == "Symbols Nerd Font")
+            .unwrap();
+        let generic_index = fallbacks
+            .iter()
+            .position(|name| *name == "DejaVu Sans")
+            .unwrap();
+
+        assert!(symbols_index < generic_index);
     }
 
     #[cfg(target_os = "macos")]
