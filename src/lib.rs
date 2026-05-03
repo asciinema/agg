@@ -11,13 +11,15 @@ use std::{iter, thread, time::Instant};
 
 use anyhow::{anyhow, Result};
 use clap::ValueEnum;
-use log::info;
+use log::{info, warn};
 
 use crate::asciicast::Asciicast;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
-pub const DEFAULT_FONT_FAMILY: &str =
+pub const DEFAULT_TEXT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
+pub const DEFAULT_EMOJI_FONT_FAMILY: &str =
+    "Apple Color Emoji,Noto Color Emoji,Segoe UI Emoji,Twemoji Mozilla,EmojiOne Color,Noto Emoji";
 pub const DEFAULT_FONT_SIZE: usize = 16;
 pub const DEFAULT_FPS_CAP: u8 = 30;
 pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
@@ -29,8 +31,9 @@ pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 pub struct Config {
     pub bold_is_bright: bool,
     pub cols: Option<usize>,
+    pub emoji_font_family: String,
     pub font_dirs: Vec<String>,
-    pub font_family: String,
+    pub font_family: Option<String>,
     pub font_size: usize,
     pub fps_cap: u8,
     pub idle_time_limit: Option<f64>,
@@ -40,6 +43,7 @@ pub struct Config {
     pub renderer: Renderer,
     pub rows: Option<usize>,
     pub speed: f64,
+    pub text_font_family: String,
     pub theme: Option<Theme>,
     pub show_progress_bar: bool,
 }
@@ -49,8 +53,9 @@ impl Default for Config {
         Self {
             bold_is_bright: DEFAULT_BOLD_IS_BRIGHT,
             cols: None,
+            emoji_font_family: String::from(DEFAULT_EMOJI_FONT_FAMILY),
             font_dirs: vec![],
-            font_family: String::from(DEFAULT_FONT_FAMILY),
+            font_family: None,
             font_size: DEFAULT_FONT_SIZE,
             fps_cap: DEFAULT_FPS_CAP,
             idle_time_limit: None,
@@ -60,6 +65,7 @@ impl Default for Config {
             renderer: Default::default(),
             rows: None,
             speed: DEFAULT_SPEED,
+            text_font_family: String::from(DEFAULT_TEXT_FONT_FAMILY),
             theme: Default::default(),
             show_progress_bar: true,
         }
@@ -164,11 +170,24 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
 
-    let fonts = fonts::init(&config.font_dirs, &config.font_family)
-        .ok_or_else(|| anyhow!("no faces matching font families {}", config.font_family))?;
+    let font_options = fonts::Options {
+        text_font_family: &config.text_font_family,
+        emoji_font_family: &config.emoji_font_family,
+        font_family: config.font_family.as_deref(),
+    };
+
+    let fonts = fonts::init(&config.font_dirs, font_options)
+        .ok_or_else(|| anyhow!("no faces matching font family options"))?;
 
     info!("selected font families: {:?}", fonts.families);
     info!("selected text font family: {}", fonts.text_family);
+
+    if !fonts.text_family_monospaced {
+        warn!(
+            "first font family {:?} is not monospaced; terminal cell metrics may be incorrect",
+            fonts.text_family
+        );
+    }
 
     let theme_opt = config
         .theme

@@ -1,23 +1,22 @@
 const NOTO_EMOJI: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
 const SYMBOLS_NERD_FONT: &[u8] = include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf");
-const GENERIC_FALLBACK_FAMILIES: &[&str] = &["DejaVu Sans"];
-const SYMBOL_FALLBACK_FAMILIES: &[&str] = &["Symbols Nerd Font"];
-const EMOJI_FALLBACK_FAMILIES: &[&str] = &[
-    "Apple Color Emoji",
-    "Noto Color Emoji",
-    "Segoe UI Emoji",
-    "Twemoji Mozilla",
-    "EmojiOne Color",
-    "Noto Emoji",
-];
+const GENERIC_FALLBACK_FAMILY: &str = "DejaVu Sans";
+const SYMBOL_FALLBACK_FAMILY: &str = "Symbols Nerd Font";
 
 pub struct Fonts {
     pub db: fontdb::Database,
     pub families: Vec<String>,
     pub text_family: String,
+    pub text_family_monospaced: bool,
 }
 
-pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
+pub struct Options<'a> {
+    pub text_font_family: &'a str,
+    pub emoji_font_family: &'a str,
+    pub font_family: Option<&'a str>,
+}
+
+pub fn init(font_dirs: &[String], options: Options<'_>) -> Option<Fonts> {
     let mut font_db = fontdb::Database::new();
     font_db.load_system_fonts();
     load_platform_emoji_fonts(&mut font_db);
@@ -29,25 +28,39 @@ pub fn init(font_dirs: &[String], font_family: &str) -> Option<Fonts> {
     font_db.load_font_data(NOTO_EMOJI.to_vec());
     font_db.load_font_data(SYMBOLS_NERD_FONT.to_vec());
 
-    let mut families = font_family
-        .split(',')
-        .map(str::trim)
-        .filter_map(|name| find_font_family(&font_db, name))
-        .collect::<Vec<_>>();
+    let families = select_font_families(&font_db, &options)?;
+    let text_family = families.first()?.clone();
+    let text_family_monospaced = font_family_is_monospace(&font_db, &text_family);
 
-    if families.is_empty() {
-        None
+    Some(Fonts {
+        db: font_db,
+        families,
+        text_family,
+        text_family_monospaced,
+    })
+}
+
+fn select_font_families(font_db: &fontdb::Database, options: &Options<'_>) -> Option<Vec<String>> {
+    let families = if let Some(font_family) = options.font_family {
+        resolve_font_families(font_db, font_family)
     } else {
-        append_font_fallbacks(&font_db, &mut families);
+        let text_families = resolve_font_families(font_db, options.text_font_family);
 
-        let text_family = default_text_family(&font_db, &families)?;
+        if text_families.is_empty() {
+            return None;
+        }
 
-        Some(Fonts {
-            db: font_db,
-            families,
-            text_family,
-        })
-    }
+        text_families
+            .into_iter()
+            .chain(resolve_font_families(font_db, SYMBOL_FALLBACK_FAMILY))
+            .chain(resolve_font_families(font_db, GENERIC_FALLBACK_FAMILY))
+            .chain(resolve_font_families(font_db, options.emoji_font_family))
+            .collect()
+    };
+
+    let families = dedup_font_families(families);
+
+    (!families.is_empty()).then_some(families)
 }
 
 #[cfg(target_os = "macos")]
@@ -64,22 +77,31 @@ fn load_platform_emoji_fonts(font_db: &mut fontdb::Database) {
 #[cfg(not(target_os = "macos"))]
 fn load_platform_emoji_fonts(_font_db: &mut fontdb::Database) {}
 
-fn append_font_fallbacks(font_db: &fontdb::Database, families: &mut Vec<String>) {
-    for name in fallback_family_names() {
-        if let Some(name) = find_font_family(font_db, name) {
-            if !families.contains(&name) {
-                families.push(name);
-            }
-        }
-    }
+fn parse_font_family_names(font_family: &str) -> Vec<&str> {
+    font_family
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .collect()
 }
 
-fn fallback_family_names() -> impl Iterator<Item = &'static str> {
-    SYMBOL_FALLBACK_FAMILIES
+fn resolve_font_families(font_db: &fontdb::Database, font_family: &str) -> Vec<String> {
+    parse_font_family_names(font_family)
         .iter()
-        .chain(GENERIC_FALLBACK_FAMILIES)
-        .chain(EMOJI_FALLBACK_FAMILIES)
-        .copied()
+        .filter_map(|name| find_font_family(font_db, name))
+        .collect()
+}
+
+fn dedup_font_families(families: Vec<String>) -> Vec<String> {
+    let mut deduped = Vec::new();
+
+    for family in families {
+        if !deduped.contains(&family) {
+            deduped.push(family);
+        }
+    }
+
+    deduped
 }
 
 fn find_font_family(font_db: &fontdb::Database, name: &str) -> Option<String> {
@@ -98,19 +120,10 @@ fn find_font_family(font_db: &fontdb::Database, name: &str) -> Option<String> {
     })
 }
 
-fn default_text_family(font_db: &fontdb::Database, families: &[String]) -> Option<String> {
-    families
-        .iter()
-        .find(|name| is_text_family(font_db, name, true))
-        .or_else(|| {
-            families
-                .iter()
-                .find(|name| is_text_family(font_db, name, false))
-        })
-        .cloned()
-}
-
-fn is_text_family(font_db: &fontdb::Database, name: &str, require_monospace: bool) -> bool {
+/// Reports whether the regular face of `name` carries the monospaced flag.
+/// (Other faces in the same family — bold, italic — are not consulted, since
+/// the renderer derives cell metrics from the regular face.)
+fn font_family_is_monospace(font_db: &fontdb::Database, name: &str) -> bool {
     let family = fontdb::Family::Name(name);
 
     let query = fontdb::Query {
@@ -121,26 +134,10 @@ fn is_text_family(font_db: &fontdb::Database, name: &str, require_monospace: boo
     };
 
     font_db.query(&query).is_some_and(|face_id| {
-        font_db.face(face_id).is_some_and(|face_info| {
-            !is_symbol_family(face_info)
-                && !is_emoji_family(face_info)
-                && (!require_monospace || face_info.monospaced)
-        })
+        font_db
+            .face(face_id)
+            .is_some_and(|face_info| face_info.monospaced)
     })
-}
-
-fn is_symbol_family(face_info: &fontdb::FaceInfo) -> bool {
-    face_info
-        .families
-        .iter()
-        .any(|(family, _)| SYMBOL_FALLBACK_FAMILIES.contains(&family.as_str()))
-}
-
-fn is_emoji_family(face_info: &fontdb::FaceInfo) -> bool {
-    face_info
-        .families
-        .iter()
-        .any(|(family, _)| EMOJI_FALLBACK_FAMILIES.contains(&family.as_str()))
 }
 
 #[cfg(test)]
@@ -161,93 +158,98 @@ mod tests {
     }
 
     #[test]
-    fn text_family_prefers_monospace_after_emoji() {
+    fn font_selection_composes_text_symbols_and_default_emoji() {
         let font_db = test_font_db();
-        let families = vec!["Noto Emoji".to_owned(), "JetBrains Mono".to_owned()];
+        let options = Options {
+            text_font_family: "JetBrains Mono",
+            emoji_font_family: crate::DEFAULT_EMOJI_FONT_FAMILY,
+            font_family: None,
+        };
 
         assert_eq!(
-            default_text_family(&font_db, &families),
-            Some("JetBrains Mono".to_owned())
-        );
-    }
-
-    #[test]
-    fn text_family_falls_back_to_non_emoji_family() {
-        let font_db = test_font_db();
-        let families = vec!["Noto Emoji".to_owned(), "Noto Sans CJK JP".to_owned()];
-
-        assert_eq!(
-            default_text_family(&font_db, &families),
-            Some("Noto Sans CJK JP".to_owned())
-        );
-    }
-
-    #[test]
-    fn text_family_rejects_emoji_only_families() {
-        let font_db = test_font_db();
-        let families = vec!["Noto Emoji".to_owned()];
-
-        assert_eq!(default_text_family(&font_db, &families), None);
-    }
-
-    #[test]
-    fn text_family_rejects_symbol_only_families() {
-        let font_db = test_font_db();
-        let families = vec!["Symbols Nerd Font".to_owned()];
-
-        assert_eq!(default_text_family(&font_db, &families), None);
-    }
-
-    #[test]
-    fn font_fallbacks_append_symbols_before_emoji() {
-        let font_db = test_font_db();
-        let mut families = vec!["JetBrains Mono".to_owned()];
-
-        append_font_fallbacks(&font_db, &mut families);
-
-        assert_eq!(
-            families,
-            vec![
+            select_font_families(&font_db, &options),
+            Some(vec![
                 "JetBrains Mono".to_owned(),
                 "Symbols Nerd Font".to_owned(),
                 "Noto Color Emoji".to_owned(),
                 "Noto Emoji".to_owned(),
-            ]
+            ])
         );
     }
 
     #[test]
-    fn font_fallbacks_do_not_duplicate_symbols() {
+    fn font_selection_replaces_default_emoji_families() {
         let font_db = test_font_db();
-        let mut families = vec!["JetBrains Mono".to_owned(), "Symbols Nerd Font".to_owned()];
-
-        append_font_fallbacks(&font_db, &mut families);
+        let options = Options {
+            text_font_family: "JetBrains Mono",
+            emoji_font_family: "Noto Emoji",
+            font_family: None,
+        };
 
         assert_eq!(
-            families,
-            vec![
+            select_font_families(&font_db, &options),
+            Some(vec![
                 "JetBrains Mono".to_owned(),
                 "Symbols Nerd Font".to_owned(),
-                "Noto Color Emoji".to_owned(),
                 "Noto Emoji".to_owned(),
-            ]
+            ])
         );
     }
 
     #[test]
-    fn font_fallbacks_prefer_symbols_before_generic_text_fonts() {
-        let fallbacks = fallback_family_names().collect::<Vec<_>>();
+    fn font_selection_fails_when_text_family_is_not_found() {
+        let font_db = test_font_db();
 
-        let symbols_index = fallbacks
-            .iter()
-            .position(|name| *name == "Symbols Nerd Font")
-            .unwrap();
-        let generic_index = fallbacks
-            .iter()
-            .position(|name| *name == "DejaVu Sans")
-            .unwrap();
+        let options = Options {
+            text_font_family: "No Such Font",
+            emoji_font_family: crate::DEFAULT_EMOJI_FONT_FAMILY,
+            font_family: None,
+        };
 
-        assert!(symbols_index < generic_index);
+        assert_eq!(select_font_families(&font_db, &options), None);
+    }
+
+    #[test]
+    fn font_selection_advanced_family_list_skips_automatic_fallbacks() {
+        let font_db = test_font_db();
+
+        let options = Options {
+            text_font_family: "JetBrains Mono",
+            emoji_font_family: "Noto Emoji",
+            font_family: Some("JetBrains Mono"),
+        };
+
+        assert_eq!(
+            select_font_families(&font_db, &options),
+            Some(vec!["JetBrains Mono".to_owned()])
+        );
+    }
+
+    #[test]
+    fn font_selection_dedups_families_after_composition() {
+        let font_db = test_font_db();
+        let options = Options {
+            text_font_family: "JetBrains Mono,JetBrains Mono,Symbols Nerd Font",
+            emoji_font_family: "Noto Emoji,Noto Emoji",
+            font_family: None,
+        };
+
+        assert_eq!(
+            select_font_families(&font_db, &options),
+            Some(vec![
+                "JetBrains Mono".to_owned(),
+                "Symbols Nerd Font".to_owned(),
+                "Noto Emoji".to_owned(),
+            ])
+        );
+    }
+
+    #[test]
+    fn font_family_is_monospace_checks_the_selected_face() {
+        let font_db = test_font_db();
+
+        assert!(font_family_is_monospace(&font_db, "JetBrains Mono"));
+        assert!(!font_family_is_monospace(&font_db, "Noto Sans CJK JP"));
     }
 
     #[cfg(target_os = "macos")]
