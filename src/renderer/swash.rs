@@ -1,14 +1,16 @@
-use crate::renderer::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
-use crate::theme::Theme;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
 use imgref::ImgVec;
 use log::debug;
 use rgb::RGBA8;
-use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use swash::scale::image::{Content, Image};
 use swash::scale::{Render, ScaleContext, Source, StrikeWith};
 use swash::FontRef;
+
+use crate::renderer::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::theme::Theme;
 
 type CharVariant = (char, bool, bool);
 type FontFace = (String, bool, bool);
@@ -139,8 +141,7 @@ impl SwashRenderer {
             fontdb::Style::Normal
         };
 
-        self
-            .font_id_cache
+        self.font_id_cache
             .entry((name.to_owned(), bold, italic))
             .or_insert_with(|| get_font_id(&self.font_db, &[name], weight, style))
     }
@@ -291,12 +292,14 @@ impl SwashRenderer {
         let unit_y = |n| y(n, 8);
         let half_x = x(1, 2);
         let half_y = y(1, 2);
+
         let stroke_w = layout
             .x_r
             .saturating_sub(layout.x_l)
             .div_ceil(4)
             .max(1)
             .min(layout.x_r.saturating_sub(layout.x_l));
+
         let stroke_l = layout.x_l + (layout.x_r.saturating_sub(layout.x_l) - stroke_w) / 2;
         let stroke_r = stroke_l + stroke_w;
 

@@ -1,8 +1,10 @@
-use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
-use crate::theme::Theme;
+use std::{fmt::Write, sync::Arc};
+
 use imgref::ImgVec;
 use rgb::{FromSlice, RGBA8};
-use std::{fmt::Write, sync::Arc};
+
+use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::theme::Theme;
 
 pub struct ResvgRenderer<'a> {
     terminal_size: (usize, usize),
@@ -173,7 +175,7 @@ impl<'a> ResvgRenderer<'a> {
         let mut svg = self.header.clone();
         self.push_lines(&mut svg, lines, cursor);
         svg.push_str(Self::footer());
-        
+
         svg
     }
 

@@ -1,8 +1,9 @@
+use std::io;
+use std::{fs::File, io::BufReader, iter};
+
 use anyhow::{anyhow, Result};
 use clap::{ArgAction, Parser, ValueEnum};
 use reqwest::header;
-use std::io;
-use std::{fs::File, io::BufReader, iter};
 
 static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 

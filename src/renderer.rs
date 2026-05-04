@@ -505,6 +505,7 @@ mod tests {
             theme: theme(),
             bold_is_bright: false,
         };
+
         let mut renderer = swash(settings);
         let image = renderer.render(&lines_for("😀"), None);
 
@@ -535,6 +536,7 @@ mod tests {
             theme: theme(),
             bold_is_bright: false,
         };
+
         let mut renderer = swash(settings);
         let lines = lines_for("⭐");
         let image = renderer.render(&lines, None);
