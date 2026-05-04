@@ -19,7 +19,7 @@ pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_TEXT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
 pub const DEFAULT_EMOJI_FONT_FAMILY: &str =
-    "Apple Color Emoji,Noto Color Emoji,Segoe UI Emoji,Twemoji Mozilla,EmojiOne Color,Noto Emoji";
+    "Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,JoyPixels,Twemoji,Noto Emoji";
 pub const DEFAULT_FONT_SIZE: usize = 16;
 pub const DEFAULT_FPS_CAP: u8 = 30;
 pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
