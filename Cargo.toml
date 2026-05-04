@@ -29,7 +29,6 @@ avt = "0.17.0"
 clap = { version = "4.6.1", features = ["derive"] }
 env_logger = "0.11.10"
 fontdb = "0.23.0"
-fontdue = "0.9.3"
 gifski = "1.34.0"
 imgref = "1.12.1"
 log = "0.4.29"

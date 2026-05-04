@@ -1,4 +1,3 @@
-mod fontdue;
 mod resvg;
 mod swash;
 
@@ -25,10 +24,6 @@ pub struct Settings {
 
 pub fn resvg<'a>(settings: Settings) -> resvg::ResvgRenderer<'a> {
     resvg::ResvgRenderer::new(settings)
-}
-
-pub fn fontdue(settings: Settings) -> fontdue::FontdueRenderer {
-    fontdue::FontdueRenderer::new(settings)
 }
 
 pub fn swash(settings: Settings) -> swash::SwashRenderer {
@@ -149,7 +144,7 @@ mod tests {
     //          underlined default-fg space at col 4
     //   row 7: regular M at col 0; bold M at col 2; italic M at col 4; bold-italic M at col 6
     //   row 8: 日 with yellow bg at cols 0..1; default-fg █ at col 2
-    //   row 9: ⭐ at cols 0..1 (color renderers use emoji bitmap; fontdue uses mono outline)
+    //   row 9: ⭐ at cols 0..1 (rendered from a color emoji bitmap)
     //   row 10: faint █ at col 0; & at col 2  (resvg-only assertions)
     //   row 11: bold + ANSI-red █ at col 0; bold + ANSI-white █ at col 2.
     //          col 0 catches generic flag-off / flag-on behavior; col 2
@@ -199,10 +194,9 @@ mod tests {
     // fontdb returns the Italic face for the bold-italic SGR).
     const M_BOLD_ITALIC_INK_DIFF: u16 = 575;
 
-    // Probe positions for ⭐ on row 9. Color renderers paint the yellow body,
-    // while fontdue paints the outline strokes, so their probe positions diverge.
-    const STAR_BODY_PROBE: (f64, f64) = (0.5, 0.5); // center of left half
-    const STAR_FONTDUE_PROBE: (f64, f64) = (0.5, 0.7); // bottom-left of left half — outline stroke
+    // Probe position for ⭐ on row 9 — center of the left half, where the
+    // emoji bitmap paints solid yellow.
+    const STAR_BODY_PROBE: (f64, f64) = (0.5, 0.5);
 
     // resvg's color emoji renders ⭐ in NotoColorEmoji's signature yellow.
     const STAR_YELLOW: RGB8 = RGB8::new(253, 216, 53);
@@ -215,7 +209,7 @@ mod tests {
 
     #[test]
     fn resvg_renders_expected_pixels() {
-        let mut renderer = resvg(settings(Emoji::Color, false));
+        let mut renderer = resvg(settings(false));
         let lines = vt_lines();
 
         let mut render = |cur| renderer.render(&lines, cur);
@@ -312,89 +306,8 @@ mod tests {
     }
 
     #[test]
-    fn fontdue_renders_expected_pixels() {
-        let mut renderer = fontdue(settings(Emoji::Mono, false));
-        let lines = vt_lines();
-
-        let mut render = |cur| renderer.render(&lines, cur);
-
-        // Same shape as the resvg test; thresholds tuned to fontdue's exact
-        // solid-fill rasterization (background samples can use 0).
-        let image = render(Some((0, 5)));
-
-        // ── color paths ──
-        assert_rgb_close(cell_center(&image, 38, 0), PALETTE[BG], 0);
-        assert_rgb_close(cell_center(&image, 0, 0), PALETTE[FG], 4);
-        assert_rgb_close(cell_center(&image, 0, 1), PALETTE[RED], 4);
-        assert_rgb_close(cell_center(&image, 3, 1), RGB8::new(0x40, 0x20, 0x70), 0);
-        assert_rgb_close(cell_center(&image, 0, 2), PALETTE[GREEN], 4);
-        assert_rgb_close(cell_center(&image, 3, 2), PALETTE[CYAN], 0);
-        assert_rgb_close(cell_center(&image, 0, 3), RGB8::new(255, 0, 0), 4);
-        assert_rgb_close(cell_center(&image, 3, 3), RGB8::new(95, 95, 135), 0);
-        assert_rgb_close(cell_center(&image, 0, 4), RGB8::new(128, 128, 128), 4);
-        assert_rgb_close(cell_center(&image, 3, 4), RGB8::new(208, 208, 208), 0);
-
-        // ── reverse + cursor matrix (row 5) ──
-        assert_rgb_close(cell_center(&image, 0, 5), PALETTE[FG], 0);
-        assert_rgb_close(cell_center(&image, 2, 5), PALETTE[FG], 0);
-        assert_rgb_close(cell_center(&image, 6, 5), PALETTE[BLUE], 0);
-
-        // ── underline (row 6) ──
-        // fontdue paints the underline as an explicit horizontal stroke
-        // across the full cell width regardless of glyph — so the pixel
-        // over a space cell is solid FG (no AA), unlike resvg.
-        assert_rgb_close(
-            cell_pixel(&image, 0, 6, 0.5, RASTER_UND_Y),
-            PALETTE[MAGENTA],
-            4,
-        );
-        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RASTER_UND_Y), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, RASTER_UND_Y), PALETTE[FG], 0);
-
-        // ── bold / italic (row 7) ──
-        assert_inkier(&image, (2, 7), (0, 7), M_BOLD_PROBE, M_STYLED_INK_DIFF);
-        assert_inkier(&image, (4, 7), (0, 7), M_ITALIC_PROBE, M_STYLED_INK_DIFF);
-        assert_inkier(
-            &image,
-            (6, 7),
-            (0, 7),
-            M_BOLD_ITALIC_PROBE,
-            M_BOLD_ITALIC_INK_DIFF,
-        );
-
-        // ── wide CJK (row 8) ──
-        assert_rgb_close(cell_center(&image, 0, 8), PALETTE[YELLOW], 0);
-        assert_rgb_close(cell_center(&image, 1, 8), PALETTE[YELLOW], 0);
-        assert_closer_to(
-            cell_pixel(&image, 1, 8, 0.3, 0.5),
-            PALETTE[FG],
-            PALETTE[YELLOW],
-        );
-        assert_rgb_close(cell_center(&image, 2, 8), PALETTE[FG], 4);
-
-        // ── emoji (row 9) ──
-        let (px, py) = STAR_FONTDUE_PROBE;
-        assert_closer_to(cell_pixel(&image, 0, 9, px, py), PALETTE[FG], PALETTE[BG]);
-
-        // ── faint (row 10) ──
-        // The '&' on this row is escape-relevant for resvg only, so fontdue
-        // has nothing to assert there.
-        assert_rgb_close(cell_center(&image, 0, 10), MID_FG_BG, 4);
-
-        // ── bold-is-bright (row 11, default off) ──
-        assert_rgb_close(cell_center(&image, 0, 11), PALETTE[RED], 4);
-        assert_rgb_close(cell_center(&image, 2, 11), PALETTE[FG], 4);
-
-        let image = render(Some((4, 5)));
-        assert_rgb_close(cell_center(&image, 4, 5), PALETTE[BLUE], 0);
-
-        let image = render(Some((6, 5)));
-        assert_rgb_close(cell_center(&image, 6, 5), PALETTE[YELLOW], 0);
-    }
-
-    #[test]
     fn swash_renders_expected_pixels() {
-        let mut renderer = swash(settings(Emoji::Color, false));
+        let mut renderer = swash(settings(false));
         let lines = vt_lines();
 
         let mut render = |cur| renderer.render(&lines, cur);
@@ -467,7 +380,7 @@ mod tests {
 
     #[test]
     fn swash_renders_mosaic_symbols_crunchy() {
-        let mut renderer = swash(settings(Emoji::Color, false));
+        let mut renderer = swash(settings(false));
         let input = concat!(
             "\x1b[38;5;2m",
             "\u{2503}\u{2579}\u{257b}\u{2580}\u{259a}\u{25a0}\u{1fb00}\u{1fb3b}",
@@ -542,7 +455,7 @@ mod tests {
 
     #[test]
     fn resvg_renders_nerd_font_symbols() {
-        let mut renderer = resvg(settings(Emoji::Color, false));
+        let mut renderer = resvg(settings(false));
         let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
 
         assert_nerd_font_symbol_rendered(&image, 3);
@@ -550,7 +463,7 @@ mod tests {
 
     #[test]
     fn swash_renders_nerd_font_symbols() {
-        let mut renderer = swash(settings(Emoji::Color, false));
+        let mut renderer = swash(settings(false));
         let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
 
         assert_nerd_font_symbol_rendered(&image, 0);
@@ -561,7 +474,7 @@ mod tests {
     // n=1) assertion alone would miss.
     #[test]
     fn resvg_bold_is_bright_brightens() {
-        let mut renderer = resvg(settings(Emoji::Color, true));
+        let mut renderer = resvg(settings(true));
         let lines = vt_lines();
         let image = renderer.render(&lines, None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 3);
@@ -569,17 +482,8 @@ mod tests {
     }
 
     #[test]
-    fn fontdue_bold_is_bright_brightens() {
-        let mut renderer = fontdue(settings(Emoji::Mono, true));
-        let lines = vt_lines();
-        let image = renderer.render(&lines, None);
-        assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 4);
-        assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
-    }
-
-    #[test]
     fn swash_bold_is_bright_brightens() {
-        let mut renderer = swash(settings(Emoji::Color, true));
+        let mut renderer = swash(settings(true));
         let lines = vt_lines();
         let image = renderer.render(&lines, None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 4);
@@ -648,12 +552,7 @@ mod tests {
         assert_color_emoji_rendered(&image, 0, 0, 2);
     }
 
-    enum Emoji {
-        Color, // CBDT bitmap-based; for color renderers
-        Mono,  // outline-only; for fontdue
-    }
-
-    fn settings(emoji: Emoji, bold_is_bright: bool) -> Settings {
+    fn settings(bold_is_bright: bool) -> Settings {
         let mut font_db = fontdb::Database::new();
         font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Bold.ttf").to_vec());
@@ -661,17 +560,7 @@ mod tests {
         font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-BoldItalic.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoSansCJKjp-Regular.otf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf").to_vec());
-
-        let emoji_family = match emoji {
-            Emoji::Color => {
-                font_db.load_font_data(include_bytes!("../fonts/NotoColorEmoji.ttf").to_vec());
-                "Noto Color Emoji"
-            }
-            Emoji::Mono => {
-                font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
-                "Noto Emoji"
-            }
-        };
+        font_db.load_font_data(include_bytes!("../fonts/NotoColorEmoji.ttf").to_vec());
 
         Settings {
             terminal_size: (COLS, ROWS),
@@ -680,7 +569,7 @@ mod tests {
                 FONT_FAMILY.to_owned(),
                 "Noto Sans CJK JP".to_owned(),
                 "Symbols Nerd Font".to_owned(),
-                emoji_family.to_owned(),
+                "Noto Color Emoji".to_owned(),
             ],
             text_family: FONT_FAMILY.to_owned(),
             font_size: FONT_SIZE,

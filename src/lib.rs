@@ -75,9 +75,9 @@ impl Default for Config {
 #[derive(Clone, ValueEnum, Default, PartialEq)]
 pub enum Renderer {
     #[default]
+    #[value(alias = "fontdue")]
     Swash,
     Resvg,
-    Fontdue,
 }
 
 #[derive(Clone, Debug, ValueEnum, Default)]
@@ -216,7 +216,6 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {
         Renderer::Swash => Box::new(renderer::swash(settings)),
-        Renderer::Fontdue => Box::new(renderer::fontdue(settings)),
         Renderer::Resvg => Box::new(renderer::resvg(settings)),
     };
 
