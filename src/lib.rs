@@ -168,7 +168,10 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let count = events.len() as u64;
     let frames = vt::frames(events.into_iter(), terminal_size);
 
-    info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
+    info!(
+        "recording terminal size: {}x{}",
+        terminal_size.0, terminal_size.1
+    );
 
     let font_options = fonts::Options {
         text_font_family: &config.text_font_family,
@@ -179,8 +182,8 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let fonts = fonts::init(&config.font_dirs, font_options)
         .ok_or_else(|| anyhow!("no faces matching font family options"))?;
 
-    info!("selected font families: {:?}", fonts.families);
-    info!("selected text font family: {}", fonts.text_family);
+    info!("usable font families: {:?}", fonts.families);
+    info!("primary text font family: {}", fonts.text_family);
 
     if config.renderer == Renderer::Swash && !fonts.colrv1_families.is_empty() {
         warn!(

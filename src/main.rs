@@ -177,7 +177,7 @@ fn main() -> Result<()> {
         "error"
     } else {
         match cli.verbose {
-            0 => "warn",
+            0 => "warn,usvg=error",
             1 => "info",
             _ => "debug",
         }
