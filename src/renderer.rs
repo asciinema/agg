@@ -136,10 +136,10 @@ mod tests {
     //   row 3: cube-red (idx 196) █ at col 0; cube-mid (idx 60) bg at cols 2..3
     //   row 4: gray-mid (idx 244) █ at col 0; gray-bright (idx 252) bg at cols 2..3
     //   row 5: XOR matrix —
-    //          col 0: default empty (cursor target for #9);
+    //          col 0: default empty;
     //          col 2: reverse-video on default;
-    //          col 4: plain blue/yellow (cursor target for #17);
-    //          col 6: reverse-video blue/yellow (cursor target for #18, no-cursor sample for #16)
+    //          col 4: plain blue/yellow;
+    //          col 6: reverse-video blue/yellow
     //   row 6: underlined magenta x at col 0; plain default-fg x at col 2;
     //          underlined default-fg space at col 4
     //   row 7: regular M at col 0; bold M at col 2; italic M at col 4; bold-italic M at col 6
@@ -147,11 +147,8 @@ mod tests {
     //   row 9: ⭐ at cols 0..1 (rendered from a color emoji bitmap)
     //   row 10: faint █ at col 0; & at col 2  (resvg-only assertions)
     //   row 11: bold + ANSI-red █ at col 0; bold + ANSI-white █ at col 2.
-    //          col 0 catches generic flag-off / flag-on behavior; col 2
-    //          probes the n=7 boundary (the highest indexed color the
-    //          brightening rule applies to, n < 8).
     //
-    // The bg-probe for #2 samples col 38 of any row (always empty).
+    // The bg-probe samples col 38 of any row (always empty).
     const SEED: &str = concat!(
         "\x1b[2J\x1b[H",                                                    // clear, home
         "█\r\n",                                                            // row 0
@@ -202,11 +199,6 @@ mod tests {
     const STAR_YELLOW: RGB8 = RGB8::new(253, 216, 53);
     const SWASH_STAR_YELLOW: RGB8 = RGB8::new(245, 208, 51);
 
-    // Per-assertion thresholds differ between renderers: resvg's SVG rasterizer
-    // drifts a couple of units even on solid fills (3 is the floor for "should
-    // be exactly this color"); raster renderers paint solid backgrounds exactly,
-    // while glyph bodies still pick up a few units of AA.
-
     #[test]
     fn resvg_renders_expected_pixels() {
         let mut renderer = resvg(settings(false));
@@ -252,8 +244,6 @@ mod tests {
         assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RESVG_UND_Y), PALETTE[BG], 3);
 
         // ── bold / italic (row 7) ──
-        // Bold-italic uses the tighter M_BOLD_ITALIC_INK_DIFF so a fallback
-        // to Italic-only (when the BoldItalic face fails to register) fails.
         assert_inkier(&image, (2, 7), (0, 7), M_BOLD_PROBE, M_STYLED_INK_DIFF);
         assert_inkier(&image, (4, 7), (0, 7), M_ITALIC_PROBE, M_STYLED_INK_DIFF);
         assert_inkier(
@@ -445,7 +435,7 @@ mod tests {
             0,
         );
 
-        // Faint full blocks follow the raster renderer's existing half-intensity rule.
+        // Faint = half intensity.
         assert_rgb_close(
             cell_center(&image, 0, 3),
             blend_rgb(PALETTE[FG], PALETTE[BG], 127),
@@ -643,14 +633,10 @@ mod tests {
         )
     }
 
-    // Asserts that the styled cell at (col, row, x_ratio, y_ratio) carries at least
-    // `min_diff` more "ink" — distance from the theme background — than the control
-    // cell at the same position. This is the right shape for bold/italic glyph
-    // comparisons: the styled face's strokes are wider or shifted, so the styled
-    // cell paints solid fg at positions where the regular cell sits at its
-    // stroke's AA edge (or just outside it). A pure "regular = bg, styled = fg"
-    // assertion is too strict because most positions where bold/italic extend
-    // beyond regular are at the AA edge, not in solid bg.
+    /// Asserts the styled cell carries at least `min_diff` more ink (distance
+    /// from theme bg) than the control cell at the same probe position. The
+    /// stricter "control = bg, styled = fg" form misses bold/italic differences
+    /// that land on the regular face's AA edge rather than in solid bg.
     fn assert_inkier(
         image: &ImgVec<RGBA8>,
         (styled_col, styled_row): (usize, usize),
@@ -688,10 +674,8 @@ mod tests {
         }
     }
 
-    // Asserts that `actual` lies along the bg → target gradient on the target side
-    // of the midpoint — i.e. the pixel reads as a target-tinted blend rather than
-    // a bg-tinted one. Useful when the rasterizer paints sub-pixel AA strokes that
-    // never reach a solid target color (notably resvg's CSS text-decoration).
+    /// Asserts `actual` is closer to `target` than to `than`. Used when an AA
+    /// stroke never reaches a solid target color (e.g. resvg's text-decoration).
     fn assert_closer_to(actual: RGB8, target: RGB8, than: RGB8) {
         let d_target = rgb_distance(actual, target);
         let d_than = rgb_distance(actual, than);
