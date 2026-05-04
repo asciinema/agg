@@ -53,10 +53,6 @@ struct Cli {
     /// GIF path/filename
     output_filename: String,
 
-    /// Select frame rendering backend
-    #[clap(long, value_enum, default_value_t = agg::Renderer::default())]
-    renderer: agg::Renderer,
-
     /// Specify regular text font families
     #[clap(long, default_value_t = String::from(agg::DEFAULT_TEXT_FONT_FAMILY), conflicts_with = "font_family")]
     text_font_family: String,
@@ -73,6 +69,10 @@ struct Cli {
     #[clap(long, default_value_t = agg::DEFAULT_FONT_SIZE)]
     font_size: usize,
 
+    /// Use additional font directory; may be specified multiple times
+    #[clap(long)]
+    font_dir: Vec<String>,
+
     /// Specify line height
     #[clap(long, default_value_t = agg::DEFAULT_LINE_HEIGHT)]
     line_height: f64,
@@ -81,9 +81,9 @@ struct Cli {
     #[clap(long, value_parser = ThemeValueParser)]
     theme: Option<Theme>,
 
-    /// Use additional font directory
-    #[clap(long)]
-    font_dir: Vec<String>,
+    /// Render bold text with bright colors (ANSI 0..7 → 8..15)
+    #[clap(long, default_value_t = agg::DEFAULT_BOLD_IS_BRIGHT)]
+    bold_is_bright: bool,
 
     /// Adjust playback speed
     #[clap(long, default_value_t = agg::DEFAULT_SPEED)]
@@ -113,6 +113,10 @@ struct Cli {
     #[clap(long)]
     rows: Option<usize>,
 
+    /// Select frame rendering backend
+    #[clap(long, value_enum, default_value_t = agg::Renderer::default())]
+    renderer: agg::Renderer,
+
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]
     verbose: u8,
@@ -120,10 +124,6 @@ struct Cli {
     /// Quiet mode - suppress diagnostic messages and progress bars
     #[clap(short, long)]
     quiet: bool,
-
-    /// Render bold text with bright colors (ANSI 0..7 → 8..15)
-    #[clap(long, default_value_t = agg::DEFAULT_BOLD_IS_BRIGHT)]
-    bold_is_bright: bool,
 }
 
 fn download(url: &str) -> Result<impl io::Read> {
