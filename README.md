@@ -14,6 +14,33 @@ Example GIF file generated with agg:
 
 ![Example GIF file generated with agg](demo.gif)
 
+Notable features:
+
+- conversion of [asciicast](https://docs.asciinema.org/manual/asciicast/v3/)
+  recordings (v1, v2, v3) to animated GIF files,
+- input from local files, stdin, or HTTP(S) URLs (e.g.
+  [asciinema.org](https://asciinema.org) recording links),
+- high-quality, optimized GIF output with accurate frame timing via the
+  [gifski](https://github.com/ImageOptim/gifski) encoder,
+- multiple built-in color themes (asciinema, dracula, monokai, github-dark,
+  github-light, kanagawa, nord, solarized-dark, solarized-light, gruvbox-dark,
+  and more),
+- custom ad-hoc themes specified as hex color triplets,
+- automatic use of the recording's embedded theme when present,
+- configurable [font families](https://docs.asciinema.org/manual/agg/usage/#fonts)
+  with sensible cross-platform defaults and implicit fallbacks for symbols,
+- configurable font size and line height,
+- additional font directory support via `--font-dir` for fonts outside standard
+  system locations,
+- color emoji rendering with support for Apple Color Emoji, Noto Color Emoji,
+  and other common emoji fonts,
+- two selectable rendering backends: `swash` (default) and `resvg`,
+- adjustable playback speed,
+- idle time limiting to skip periods of inactivity,
+- looped or single-pass playback,
+- configurable FPS cap and last-frame duration,
+- terminal size override (cols/rows) for re-rendering at a different geometry.
+
 Check out the [agg docs](https://docs.asciinema.org/manual/agg/) for
 installation and usage overview.
 
