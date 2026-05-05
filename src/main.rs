@@ -1,4 +1,5 @@
 use std::io;
+use std::num::ParseFloatError;
 use std::{fs::File, io::BufReader, iter};
 
 use anyhow::{anyhow, Result};
@@ -45,6 +46,16 @@ impl clap::builder::TypedValueParser for ThemeValueParser {
     }
 }
 
+fn parse_line_height(s: &str) -> Result<f64, String> {
+    let v: f64 = s.parse().map_err(|e: ParseFloatError| e.to_string())?;
+
+    if v < 1.0 {
+        return Err(format!("must be >= 1.0 (got {v})"));
+    }
+
+    Ok(v)
+}
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
@@ -75,7 +86,7 @@ struct Cli {
     font_dir: Vec<String>,
 
     /// Specify line height
-    #[clap(long, default_value_t = agg::DEFAULT_LINE_HEIGHT)]
+    #[clap(long, default_value_t = agg::DEFAULT_LINE_HEIGHT, value_parser = parse_line_height)]
     line_height: f64,
 
     /// Select color theme
