@@ -39,3 +39,62 @@ pub fn load(json: String) -> Result<Asciicast<'static>> {
 
     Ok(Asciicast { header, events })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_relative_times_to_absolute() {
+        let json = r#"{
+            "version": 1,
+            "width": 80,
+            "height": 24,
+            "stdout": [
+                [0.5, "a"],
+                [1.0, "b"],
+                [1.5, "c"]
+            ]
+        }"#;
+
+        let asciicast = load(json.to_string()).unwrap();
+        let events = asciicast.events.collect::<Result<Vec<_>>>().unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                (0.5, "a".to_string()),
+                (1.5, "b".to_string()),
+                (3.0, "c".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn zero_delays_preserve_previous_time() {
+        let json = r#"{
+            "version": 1,
+            "width": 80,
+            "height": 24,
+            "stdout": [
+                [0.0, "a"],
+                [0.5, "b"],
+                [0.0, "c"],
+                [0.5, "d"]
+            ]
+        }"#;
+
+        let asciicast = load(json.to_string()).unwrap();
+        let events = asciicast.events.collect::<Result<Vec<_>>>().unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                (0.0, "a".to_string()),
+                (0.5, "b".to_string()),
+                (0.5, "c".to_string()),
+                (1.0, "d".to_string()),
+            ]
+        );
+    }
+}

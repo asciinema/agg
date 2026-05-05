@@ -169,3 +169,94 @@ impl From<&V2Theme> for Theme {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn header_with_palette(colors: &[&str]) -> String {
+        let palette = colors.join(":");
+        format!(
+            r##"{{"version":2,"width":80,"height":24,"theme":{{"fg":"#ffffff","bg":"#000000","palette":"{palette}"}}}}"##
+        )
+    }
+
+    #[test]
+    fn theme_palette_with_8_colors_is_duplicated_to_16() {
+        let header = header_with_palette(&[
+            "#000000", "#010101", "#020202", "#030303", "#040404", "#050505", "#060606", "#070707",
+        ]);
+
+        let asciicast = open(&header).unwrap().parse(std::iter::empty());
+        let palette = asciicast.header.term_theme.unwrap().palette;
+
+        assert_eq!(palette.len(), 16);
+        assert_eq!(palette[0..8], palette[8..16]);
+    }
+
+    #[test]
+    fn theme_palette_with_16_colors_is_kept_as_is() {
+        let colors = [
+            "#000000", "#010101", "#020202", "#030303", "#040404", "#050505", "#060606", "#070707",
+            "#080808", "#090909", "#0a0a0a", "#0b0b0b", "#0c0c0c", "#0d0d0d", "#0e0e0e", "#0f0f0f",
+        ];
+        let header = header_with_palette(&colors);
+
+        let asciicast = open(&header).unwrap().parse(std::iter::empty());
+        let palette = asciicast.header.term_theme.unwrap().palette;
+
+        assert_eq!(palette.len(), 16);
+        for (i, expected_byte) in (0..16u8).enumerate() {
+            assert_eq!(palette[i].r, expected_byte);
+            assert_eq!(palette[i].g, expected_byte);
+            assert_eq!(palette[i].b, expected_byte);
+        }
+    }
+
+    #[test]
+    fn theme_palette_with_invalid_length_errors() {
+        let one = "#000000";
+        for len in [7, 9, 15, 17] {
+            let colors: Vec<&str> = std::iter::repeat_n(one, len).collect();
+            let header = header_with_palette(&colors);
+            assert!(
+                open(&header).is_err(),
+                "expected error for palette of length {len}"
+            );
+        }
+    }
+
+    #[test]
+    fn parses_valid_hex_color() {
+        let result = parse_hex_color("#ff00aa").unwrap();
+        assert_eq!(result.0.r, 0xff);
+        assert_eq!(result.0.g, 0x00);
+        assert_eq!(result.0.b, 0xaa);
+
+        let result = parse_hex_color("#000000").unwrap();
+        assert_eq!(result.0.r, 0);
+        assert_eq!(result.0.g, 0);
+        assert_eq!(result.0.b, 0);
+
+        let result = parse_hex_color("#FFFFFF").unwrap();
+        assert_eq!(result.0.r, 0xff);
+        assert_eq!(result.0.g, 0xff);
+        assert_eq!(result.0.b, 0xff);
+    }
+
+    #[test]
+    fn rejects_wrong_length() {
+        assert!(parse_hex_color("#fff").is_none());
+        assert!(parse_hex_color("#ffffffff").is_none());
+    }
+
+    #[test]
+    fn rejects_missing_hash() {
+        assert!(parse_hex_color("ffffff").is_none());
+    }
+
+    #[test]
+    fn rejects_non_hex_characters() {
+        assert!(parse_hex_color("#gggggg").is_none());
+    }
+}
