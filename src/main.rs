@@ -61,6 +61,10 @@ struct Cli {
     #[clap(long, default_value_t = String::from(agg::DEFAULT_FONT_FAMILY))]
     font_family: String,
 
+    /// Specify fallback font families
+    #[clap(long, default_value_t = String::from(agg::DEFAULT_FALLBACK_FONTS))]
+    fallback_fonts: String,
+
     /// Specify font size (in pixels)
     #[clap(long, default_value_t = agg::DEFAULT_FONT_SIZE)]
     font_size: usize,
@@ -181,6 +185,7 @@ fn main() -> Result<()> {
         cols: cli.cols,
         font_dirs: cli.font_dir,
         font_family: cli.font_family,
+        fallback_fonts: cli.fallback_fonts,
         font_size: cli.font_size,
         fps_cap: cli.fps_cap,
         idle_time_limit: cli.idle_time_limit,
