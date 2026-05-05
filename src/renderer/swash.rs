@@ -721,7 +721,7 @@ impl Renderer for SwashRenderer {
 
             for cell in line.cells() {
                 let ch = cell.char();
-                let cell_width = cell.width();
+                let cell_width = cell.width() as usize;
                 let layout = self.cell_layout(margin_l, margin_t, row, col, cell_width);
                 let attrs = text_attrs(
                     cell.pen(),

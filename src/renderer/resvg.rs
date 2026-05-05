@@ -197,6 +197,8 @@ impl<'a> ResvgRenderer<'a> {
             let mut col = 0;
 
             for cell in line.cells() {
+                let cell_width = cell.width() as usize;
+
                 let attrs = text_attrs(
                     cell.pen(),
                     &cursor,
@@ -207,13 +209,13 @@ impl<'a> ResvgRenderer<'a> {
                 );
 
                 if attrs.background.is_none() {
-                    col += cell.width();
+                    col += cell_width;
                     continue;
                 }
 
                 let x = self.x_pct(col);
                 let style = rect_style(&attrs, &self.theme);
-                let width = self.cell_width_pct(cell.width());
+                let width = self.cell_width_pct(cell_width);
 
                 write!(
                     svg,
@@ -222,7 +224,7 @@ impl<'a> ResvgRenderer<'a> {
                 )
                 .unwrap();
 
-                col += cell.width();
+                col += cell_width;
             }
         }
 
@@ -242,9 +244,10 @@ impl<'a> ResvgRenderer<'a> {
             for cell in line.cells() {
                 let ch = cell.char();
                 let pen = cell.pen();
+                let cell_width = cell.width() as usize;
 
                 if ch == ' ' && !pen.is_underline() {
-                    col += cell.width();
+                    col += cell_width;
                     continue;
                 }
 
@@ -265,7 +268,7 @@ impl<'a> ResvgRenderer<'a> {
                 push_escaped_char(svg, ch);
 
                 svg.push_str("</tspan>");
-                col += cell.width();
+                col += cell_width;
             }
 
             svg.push_str("</tspan>");
