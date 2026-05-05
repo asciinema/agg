@@ -169,12 +169,11 @@ mod tests {
     // pixel for a solid foreground glyph after faint intensity is applied.
     const MID_FG_BG: RGB8 = RGB8::new(144, 145, 148);
 
-    // Per-renderer y_ratio for the underline stroke. Raster renderers place
-    // their explicit underline at `font_size * 1.2 / row_height = 24/28`;
-    // resvg's CSS text-decoration is positioned by the SVG rasterizer, sitting
-    // a little higher in the cell.
+    // Per-renderer y_ratio for the underline stroke. Both renderers position
+    // it via the font's own underline_offset metric, so the values agree to
+    // within a fraction of a pixel.
     const RESVG_UND_Y: f64 = 0.82;
-    const RASTER_UND_Y: f64 = 0.857;
+    const RASTER_UND_Y: f64 = 0.825;
 
     // Probe positions for the bold/italic/bold-italic 'M' comparison on row 7.
     // Empirically chosen so the styled cell paints solid fg ink while the

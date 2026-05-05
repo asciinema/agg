@@ -40,6 +40,8 @@ pub struct SwashRenderer {
     font_size: usize,
     col_width: f64,
     row_height: f64,
+    underline_offset: f64,
+    underline_thickness: f64,
     font_db: fontdb::Database,
     scale_context: ScaleContext,
     glyph_cache: HashMap<CharVariant, Option<Image>>,
@@ -100,6 +102,17 @@ fn col_width(db: &fontdb::Database, family: &str, font_size: usize) -> Option<f6
     })?
 }
 
+fn underline_metrics(db: &fontdb::Database, family: &str, font_size: usize) -> Option<(f64, f64)> {
+    let font_id = get_font_id(db, &[family], fontdb::Weight::NORMAL, fontdb::Style::Normal)?;
+
+    db.with_face_data(font_id, |font_data, face_index| {
+        let font = FontRef::from_index(font_data, face_index as usize)?;
+        let metrics = font.metrics(&[]).scale(font_size as f32);
+
+        Some((metrics.underline_offset as f64, metrics.stroke_size as f64))
+    })?
+}
+
 fn glyph_image_is_visible(img: &Image) -> bool {
     img.placement.width > 0 && img.placement.height > 0 && !img.data.is_empty()
 }
@@ -108,6 +121,10 @@ impl SwashRenderer {
     pub fn new(settings: Settings) -> Self {
         let col_width = col_width(&settings.font_db, &settings.text_family, settings.font_size)
             .expect("text_family is guaranteed to resolve by fonts::init");
+
+        let (underline_offset, underline_thickness) =
+            underline_metrics(&settings.font_db, &settings.text_family, settings.font_size)
+                .expect("text_family is guaranteed to resolve by fonts::init");
 
         let (cols, rows) = settings.terminal_size;
         let row_height = (settings.font_size as f64) * settings.line_height;
@@ -121,6 +138,8 @@ impl SwashRenderer {
             font_size: settings.font_size,
             col_width,
             row_height,
+            underline_offset,
+            underline_thickness,
             scale_context: ScaleContext::new(),
             font_id_cache: HashMap::new(),
             glyph_cache: HashMap::new(),
@@ -230,16 +249,16 @@ impl SwashRenderer {
         col: usize,
         width: usize,
     ) -> CellLayout {
+        let baseline =
+            margin_t as f64 + self.font_size as f64 + (row as f64 * self.row_height).round();
+
         CellLayout {
             x_l: (margin_l + col as f64 * self.col_width).round() as usize,
             x_r: (margin_l + (col + width) as f64 * self.col_width).round() as usize,
             y_t: margin_t + (row as f64 * self.row_height).round() as usize,
             y_b: margin_t + ((row + 1) as f64 * self.row_height).round() as usize,
-            baseline: margin_t as i32
-                + self.font_size as i32
-                + (row as f64 * self.row_height).round() as i32,
-            underline_y: margin_t
-                + (row as f64 * self.row_height + self.font_size as f64 * 1.2).round() as usize,
+            baseline: baseline as i32,
+            underline_y: (baseline - self.underline_offset).round() as usize,
         }
     }
 
@@ -271,8 +290,12 @@ impl SwashRenderer {
             return;
         }
 
-        for x in layout.x_l..layout.x_r {
-            buf[layout.underline_y * self.pixel_width + x] = fg;
+        let thickness = (self.underline_thickness.round() as usize).max(1);
+
+        for dy in 0..thickness {
+            let y = layout.underline_y + dy;
+            let idx = y * self.pixel_width;
+            buf[idx + layout.x_l..idx + layout.x_r].fill(fg);
         }
     }
 
