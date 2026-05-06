@@ -170,6 +170,7 @@ fn font_family_has_colrv1(font_db: &fontdb::Database, family: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{env, fs, process};
 
     use super::*;
 
@@ -318,9 +319,7 @@ mod tests {
             .unwrap()
             .as_nanos();
 
-        let dir =
-            std::env::temp_dir().join(format!("agg-font-test-{}-{test_id}", std::process::id()));
-
+        let dir = env::temp_dir().join(format!("agg-font-test-{}-{test_id}", process::id()));
         let font_path = dir.join("NotoEmoji-Regular.ttf");
 
         fs::create_dir_all(&dir).unwrap();
