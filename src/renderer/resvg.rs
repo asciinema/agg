@@ -82,14 +82,127 @@ fn push_escaped_char(svg: &mut String, ch: char) {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+struct FontAttrs {
+    weight: fontdb::Weight,
+    stretch: fontdb::Stretch,
+    style: fontdb::Style,
+}
+
+impl FontAttrs {
+    fn regular() -> Self {
+        Self {
+            weight: fontdb::Weight::NORMAL,
+            stretch: fontdb::Stretch::Normal,
+            style: fontdb::Style::Normal,
+        }
+    }
+}
+
+fn font_resolver(font_families: Vec<String>) -> usvg::FontResolver<'static> {
+    usvg::FontResolver {
+        select_font: usvg::FontResolver::default_font_selector(),
+        select_fallback: Box::new(move |ch, used_font_ids, font_db| {
+            let base_font_id = used_font_ids.first().copied()?;
+            let base_face = font_db.face(base_font_id)?;
+            let regular_attrs = FontAttrs::regular();
+
+            let attrs = FontAttrs {
+                weight: base_face.weight,
+                stretch: base_face.stretch,
+                style: base_face.style,
+            };
+
+            // usvg scans fallback fonts in fontdb load order; try agg's configured
+            // families first so bundled Symbols Nerd Font beats macOS system PUA fonts.
+            configured_font_fallback(font_db, &font_families, ch, used_font_ids, attrs)
+                .or_else(|| {
+                    (attrs != regular_attrs).then(|| {
+                        configured_font_fallback(
+                            font_db,
+                            &font_families,
+                            ch,
+                            used_font_ids,
+                            regular_attrs,
+                        )
+                    })?
+                })
+                .or_else(|| font_db_fallback(font_db, ch, used_font_ids, attrs))
+                .or_else(|| {
+                    (attrs != regular_attrs)
+                        .then(|| font_db_fallback(font_db, ch, used_font_ids, regular_attrs))?
+                })
+        }),
+    }
+}
+
+fn configured_font_fallback(
+    font_db: &fontdb::Database,
+    font_families: &[String],
+    ch: char,
+    used_font_ids: &[fontdb::ID],
+    attrs: FontAttrs,
+) -> Option<fontdb::ID> {
+    for family in font_families {
+        let font_id = font_db
+            .faces()
+            .find(|face| {
+                font_matches(face, attrs)
+                    && !used_font_ids.contains(&face.id)
+                    && face.families.iter().any(|(name, _)| name == family)
+                    && font_has_char(font_db, face.id, ch)
+            })
+            .map(|face| face.id);
+
+        if font_id.is_some() {
+            return font_id;
+        }
+    }
+
+    None
+}
+
+fn font_db_fallback(
+    font_db: &fontdb::Database,
+    ch: char,
+    used_font_ids: &[fontdb::ID],
+    attrs: FontAttrs,
+) -> Option<fontdb::ID> {
+    font_db
+        .faces()
+        .find(|face| {
+            font_matches(face, attrs)
+                && !used_font_ids.contains(&face.id)
+                && font_has_char(font_db, face.id, ch)
+        })
+        .map(|face| face.id)
+}
+
+fn font_matches(face: &fontdb::FaceInfo, attrs: FontAttrs) -> bool {
+    face.weight == attrs.weight && face.stretch == attrs.stretch && face.style == attrs.style
+}
+
+fn font_has_char(font_db: &fontdb::Database, font_id: fontdb::ID, ch: char) -> bool {
+    font_db
+        .with_face_data(font_id, |font_data, face_index| {
+            let face = ttf_parser::Face::parse(font_data, face_index).ok()?;
+            face.glyph_index(ch)?;
+            Some(())
+        })
+        .flatten()
+        .is_some()
+}
+
 impl<'a> ResvgRenderer<'a> {
     pub fn new(settings: Settings) -> Self {
         let char_width = 100.0 / (settings.terminal_size.0 as f64 + 2.0);
         let font_size = settings.font_size as f64;
         let row_height = font_size * settings.line_height;
+        let font_resolver = font_resolver(settings.font_families.clone());
 
         let options = usvg::Options {
             fontdb: Arc::new(settings.font_db),
+            font_resolver,
             ..Default::default()
         };
 
@@ -294,5 +407,54 @@ impl<'a> Renderer for ResvgRenderer<'a> {
 
     fn pixel_size(&self) -> (usize, usize) {
         (self.pixel_width, self.pixel_height)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEXT_FAMILY: &str = "JetBrains Mono";
+
+    #[test]
+    fn font_fallback_relaxes_to_regular_before_fontdb_order() {
+        let mut font_db = fontdb::Database::new();
+        font_db.load_font_data(include_bytes!("../../fonts/NotoSansCJKjp-Regular.otf").to_vec());
+        font_db.load_font_data(include_bytes!("../../fonts/JetBrainsMono-Italic.ttf").to_vec());
+        font_db.load_font_data(include_bytes!("../../fonts/JetBrainsMono-Regular.ttf").to_vec());
+
+        let earlier_font_id = font_id(&font_db, "Noto Sans CJK JP", FontAttrs::regular());
+
+        let italic_font_id = font_id(
+            &font_db,
+            TEXT_FAMILY,
+            FontAttrs {
+                weight: fontdb::Weight::NORMAL,
+                stretch: fontdb::Stretch::Normal,
+                style: fontdb::Style::Italic,
+            },
+        );
+
+        let regular_font_id = font_id(&font_db, TEXT_FAMILY, FontAttrs::regular());
+
+        assert_ne!(earlier_font_id, regular_font_id);
+        assert!(font_has_char(&font_db, earlier_font_id, 'M'));
+        assert!(font_has_char(&font_db, regular_font_id, 'M'));
+
+        let resolver = font_resolver(vec![TEXT_FAMILY.to_owned()]);
+        let mut font_db = Arc::new(font_db);
+        let fallback_font_id = (resolver.select_fallback)('M', &[italic_font_id], &mut font_db);
+
+        assert_eq!(fallback_font_id, Some(regular_font_id));
+    }
+
+    fn font_id(font_db: &fontdb::Database, family: &str, attrs: FontAttrs) -> fontdb::ID {
+        font_db
+            .faces()
+            .find(|face| {
+                font_matches(face, attrs) && face.families.iter().any(|(name, _)| name == family)
+            })
+            .map(|face| face.id)
+            .unwrap()
     }
 }

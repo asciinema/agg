@@ -440,6 +440,36 @@ mod tests {
     }
 
     #[test]
+    fn resvg_prefers_configured_nerd_font_over_fontdb_order() {
+        let mut font_db = fontdb::Database::new();
+        font_db.load_system_fonts();
+        font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
+        font_db.load_font_data(include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf").to_vec());
+
+        let symbol = '\u{f43a}';
+
+        if !face_before_family_has_char(&font_db, "Symbols Nerd Font", symbol) {
+            return;
+        }
+
+        let settings = Settings {
+            terminal_size: (COLS, ROWS),
+            font_db,
+            font_families: vec!["Noto Emoji".to_owned(), "Symbols Nerd Font".to_owned()],
+            text_family: "Noto Emoji".to_owned(),
+            font_size: FONT_SIZE,
+            line_height: LINE_HEIGHT,
+            theme: theme(),
+            bold_is_bright: false,
+        };
+
+        let mut renderer = resvg(settings);
+        let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
+
+        assert_nerd_font_symbol_rendered(&image, 3);
+    }
+
+    #[test]
     fn swash_renders_nerd_font_symbols() {
         let mut renderer = swash(settings(false));
         let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
@@ -712,6 +742,31 @@ mod tests {
             mismatched > 10,
             "expected images to differ, but only {mismatched} pixels changed"
         );
+    }
+
+    fn face_before_family_has_char(font_db: &fontdb::Database, family: &str, ch: char) -> bool {
+        for face in font_db.faces() {
+            if face.families.iter().any(|(name, _)| name == family) {
+                return false;
+            }
+
+            if font_has_char(font_db, face.id, ch) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn font_has_char(font_db: &fontdb::Database, font_id: fontdb::ID, ch: char) -> bool {
+        font_db
+            .with_face_data(font_id, |font_data, face_index| {
+                let face = ttf_parser::Face::parse(font_data, face_index).ok()?;
+                face.glyph_index(ch)?;
+                Some(())
+            })
+            .flatten()
+            .is_some()
     }
 
     fn blend_rgb(fg: RGB8, bg: RGB8, ratio: u8) -> RGB8 {
