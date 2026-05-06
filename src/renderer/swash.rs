@@ -759,6 +759,7 @@ mod tests {
     #[test]
     fn glyph_image_visibility_rejects_empty_images() {
         let mut image = Image::new();
+
         assert!(!glyph_image_is_visible(&image));
 
         image.placement.width = 1;

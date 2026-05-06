@@ -180,12 +180,14 @@ mod tests {
         font_db.load_font_data(include_bytes!("../fonts/NotoEmoji-Regular.ttf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/NotoSansCJKjp-Regular.otf").to_vec());
         font_db.load_font_data(include_bytes!("../fonts/SymbolsNerdFont-Regular.ttf").to_vec());
+
         font_db
     }
 
     #[test]
     fn font_selection_composes_text_symbols_and_default_emoji() {
         let font_db = test_font_db();
+
         let options = Options {
             text_font_family: "JetBrains Mono",
             emoji_font_family: crate::DEFAULT_EMOJI_FONT_FAMILY,
@@ -206,6 +208,7 @@ mod tests {
     #[test]
     fn font_selection_replaces_default_emoji_families() {
         let font_db = test_font_db();
+
         let options = Options {
             text_font_family: "JetBrains Mono",
             emoji_font_family: "Noto Emoji",
@@ -254,6 +257,7 @@ mod tests {
     #[test]
     fn font_selection_dedups_families_after_composition() {
         let font_db = test_font_db();
+
         let options = Options {
             text_font_family: "JetBrains Mono,JetBrains Mono,Symbols Nerd Font",
             emoji_font_family: "Noto Emoji,Noto Emoji",

@@ -176,6 +176,7 @@ mod tests {
 
     fn header_with_palette(colors: &[&str]) -> String {
         let palette = colors.join(":");
+
         format!(
             r##"{{"version":2,"width":80,"height":24,"theme":{{"fg":"#ffffff","bg":"#000000","palette":"{palette}"}}}}"##
         )
@@ -200,12 +201,14 @@ mod tests {
             "#000000", "#010101", "#020202", "#030303", "#040404", "#050505", "#060606", "#070707",
             "#080808", "#090909", "#0a0a0a", "#0b0b0b", "#0c0c0c", "#0d0d0d", "#0e0e0e", "#0f0f0f",
         ];
+
         let header = header_with_palette(&colors);
 
         let asciicast = open(&header).unwrap().parse(std::iter::empty());
         let palette = asciicast.header.term_theme.unwrap().palette;
 
         assert_eq!(palette.len(), 16);
+
         for (i, expected_byte) in (0..16u8).enumerate() {
             assert_eq!(palette[i].r, expected_byte);
             assert_eq!(palette[i].g, expected_byte);
@@ -216,9 +219,11 @@ mod tests {
     #[test]
     fn theme_palette_with_invalid_length_errors() {
         let one = "#000000";
+
         for len in [7, 9, 15, 17] {
             let colors: Vec<&str> = std::iter::repeat_n(one, len).collect();
             let header = header_with_palette(&colors);
+
             assert!(
                 open(&header).is_err(),
                 "expected error for palette of length {len}"
