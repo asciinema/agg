@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
 use imgref::ImgVec;
@@ -124,6 +124,22 @@ fn glyph_image_is_visible(img: &Image) -> bool {
     img.placement.width > 0 && img.placement.height > 0 && !img.data.is_empty()
 }
 
+fn font_weight(bold: bool) -> fontdb::Weight {
+    if bold {
+        fontdb::Weight::BOLD
+    } else {
+        fontdb::Weight::NORMAL
+    }
+}
+
+fn font_style(italic: bool) -> fontdb::Style {
+    if italic {
+        fontdb::Style::Italic
+    } else {
+        fontdb::Style::Normal
+    }
+}
+
 impl SwashRenderer {
     pub fn new(settings: Settings) -> Self {
         let col_width = col_width(&settings.font_db, &settings.text_family, settings.font_size)
@@ -155,21 +171,16 @@ impl SwashRenderer {
     }
 
     fn get_font_id(&mut self, name: &str, bold: bool, italic: bool) -> &Option<fontdb::ID> {
-        let weight = if bold {
-            fontdb::Weight::BOLD
-        } else {
-            fontdb::Weight::NORMAL
-        };
-
-        let style = if italic {
-            fontdb::Style::Italic
-        } else {
-            fontdb::Style::Normal
-        };
-
         self.font_id_cache
             .entry((name.to_owned(), bold, italic))
-            .or_insert_with(|| get_font_id(&self.font_db, &[name], weight, style))
+            .or_insert_with(|| {
+                get_font_id(
+                    &self.font_db,
+                    &[name],
+                    font_weight(bold),
+                    font_style(italic),
+                )
+            })
     }
 
     fn ensure_glyph(&mut self, ch: char, bold: bool, italic: bool) {
@@ -179,13 +190,28 @@ impl SwashRenderer {
             return;
         }
 
-        if let Some(glyph) = self.rasterize_glyph(ch, bold, italic) {
+        let mut tried_font_ids = HashSet::new();
+
+        if let Some(glyph) = self.rasterize_family_glyph(ch, bold, italic, &mut tried_font_ids) {
             self.glyph_cache.insert(key, Some(glyph));
             return;
         }
 
         if bold || italic {
-            if let Some(glyph) = self.rasterize_glyph(ch, false, false) {
+            if let Some(glyph) = self.rasterize_family_glyph(ch, false, false, &mut tried_font_ids)
+            {
+                self.glyph_cache.insert(key, Some(glyph));
+                return;
+            }
+        }
+
+        if let Some(glyph) = self.rasterize_fallback_glyph(ch, bold, italic, &tried_font_ids) {
+            self.glyph_cache.insert(key, Some(glyph));
+            return;
+        }
+
+        if bold || italic {
+            if let Some(glyph) = self.rasterize_fallback_glyph(ch, false, false, &tried_font_ids) {
                 self.glyph_cache.insert(key, Some(glyph));
                 return;
             }
@@ -200,7 +226,13 @@ impl SwashRenderer {
             .expect("caller must invoke ensure_glyph first")
     }
 
-    fn rasterize_glyph(&mut self, ch: char, bold: bool, italic: bool) -> Option<Image> {
+    fn rasterize_family_glyph(
+        &mut self,
+        ch: char,
+        bold: bool,
+        italic: bool,
+        tried_font_ids: &mut HashSet<fontdb::ID>,
+    ) -> Option<Image> {
         let families = self.font_families.clone();
 
         for name in &families {
@@ -208,6 +240,38 @@ impl SwashRenderer {
                 continue;
             };
 
+            tried_font_ids.insert(font_id);
+
+            if let Some(glyph) = self.rasterize_font_glyph(font_id, ch) {
+                return Some(glyph);
+            }
+        }
+
+        None
+    }
+
+    fn rasterize_fallback_glyph(
+        &mut self,
+        ch: char,
+        bold: bool,
+        italic: bool,
+        tried_font_ids: &HashSet<fontdb::ID>,
+    ) -> Option<Image> {
+        let weight = font_weight(bold);
+        let style = font_style(italic);
+
+        // Match resvg/usvg behavior: if configured families miss, try any
+        // loaded face so system fonts and --font-dir fonts can cover unlisted scripts.
+        let fallback_font_ids: Vec<_> = self
+            .font_db
+            .faces()
+            .filter(|face| {
+                !tried_font_ids.contains(&face.id) && face.weight == weight && face.style == style
+            })
+            .map(|face| face.id)
+            .collect();
+
+        for font_id in fallback_font_ids {
             if let Some(glyph) = self.rasterize_font_glyph(font_id, ch) {
                 return Some(glyph);
             }

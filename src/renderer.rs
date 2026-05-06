@@ -459,6 +459,63 @@ mod tests {
         assert_left_cell_edge_has_ink(&image, 1, 0, PALETTE[GREEN], PALETTE[YELLOW]);
     }
 
+    #[test]
+    fn swash_falls_back_to_unlisted_font_faces() {
+        let mut font_db = fontdb::Database::new();
+        font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
+        font_db.load_font_data(include_bytes!("../fonts/NotoSansCJKjp-Regular.otf").to_vec());
+
+        let settings = Settings {
+            terminal_size: (COLS, ROWS),
+            font_db,
+            font_families: vec![FONT_FAMILY.to_owned()],
+            text_family: FONT_FAMILY.to_owned(),
+            font_size: FONT_SIZE,
+            line_height: LINE_HEIGHT,
+            theme: theme(),
+            bold_is_bright: false,
+        };
+
+        let mut renderer = swash(settings);
+        let image = renderer.render(&lines_for("\x1b[48;5;3m日\x1b[49m"), None);
+
+        assert_closer_to(cell_pixel(&image, 1, 0, 0.3, 0.5), FG, PALETTE[YELLOW]);
+    }
+
+    #[test]
+    fn swash_fontdb_fallback_prefers_matching_style() {
+        let make_db = || {
+            let mut font_db = fontdb::Database::new();
+            font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Italic.ttf").to_vec());
+            font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
+
+            font_db
+        };
+
+        let settings = |font_db, font_families| Settings {
+            terminal_size: (COLS, ROWS),
+            font_db,
+            font_families,
+            text_family: FONT_FAMILY.to_owned(),
+            font_size: FONT_SIZE,
+            line_height: LINE_HEIGHT,
+            theme: theme(),
+            bold_is_bright: false,
+        };
+
+        let mut fallback_renderer = swash(settings(make_db(), vec![]));
+        let fallback_image = fallback_renderer.render(&lines_for("M"), None);
+
+        let mut regular_renderer = swash(settings(make_db(), vec![FONT_FAMILY.to_owned()]));
+        let regular_image = regular_renderer.render(&lines_for("M"), None);
+
+        let mut italic_renderer = swash(settings(make_db(), vec![FONT_FAMILY.to_owned()]));
+        let italic_image = italic_renderer.render(&lines_for("\x1b[3mM"), None);
+
+        assert_images_equal(&fallback_image, &regular_image);
+        assert_images_differ(&fallback_image, &italic_image);
+    }
+
     // The col-2 (ANSI white, n=7) assertions probe the n < 8 boundary —
     // they catch off-by-one regressions like `n < 7` that the col-0 (red,
     // n=1) assertion alone would miss.
@@ -623,6 +680,37 @@ mod tests {
         assert!(
             rgb_distance(actual, expected) <= threshold,
             "expected {actual:?} to be within {threshold} of {expected:?}",
+        );
+    }
+
+    fn assert_images_equal(actual: &ImgVec<RGBA8>, expected: &ImgVec<RGBA8>) {
+        assert_eq!(actual.width(), expected.width());
+        assert_eq!(actual.height(), expected.height());
+
+        let mismatched = actual
+            .buf()
+            .iter()
+            .zip(expected.buf())
+            .filter(|(actual, expected)| actual != expected)
+            .count();
+
+        assert_eq!(mismatched, 0, "expected images to match exactly");
+    }
+
+    fn assert_images_differ(actual: &ImgVec<RGBA8>, expected: &ImgVec<RGBA8>) {
+        assert_eq!(actual.width(), expected.width());
+        assert_eq!(actual.height(), expected.height());
+
+        let mismatched = actual
+            .buf()
+            .iter()
+            .zip(expected.buf())
+            .filter(|(actual, expected)| actual != expected)
+            .count();
+
+        assert!(
+            mismatched > 10,
+            "expected images to differ, but only {mismatched} pixels changed"
         );
     }
 
