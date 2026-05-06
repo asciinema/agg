@@ -32,6 +32,13 @@ struct CellLayout {
     underline_y: usize,
 }
 
+struct RenderCell {
+    ch: char,
+    layout: CellLayout,
+    attrs: TextAttrs,
+    fg: RGBA8,
+}
+
 pub struct SwashRenderer {
     font_families: Vec<String>,
     theme: Theme,
@@ -715,6 +722,7 @@ impl Renderer for SwashRenderer {
         let mut buf = self.new_frame();
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;
+        let mut cells = Vec::new();
 
         for (row, line) in lines.iter().enumerate() {
             let mut col = 0;
@@ -733,14 +741,30 @@ impl Renderer for SwashRenderer {
                 );
                 let fg = self.foreground(&attrs);
 
-                self.paint_background(&mut buf, layout, &attrs);
-                self.paint_underline(&mut buf, layout, fg, attrs.underline);
-
-                if ch != ' ' && !self.paint_mosaic_symbol(&mut buf, ch, layout, &attrs, fg) {
-                    self.paint_glyph(&mut buf, ch, layout, &attrs, fg);
-                }
+                cells.push(RenderCell {
+                    ch,
+                    layout,
+                    attrs,
+                    fg,
+                });
 
                 col += cell_width;
+            }
+        }
+
+        for cell in &cells {
+            self.paint_background(&mut buf, cell.layout, &cell.attrs);
+        }
+
+        for cell in &cells {
+            self.paint_underline(&mut buf, cell.layout, cell.fg, cell.attrs.underline);
+        }
+
+        for cell in &cells {
+            if cell.ch != ' '
+                && !self.paint_mosaic_symbol(&mut buf, cell.ch, cell.layout, &cell.attrs, cell.fg)
+            {
+                self.paint_glyph(&mut buf, cell.ch, cell.layout, &cell.attrs, cell.fg);
             }
         }
 

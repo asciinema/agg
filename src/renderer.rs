@@ -30,6 +30,7 @@ pub fn swash(settings: Settings) -> swash::SwashRenderer {
     swash::SwashRenderer::new(settings)
 }
 
+#[derive(Clone, Copy)]
 struct TextAttrs {
     foreground: Option<avt::Color>,
     background: Option<avt::Color>,
@@ -446,6 +447,18 @@ mod tests {
         assert_nerd_font_symbol_rendered(&image, 0);
     }
 
+    #[test]
+    fn swash_preserves_nerd_font_symbol_overhang() {
+        let mut renderer = swash(settings(false));
+
+        let image = renderer.render(
+            &lines_for("\x1b[38;5;2m\u{f03d}\x1b[39m\x1b[48;5;3m \x1b[49m"),
+            None,
+        );
+
+        assert_left_cell_edge_has_ink(&image, 1, 0, PALETTE[GREEN], PALETTE[YELLOW]);
+    }
+
     // The col-2 (ANSI white, n=7) assertions probe the n < 8 boundary —
     // they catch off-by-one regressions like `n < 7` that the col-0 (red,
     // n=1) assertion alone would miss.
@@ -661,6 +674,32 @@ mod tests {
                 background_threshold,
             );
         }
+    }
+
+    fn assert_left_cell_edge_has_ink(
+        image: &ImgVec<RGBA8>,
+        col: usize,
+        row: usize,
+        fg: RGB8,
+        bg: RGB8,
+    ) {
+        let cell_width = image.width() as f64 / (COLS + 2) as f64;
+        let cell_height = image.height() as f64 / (ROWS + 1) as f64;
+        let x_l = ((1.0 + col as f64) * cell_width).round() as usize;
+        let x_r = ((1.0 + col as f64 + 0.25) * cell_width).round() as usize;
+        let y_t = ((0.5 + row as f64) * cell_height).round() as usize;
+        let y_b = ((0.5 + (row + 1) as f64) * cell_height).round() as usize;
+
+        let has_ink = (y_t..y_b).any(|y| {
+            (x_l..x_r).any(|x| {
+                let px = image.buf()[y * image.width() + x];
+                let rgb = RGB8::new(px.r, px.g, px.b);
+
+                rgb_distance(rgb, fg) < rgb_distance(rgb, bg)
+            })
+        });
+
+        assert!(has_ink, "expected glyph ink past the left cell edge");
     }
 
     /// Asserts `actual` is closer to `target` than to `than`. Used when an AA
