@@ -731,6 +731,7 @@ impl Renderer for SwashRenderer {
                 let ch = cell.char();
                 let cell_width = cell.width() as usize;
                 let layout = self.cell_layout(margin_l, margin_t, row, col, cell_width);
+
                 let attrs = text_attrs(
                     cell.pen(),
                     &cursor,
@@ -739,6 +740,7 @@ impl Renderer for SwashRenderer {
                     &self.theme,
                     self.bold_is_bright,
                 );
+
                 let fg = self.foreground(&attrs);
 
                 cells.push(RenderCell {
