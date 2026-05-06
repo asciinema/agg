@@ -336,4 +336,74 @@ mod tests {
             ]
         );
     }
+
+    fn empty_theme() -> super::Theme {
+        super::Theme {
+            background: RGB8 { r: 0, g: 0, b: 0 },
+            foreground: RGB8 {
+                r: 0xff,
+                g: 0xff,
+                b: 0xff,
+            },
+            palette: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn color_cube_boundaries() {
+        let theme = empty_theme();
+
+        assert_eq!(theme.color(16), RGB8 { r: 0, g: 0, b: 0 });
+
+        assert_eq!(
+            theme.color(231),
+            RGB8 {
+                r: 255,
+                g: 255,
+                b: 255
+            }
+        );
+    }
+
+    #[test]
+    fn color_cube_offset_only_applied_when_channel_nonzero() {
+        let theme = empty_theme();
+
+        assert_eq!(theme.color(17), RGB8 { r: 0, g: 0, b: 95 });
+        assert_eq!(theme.color(22), RGB8 { r: 0, g: 95, b: 0 });
+        assert_eq!(theme.color(52), RGB8 { r: 95, g: 0, b: 0 });
+    }
+
+    #[test]
+    fn color_cube_max_channel() {
+        let theme = empty_theme();
+
+        assert_eq!(theme.color(21), RGB8 { r: 0, g: 0, b: 255 });
+        assert_eq!(theme.color(46), RGB8 { r: 0, g: 255, b: 0 });
+        assert_eq!(theme.color(196), RGB8 { r: 255, g: 0, b: 0 });
+    }
+
+    #[test]
+    fn color_grayscale_ramp() {
+        let theme = empty_theme();
+
+        assert_eq!(theme.color(232), RGB8 { r: 8, g: 8, b: 8 });
+
+        assert_eq!(
+            theme.color(233),
+            RGB8 {
+                r: 18,
+                g: 18,
+                b: 18
+            }
+        );
+        assert_eq!(
+            theme.color(255),
+            RGB8 {
+                r: 238,
+                g: 238,
+                b: 238
+            }
+        );
+    }
 }

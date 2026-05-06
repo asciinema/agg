@@ -1,8 +1,10 @@
-use anyhow::{anyhow, Result};
-use clap::{ArgAction, ArgEnum, Parser};
-use reqwest::header;
 use std::io;
+use std::num::ParseFloatError;
 use std::{fs::File, io::BufReader, iter};
+
+use anyhow::{anyhow, Result};
+use clap::{ArgAction, Parser, ValueEnum};
+use reqwest::header;
 
 static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
@@ -34,14 +36,24 @@ impl clap::builder::TypedValueParser for ThemeValueParser {
 
     fn possible_values(
         &self,
-    ) -> Option<Box<dyn Iterator<Item = clap::PossibleValue<'static>> + '_>> {
+    ) -> Option<Box<dyn Iterator<Item = clap::builder::PossibleValue> + '_>> {
         Some(Box::new(
             agg::Theme::value_variants()
                 .iter()
                 .filter_map(|v| v.to_possible_value())
-                .chain(iter::once(clap::PossibleValue::new("custom"))),
+                .chain(iter::once(clap::builder::PossibleValue::new("custom"))),
         ))
     }
+}
+
+fn parse_line_height(s: &str) -> Result<f64, String> {
+    let v: f64 = s.parse().map_err(|e: ParseFloatError| e.to_string())?;
+
+    if v < 1.0 {
+        return Err(format!("must be >= 1.0 (got {v})"));
+    }
+
+    Ok(v)
 }
 
 #[derive(Parser)]
@@ -53,29 +65,37 @@ struct Cli {
     /// GIF path/filename
     output_filename: String,
 
-    /// Select frame rendering backend
-    #[clap(long, arg_enum, default_value_t = agg::Renderer::default())]
-    renderer: agg::Renderer,
+    /// Specify regular text font families
+    #[clap(long, default_value_t = String::from(agg::DEFAULT_TEXT_FONT_FAMILY), conflicts_with = "font_family")]
+    text_font_family: String,
 
-    /// Specify font family
-    #[clap(long, default_value_t = String::from(agg::DEFAULT_FONT_FAMILY))]
-    font_family: String,
+    /// Specify emoji font families
+    #[clap(long, default_value_t = String::from(agg::DEFAULT_EMOJI_FONT_FAMILY), conflicts_with = "font_family")]
+    emoji_font_family: String,
+
+    /// Specify the complete font family list, bypassing automatic fallbacks; must start with a monospace text font
+    #[clap(long, conflicts_with_all = ["text_font_family", "emoji_font_family"])]
+    font_family: Option<String>,
 
     /// Specify font size (in pixels)
     #[clap(long, default_value_t = agg::DEFAULT_FONT_SIZE)]
     font_size: usize,
 
+    /// Use additional font directory; may be specified multiple times
+    #[clap(long)]
+    font_dir: Vec<String>,
+
     /// Specify line height
-    #[clap(long, default_value_t = agg::DEFAULT_LINE_HEIGHT)]
+    #[clap(long, default_value_t = agg::DEFAULT_LINE_HEIGHT, value_parser = parse_line_height)]
     line_height: f64,
 
     /// Select color theme
     #[clap(long, value_parser = ThemeValueParser)]
     theme: Option<Theme>,
 
-    /// Use additional font directory
-    #[clap(long)]
-    font_dir: Vec<String>,
+    /// Render bold text with bright colors (ANSI 0..7 → 8..15)
+    #[clap(long, default_value_t = agg::DEFAULT_BOLD_IS_BRIGHT)]
+    bold_is_bright: bool,
 
     /// Adjust playback speed
     #[clap(long, default_value_t = agg::DEFAULT_SPEED)]
@@ -104,6 +124,10 @@ struct Cli {
     /// Override terminal height (number of rows)
     #[clap(long)]
     rows: Option<usize>,
+
+    /// Select frame rendering backend
+    #[clap(long, value_enum, default_value_t = agg::Renderer::default())]
+    renderer: agg::Renderer,
 
     /// Enable verbose logging
     #[clap(short, long, action = ArgAction::Count)]
@@ -161,10 +185,14 @@ fn reader(path: &str) -> Result<Box<dyn io::Read>> {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let log_level = match cli.verbose {
-        0 => "error",
-        1 => "info",
-        _ => "debug",
+    let log_level = if cli.quiet {
+        "error"
+    } else {
+        match cli.verbose {
+            0 => "warn,usvg=error",
+            1 => "info",
+            _ => "debug",
+        }
     };
 
     let env = env_logger::Env::default().default_filter_or(log_level);
@@ -173,7 +201,9 @@ fn main() -> Result<()> {
         .init();
 
     let config = agg::Config {
+        bold_is_bright: cli.bold_is_bright,
         cols: cli.cols,
+        emoji_font_family: cli.emoji_font_family,
         font_dirs: cli.font_dir,
         font_family: cli.font_family,
         font_size: cli.font_size,
@@ -185,6 +215,7 @@ fn main() -> Result<()> {
         renderer: cli.renderer,
         rows: cli.rows,
         speed: cli.speed,
+        text_font_family: cli.text_font_family,
         theme: cli.theme.map(|theme| theme.0),
         show_progress_bar: !cli.quiet,
     };
@@ -198,5 +229,60 @@ fn main() -> Result<()> {
             std::fs::remove_file(cli.output_filename)?;
             Err(err)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::error::ErrorKind;
+
+    #[test]
+    fn font_family_conflicts_with_text_font_family() {
+        let err = match Cli::try_parse_from([
+            "agg",
+            "--font-family=JetBrains Mono",
+            "--text-font-family=Fira Code",
+            "input.cast",
+            "output.gif",
+        ]) {
+            Ok(_) => panic!("expected argument conflict"),
+            Err(err) => err,
+        };
+
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn font_family_conflicts_with_emoji_font_family() {
+        let err = match Cli::try_parse_from([
+            "agg",
+            "--font-family=JetBrains Mono",
+            "--emoji-font-family=Noto Emoji",
+            "input.cast",
+            "output.gif",
+        ]) {
+            Ok(_) => panic!("expected argument conflict"),
+            Err(err) => err,
+        };
+
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn font_family_does_not_conflict_with_default_font_options() {
+        let cli = match Cli::try_parse_from([
+            "agg",
+            "--font-family=JetBrains Mono",
+            "input.cast",
+            "output.gif",
+        ]) {
+            Ok(cli) => cli,
+            Err(err) => panic!("expected font family to parse: {err}"),
+        };
+
+        assert_eq!(cli.font_family, Some("JetBrains Mono".to_owned()));
+        assert_eq!(cli.text_font_family, agg::DEFAULT_TEXT_FONT_FAMILY);
+        assert_eq!(cli.emoji_font_family, agg::DEFAULT_EMOJI_FONT_FAMILY);
     }
 }

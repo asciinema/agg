@@ -1,8 +1,10 @@
-use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
-use crate::theme::Theme;
+use std::{fmt::Write, sync::Arc};
+
 use imgref::ImgVec;
 use rgb::{FromSlice, RGBA8};
-use std::{fmt::Write, sync::Arc};
+
+use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::theme::Theme;
 
 pub struct ResvgRenderer<'a> {
     terminal_size: (usize, usize),
@@ -14,6 +16,7 @@ pub struct ResvgRenderer<'a> {
     options: usvg::Options<'a>,
     transform: tiny_skia::Transform,
     header: String,
+    bold_is_bright: bool,
 }
 
 fn color_to_style(color: &avt::Color, theme: &Theme) -> String {
@@ -23,21 +26,25 @@ fn color_to_style(color: &avt::Color, theme: &Theme) -> String {
 }
 
 fn text_class(attrs: &TextAttrs) -> String {
-    let mut class = "".to_owned();
+    let mut classes = Vec::new();
 
     if attrs.bold {
-        class.push_str("br");
+        classes.push("br");
     }
 
     if attrs.italic {
-        class.push_str(" it");
+        classes.push("it");
     }
 
     if attrs.underline {
-        class.push_str(" un");
+        classes.push("un");
     }
 
-    class
+    if attrs.faint {
+        classes.push("fa");
+    }
+
+    classes.join(" ")
 }
 
 fn text_style(attrs: &TextAttrs, theme: &Theme) -> String {
@@ -52,6 +59,27 @@ fn rect_style(attrs: &TextAttrs, theme: &Theme) -> String {
         .background
         .map(|c| color_to_style(&c, theme))
         .unwrap_or_else(|| "".to_owned())
+}
+
+fn escape_attr(s: &str) -> String {
+    let mut escaped = String::new();
+
+    for ch in s.chars() {
+        push_escaped_char(&mut escaped, ch);
+    }
+
+    escaped
+}
+
+fn push_escaped_char(svg: &mut String, ch: char) {
+    match ch {
+        '\'' => svg.push_str("&#39;"),
+        '"' => svg.push_str("&quot;"),
+        '&' => svg.push_str("&amp;"),
+        '>' => svg.push_str("&gt;"),
+        '<' => svg.push_str("&lt;"),
+        _ => svg.push(ch),
+    }
 }
 
 impl<'a> ResvgRenderer<'a> {
@@ -91,6 +119,7 @@ impl<'a> ResvgRenderer<'a> {
             options,
             transform,
             header,
+            bold_is_bright: settings.bold_is_bright,
         }
     }
 
@@ -101,6 +130,7 @@ impl<'a> ResvgRenderer<'a> {
         row_height: f64,
         theme: &Theme,
     ) -> String {
+        let font_family = escape_attr(&font_family);
         let width = (cols + 2) as f64 * (font_size * 0.6);
         let height = (rows + 1) as f64 * row_height;
         let x = 1.0 * 100.0 / (cols as f64 + 2.0);
@@ -113,10 +143,11 @@ impl<'a> ResvgRenderer<'a> {
 .br {{ font-weight: bold }}
 .it {{ font-style: italic }}
 .un {{ text-decoration: underline }}
+.fa {{ fill-opacity: 0.5 }}
 </style>
-<rect width="100%" height="100%" rx="{}" ry="{}" style="fill: {}" />
+<rect width="100%" height="100%" style="fill: {}" />
 <svg x="{:.3}%" y="{:.3}%" style="fill: {}">"#,
-            width, height, font_size, font_family, 4, 4, theme.background, x, y, theme.foreground
+            width, height, font_size, font_family, theme.background, x, y, theme.foreground
         )
     }
 
@@ -124,9 +155,33 @@ impl<'a> ResvgRenderer<'a> {
         "</svg></svg>"
     }
 
-    fn push_lines(&self, svg: &mut String, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) {
-        self.push_background(svg, &lines, cursor);
-        self.push_text(svg, &lines, cursor);
+    fn x_pct(&self, col: usize) -> f64 {
+        let (cols, _) = self.terminal_size;
+
+        100.0 * (col as f64) / (cols as f64 + 2.0)
+    }
+
+    fn y_pct(&self, row: usize) -> f64 {
+        let (_, rows) = self.terminal_size;
+
+        100.0 * (row as f64) / (rows as f64 + 1.0)
+    }
+
+    fn cell_width_pct(&self, width: usize) -> f64 {
+        self.char_width * width as f64
+    }
+
+    fn svg_for_frame(&self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> String {
+        let mut svg = self.header.clone();
+        self.push_lines(&mut svg, lines, cursor);
+        svg.push_str(Self::footer());
+
+        svg
+    }
+
+    fn push_lines(&self, svg: &mut String, lines: &[avt::Line], cursor: Option<(usize, usize)>) {
+        self.push_background(svg, lines, cursor);
+        self.push_text(svg, lines, cursor);
     }
 
     fn push_background(
@@ -135,33 +190,41 @@ impl<'a> ResvgRenderer<'a> {
         lines: &[avt::Line],
         cursor: Option<(usize, usize)>,
     ) {
-        let (cols, rows) = self.terminal_size;
-
         svg.push_str(r#"<g style="shape-rendering: optimizeSpeed">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
+            let y = self.y_pct(row);
             let mut col = 0;
 
             for cell in line.cells() {
-                let attrs = text_attrs(cell.pen(), &cursor, col, row, &self.theme);
+                let cell_width = cell.width() as usize;
+
+                let attrs = text_attrs(
+                    cell.pen(),
+                    &cursor,
+                    col,
+                    row,
+                    &self.theme,
+                    self.bold_is_bright,
+                );
 
                 if attrs.background.is_none() {
-                    col += cell.width();
+                    col += cell_width;
                     continue;
                 }
 
-                let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
+                let x = self.x_pct(col);
                 let style = rect_style(&attrs, &self.theme);
-                let width = self.char_width * cell.width() as f64;
+                let width = self.cell_width_pct(cell_width);
 
-                let _ = write!(
+                write!(
                     svg,
                     r#"<rect x="{:.3}%" y="{:.3}%" width="{:.3}%" height="{:.3}" style="{}" />"#,
                     x, y, width, self.row_height, style
-                );
+                )
+                .unwrap();
 
-                col += cell.width();
+                col += cell_width;
             }
         }
 
@@ -169,26 +232,26 @@ impl<'a> ResvgRenderer<'a> {
     }
 
     fn push_text(&self, svg: &mut String, lines: &[avt::Line], cursor: Option<(usize, usize)>) {
-        let (cols, rows) = self.terminal_size;
-
         svg.push_str(r#"<text class="default-text-fill">"#);
 
         for (row, line) in lines.iter().enumerate() {
-            let y = 100.0 * (row as f64) / (rows as f64 + 1.0);
+            let y = self.y_pct(row);
             let mut did_dy = false;
 
-            let _ = write!(svg, r#"<tspan y="{y:.3}%">"#);
+            write!(svg, r#"<tspan y="{y:.3}%">"#).unwrap();
             let mut col = 0;
 
             for cell in line.cells() {
                 let ch = cell.char();
+                let pen = cell.pen();
+                let cell_width = cell.width() as usize;
 
-                if ch == ' ' {
-                    col += cell.width();
+                if ch == ' ' && !pen.is_underline() {
+                    col += cell_width;
                     continue;
                 }
 
-                let attrs = text_attrs(cell.pen(), &cursor, col, row, &self.theme);
+                let attrs = text_attrs(pen, &cursor, col, row, &self.theme, self.bold_is_bright);
 
                 svg.push_str("<tspan ");
 
@@ -197,40 +260,15 @@ impl<'a> ResvgRenderer<'a> {
                     did_dy = true;
                 }
 
-                let x = 100.0 * (col as f64) / (cols as f64 + 2.0);
+                let x = self.x_pct(col);
                 let class = text_class(&attrs);
                 let style = text_style(&attrs, &self.theme);
 
-                let _ = write!(svg, r#"x="{x:.3}%" class="{class}" style="{style}">"#);
-
-                match ch {
-                    '\'' => {
-                        svg.push_str("&#39;");
-                    }
-
-                    '"' => {
-                        svg.push_str("&quot;");
-                    }
-
-                    '&' => {
-                        svg.push_str("&amp;");
-                    }
-
-                    '>' => {
-                        svg.push_str("&gt;");
-                    }
-
-                    '<' => {
-                        svg.push_str("&lt;");
-                    }
-
-                    _ => {
-                        svg.push(ch);
-                    }
-                }
+                write!(svg, r#"x="{x:.3}%" class="{class}" style="{style}">"#).unwrap();
+                push_escaped_char(svg, ch);
 
                 svg.push_str("</tspan>");
-                col += cell.width();
+                col += cell_width;
             }
 
             svg.push_str("</tspan>");
@@ -241,10 +279,8 @@ impl<'a> ResvgRenderer<'a> {
 }
 
 impl<'a> Renderer for ResvgRenderer<'a> {
-    fn render(&mut self, lines: Vec<avt::Line>, cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
-        let mut svg = self.header.clone();
-        self.push_lines(&mut svg, lines, cursor);
-        svg.push_str(Self::footer());
+    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+        let svg = self.svg_for_frame(lines, cursor);
         let tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
 
         let mut pixmap =

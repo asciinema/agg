@@ -10,13 +10,16 @@ use std::io::{BufRead, Write};
 use std::{iter, thread, time::Instant};
 
 use anyhow::{anyhow, Result};
-use clap::ArgEnum;
-use log::info;
+use clap::ValueEnum;
+use log::{info, warn};
 
 use crate::asciicast::Asciicast;
 
-pub const DEFAULT_FONT_FAMILY: &str =
+pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
+pub const DEFAULT_TEXT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
+pub const DEFAULT_EMOJI_FONT_FAMILY: &str =
+    "Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,JoyPixels,Twemoji,Noto Emoji";
 pub const DEFAULT_FONT_SIZE: usize = 16;
 pub const DEFAULT_FPS_CAP: u8 = 30;
 pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
@@ -26,9 +29,11 @@ pub const DEFAULT_SPEED: f64 = 1.0;
 pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 
 pub struct Config {
+    pub bold_is_bright: bool,
     pub cols: Option<usize>,
+    pub emoji_font_family: String,
     pub font_dirs: Vec<String>,
-    pub font_family: String,
+    pub font_family: Option<String>,
     pub font_size: usize,
     pub fps_cap: u8,
     pub idle_time_limit: Option<f64>,
@@ -38,6 +43,7 @@ pub struct Config {
     pub renderer: Renderer,
     pub rows: Option<usize>,
     pub speed: f64,
+    pub text_font_family: String,
     pub theme: Option<Theme>,
     pub show_progress_bar: bool,
 }
@@ -45,9 +51,11 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            bold_is_bright: DEFAULT_BOLD_IS_BRIGHT,
             cols: None,
+            emoji_font_family: String::from(DEFAULT_EMOJI_FONT_FAMILY),
             font_dirs: vec![],
-            font_family: String::from(DEFAULT_FONT_FAMILY),
+            font_family: None,
             font_size: DEFAULT_FONT_SIZE,
             fps_cap: DEFAULT_FPS_CAP,
             idle_time_limit: None,
@@ -57,20 +65,22 @@ impl Default for Config {
             renderer: Default::default(),
             rows: None,
             speed: DEFAULT_SPEED,
+            text_font_family: String::from(DEFAULT_TEXT_FONT_FAMILY),
             theme: Default::default(),
             show_progress_bar: true,
         }
     }
 }
 
-#[derive(Clone, ArgEnum, Default)]
+#[derive(Clone, ValueEnum, Default, PartialEq)]
 pub enum Renderer {
     #[default]
+    #[value(alias = "fontdue")]
+    Swash,
     Resvg,
-    Fontdue,
 }
 
-#[derive(Clone, Debug, ArgEnum, Default)]
+#[derive(Clone, Debug, ValueEnum, Default)]
 pub enum Theme {
     Asciinema,
     #[default]
@@ -86,9 +96,9 @@ pub enum Theme {
     SolarizedLight,
     GruvboxDark,
 
-    #[clap(skip)]
+    #[value(skip)]
     Custom(String),
-    #[clap(skip)]
+    #[value(skip)]
     Embedded(theme::Theme),
 }
 
@@ -158,12 +168,36 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let count = events.len() as u64;
     let frames = vt::frames(events.into_iter(), terminal_size);
 
-    info!("terminal size: {}x{}", terminal_size.0, terminal_size.1);
+    info!(
+        "recording terminal size: {}x{}",
+        terminal_size.0, terminal_size.1
+    );
 
-    let (font_db, font_families) = fonts::init(&config.font_dirs, &config.font_family)
-        .ok_or_else(|| anyhow!("no faces matching font families {}", config.font_family))?;
+    let font_options = fonts::Options {
+        text_font_family: &config.text_font_family,
+        emoji_font_family: &config.emoji_font_family,
+        font_family: config.font_family.as_deref(),
+    };
 
-    info!("selected font families: {:?}", font_families);
+    let fonts = fonts::init(&config.font_dirs, font_options)
+        .ok_or_else(|| anyhow!("no faces matching font family options"))?;
+
+    info!("usable font families: {:?}", fonts.families);
+    info!("primary text font family: {}", fonts.text_family);
+
+    if config.renderer == Renderer::Swash && !fonts.colrv1_families.is_empty() {
+        warn!(
+            "selected font families {:?} contain COLRv1 color glyphs, which the swash renderer does not support yet; glyph fallback will be attempted, or try --renderer resvg",
+            fonts.colrv1_families
+        );
+    }
+
+    if !fonts.text_family_monospaced {
+        warn!(
+            "first font family {:?} is not monospaced; terminal cell metrics may be incorrect",
+            fonts.text_family
+        );
+    }
 
     let theme_opt = config
         .theme
@@ -174,15 +208,17 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let settings = renderer::Settings {
         terminal_size,
-        font_db,
-        font_families,
+        font_db: fonts.db,
+        font_families: fonts.families,
+        text_family: fonts.text_family,
         font_size: config.font_size,
         line_height: config.line_height,
         theme: theme_opt.try_into()?,
+        bold_is_bright: config.bold_is_bright,
     };
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {
-        Renderer::Fontdue => Box::new(renderer::fontdue(settings)),
+        Renderer::Swash => Box::new(renderer::swash(settings)),
         Renderer::Resvg => Box::new(renderer::resvg(settings)),
     };
 
@@ -223,7 +259,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
         for (i, frame) in frames.enumerate() {
             let (time, lines, cursor) = frame?;
-            let image = renderer.render(lines, cursor);
+            let image = renderer.render(&lines, cursor);
             let time = if i == 0 { 0.0 } else { time };
             collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
         }
