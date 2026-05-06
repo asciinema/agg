@@ -93,38 +93,38 @@ mod tests {
     const FONT_SIZE: usize = 20;
     const LINE_HEIGHT: f64 = 1.4;
 
-    // Dracula palette laid out in the order Theme::from_str expects.
-    const PALETTE: [RGB8; 18] = [
-        RGB8::new(0x28, 0x2a, 0x36), // 0  background
-        RGB8::new(0xf8, 0xf8, 0xf2), // 1  foreground
-        RGB8::new(0x21, 0x22, 0x2c), // 2  ansi 0  black
-        RGB8::new(0xff, 0x55, 0x55), // 3  ansi 1  red
-        RGB8::new(0x50, 0xfa, 0x7b), // 4  ansi 2  green
-        RGB8::new(0xf1, 0xfa, 0x8c), // 5  ansi 3  yellow
-        RGB8::new(0xbd, 0x93, 0xf9), // 6  ansi 4  blue
-        RGB8::new(0xff, 0x79, 0xc6), // 7  ansi 5  magenta
-        RGB8::new(0x8b, 0xe9, 0xfd), // 8  ansi 6  cyan
-        RGB8::new(0xf8, 0xf8, 0xf2), // 9  ansi 7  white
-        RGB8::new(0x62, 0x72, 0xa4), // 10 ansi 8  bright black
-        RGB8::new(0xff, 0x6e, 0x6e), // 11 ansi 9  bright red
-        RGB8::new(0x69, 0xff, 0x94), // 12 ansi 10 bright green
-        RGB8::new(0xff, 0xff, 0xa5), // 13 ansi 11 bright yellow
-        RGB8::new(0xd6, 0xac, 0xff), // 14 ansi 12 bright blue
-        RGB8::new(0xff, 0x92, 0xdf), // 15 ansi 13 bright magenta
-        RGB8::new(0xa4, 0xff, 0xff), // 16 ansi 14 bright cyan
-        RGB8::new(0xff, 0xff, 0xff), // 17 ansi 15 bright white
+    // Dracula theme background/foreground.
+    const BG: RGB8 = RGB8::new(0x28, 0x2a, 0x36);
+    const FG: RGB8 = RGB8::new(0xf8, 0xf8, 0xf2);
+
+    // Dracula theme 16-color ANSI palette.
+    const PALETTE: [RGB8; 16] = [
+        RGB8::new(0x21, 0x22, 0x2c), // ansi 0  black
+        RGB8::new(0xff, 0x55, 0x55), // ansi 1  red
+        RGB8::new(0x50, 0xfa, 0x7b), // ansi 2  green
+        RGB8::new(0xf1, 0xfa, 0x8c), // ansi 3  yellow
+        RGB8::new(0xbd, 0x93, 0xf9), // ansi 4  blue
+        RGB8::new(0xff, 0x79, 0xc6), // ansi 5  magenta
+        RGB8::new(0x8b, 0xe9, 0xfd), // ansi 6  cyan
+        RGB8::new(0xf8, 0xf8, 0xf2), // ansi 7  white
+        RGB8::new(0x62, 0x72, 0xa4), // ansi 8  bright black
+        RGB8::new(0xff, 0x6e, 0x6e), // ansi 9  bright red
+        RGB8::new(0x69, 0xff, 0x94), // ansi 10 bright green
+        RGB8::new(0xff, 0xff, 0xa5), // ansi 11 bright yellow
+        RGB8::new(0xd6, 0xac, 0xff), // ansi 12 bright blue
+        RGB8::new(0xff, 0x92, 0xdf), // ansi 13 bright magenta
+        RGB8::new(0xa4, 0xff, 0xff), // ansi 14 bright cyan
+        RGB8::new(0xff, 0xff, 0xff), // ansi 15 bright white
     ];
 
-    const BG: usize = 0;
-    const FG: usize = 1;
-    const RED: usize = 3;
-    const GREEN: usize = 4;
-    const YELLOW: usize = 5;
-    const BLUE: usize = 6;
-    const MAGENTA: usize = 7;
-    const CYAN: usize = 8;
-    const BRIGHT_RED: usize = 11;
-    const BRIGHT_WHITE: usize = 17;
+    const RED: usize = 1;
+    const GREEN: usize = 2;
+    const YELLOW: usize = 3;
+    const BLUE: usize = 4;
+    const MAGENTA: usize = 5;
+    const CYAN: usize = 6;
+    const BRIGHT_RED: usize = 9;
+    const BRIGHT_WHITE: usize = 15;
 
     // Grid laid down by SEED. Each row exercises one feature category, with
     // multiple variants per row when the category has fg/bg / default/colored
@@ -213,8 +213,8 @@ mod tests {
         // ── color paths ──
         // Cube/grayscale solid fills use threshold 0 (tighter than the resvg
         // default of 3) so a one-unit Theme::color formula regression fails.
-        assert_rgb_close(cell_center(&image, 38, 0), PALETTE[BG], 0);
-        assert_rgb_close(cell_center(&image, 0, 0), PALETTE[FG], 3);
+        assert_rgb_close(cell_center(&image, 38, 0), BG, 0);
+        assert_rgb_close(cell_center(&image, 0, 0), FG, 3);
         assert_rgb_close(cell_center(&image, 0, 1), PALETTE[RED], 3);
         assert_rgb_close(cell_center(&image, 3, 1), RGB8::new(0x40, 0x20, 0x70), 3);
         assert_rgb_close(cell_center(&image, 0, 2), PALETTE[GREEN], 3);
@@ -225,8 +225,8 @@ mod tests {
         assert_rgb_close(cell_center(&image, 3, 4), RGB8::new(208, 208, 208), 0);
 
         // ── reverse + cursor matrix (row 5) ──
-        assert_rgb_close(cell_center(&image, 0, 5), PALETTE[FG], 3);
-        assert_rgb_close(cell_center(&image, 2, 5), PALETTE[FG], 3);
+        assert_rgb_close(cell_center(&image, 0, 5), FG, 3);
+        assert_rgb_close(cell_center(&image, 2, 5), FG, 3);
         assert_rgb_close(cell_center(&image, 6, 5), PALETTE[BLUE], 3);
 
         // ── underline (row 6) ──
@@ -238,9 +238,9 @@ mod tests {
         assert_closer_to(
             cell_pixel(&image, 0, 6, 0.5, RESVG_UND_Y),
             PALETTE[MAGENTA],
-            PALETTE[BG],
+            BG,
         );
-        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RESVG_UND_Y), PALETTE[BG], 3);
+        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RESVG_UND_Y), BG, 3);
 
         // ── bold / italic (row 7) ──
         assert_inkier(&image, (2, 7), (0, 7), M_BOLD_PROBE, M_STYLED_INK_DIFF);
@@ -258,12 +258,8 @@ mod tests {
         // AA-blended against the yellow bg.
         assert_rgb_close(cell_center(&image, 0, 8), PALETTE[YELLOW], 3);
         assert_rgb_close(cell_center(&image, 1, 8), PALETTE[YELLOW], 3);
-        assert_closer_to(
-            cell_pixel(&image, 1, 8, 0.3, 0.5),
-            PALETTE[FG],
-            PALETTE[YELLOW],
-        );
-        assert_rgb_close(cell_center(&image, 2, 8), PALETTE[FG], 3);
+        assert_closer_to(cell_pixel(&image, 1, 8, 0.3, 0.5), FG, PALETTE[YELLOW]);
+        assert_rgb_close(cell_center(&image, 2, 8), FG, 3);
 
         // ── emoji (row 9) ──
         let (px, py) = STAR_BODY_PROBE;
@@ -276,13 +272,13 @@ mod tests {
         // blends to FG/BG midpoint = MID_FG_BG.
         assert_rgb_close(cell_center(&image, 0, 10), MID_FG_BG, 3);
         assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, RESVG_UND_Y), MID_FG_BG, 5);
-        assert_closer_to(cell_center(&image, 2, 10), PALETTE[FG], PALETTE[BG]);
+        assert_closer_to(cell_center(&image, 2, 10), FG, BG);
 
         // ── bold-is-bright (row 11, default off) ──
         // ANSI white (n=7) probes the n < 8 boundary; without --bold-is-bright
         // it stays at theme.fg (palette[7] = white = FG in the Dracula theme).
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[RED], 3);
-        assert_rgb_close(cell_center(&image, 2, 11), PALETTE[FG], 3);
+        assert_rgb_close(cell_center(&image, 2, 11), FG, 3);
 
         // Second render: cursor over the plain colored cell — swap.
         let image = render(Some((4, 5)));
@@ -303,8 +299,8 @@ mod tests {
         let image = render(Some((0, 5)));
 
         // ── color paths ──
-        assert_rgb_close(cell_center(&image, 38, 0), PALETTE[BG], 0);
-        assert_rgb_close(cell_center(&image, 0, 0), PALETTE[FG], 4);
+        assert_rgb_close(cell_center(&image, 38, 0), BG, 0);
+        assert_rgb_close(cell_center(&image, 0, 0), FG, 4);
         assert_rgb_close(cell_center(&image, 0, 1), PALETTE[RED], 4);
         assert_rgb_close(cell_center(&image, 3, 1), RGB8::new(0x40, 0x20, 0x70), 0);
         assert_rgb_close(cell_center(&image, 0, 2), PALETTE[GREEN], 4);
@@ -315,8 +311,8 @@ mod tests {
         assert_rgb_close(cell_center(&image, 3, 4), RGB8::new(208, 208, 208), 0);
 
         // ── reverse + cursor matrix (row 5) ──
-        assert_rgb_close(cell_center(&image, 0, 5), PALETTE[FG], 0);
-        assert_rgb_close(cell_center(&image, 2, 5), PALETTE[FG], 0);
+        assert_rgb_close(cell_center(&image, 0, 5), FG, 0);
+        assert_rgb_close(cell_center(&image, 2, 5), FG, 0);
         assert_rgb_close(cell_center(&image, 6, 5), PALETTE[BLUE], 0);
 
         // ── underline (row 6) ──
@@ -325,8 +321,8 @@ mod tests {
             PALETTE[MAGENTA],
             4,
         );
-        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RASTER_UND_Y), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, RASTER_UND_Y), PALETTE[FG], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 6, 0.5, RASTER_UND_Y), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, RASTER_UND_Y), FG, 0);
 
         // ── bold / italic (row 7) ──
         assert_inkier(&image, (2, 7), (0, 7), M_BOLD_PROBE, M_STYLED_INK_DIFF);
@@ -342,12 +338,8 @@ mod tests {
         // ── wide CJK (row 8) ──
         assert_rgb_close(cell_center(&image, 0, 8), PALETTE[YELLOW], 0);
         assert_rgb_close(cell_center(&image, 1, 8), PALETTE[YELLOW], 0);
-        assert_closer_to(
-            cell_pixel(&image, 1, 8, 0.3, 0.5),
-            PALETTE[FG],
-            PALETTE[YELLOW],
-        );
-        assert_rgb_close(cell_center(&image, 2, 8), PALETTE[FG], 4);
+        assert_closer_to(cell_pixel(&image, 1, 8, 0.3, 0.5), FG, PALETTE[YELLOW]);
+        assert_rgb_close(cell_center(&image, 2, 8), FG, 4);
 
         // ── emoji (row 9) ──
         let (px, py) = STAR_BODY_PROBE;
@@ -358,7 +350,7 @@ mod tests {
 
         // ── bold-is-bright (row 11, default off) ──
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[RED], 4);
-        assert_rgb_close(cell_center(&image, 2, 11), PALETTE[FG], 4);
+        assert_rgb_close(cell_center(&image, 2, 11), FG, 4);
 
         let image = render(Some((4, 5)));
         assert_rgb_close(cell_center(&image, 4, 5), PALETTE[BLUE], 0);
@@ -385,28 +377,28 @@ mod tests {
 
         // Heavy vertical and half-lines use centered crisp strokes.
         assert_rgb_close(cell_pixel(&image, 0, 0, 0.5, 0.5), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 0, 0, 0.1, 0.5), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.1, 0.5), BG, 0);
         assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.25), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.75), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.25), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.75), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.25), BG, 0);
         assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.75), PALETTE[GREEN], 0);
 
         // Blocks, quadrants, and black square are cell-aligned geometry.
         assert_rgb_close(cell_pixel(&image, 3, 0, 0.5, 0.25), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 3, 0, 0.5, 0.75), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 3, 0, 0.5, 0.75), BG, 0);
         assert_rgb_close(cell_pixel(&image, 4, 0, 0.25, 0.25), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 4, 0, 0.75, 0.25), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 4, 0, 0.25, 0.75), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 0, 0.75, 0.25), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 4, 0, 0.25, 0.75), BG, 0);
         assert_rgb_close(cell_pixel(&image, 4, 0, 0.75, 0.75), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.1), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.1), BG, 0);
         assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.5), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.9), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 5, 0, 0.5, 0.9), BG, 0);
 
         // Sextants use 2x3 cell granularity, including the Unicode gap mapping.
         assert_rgb_close(cell_pixel(&image, 6, 0, 0.25, 0.16), PALETTE[GREEN], 0);
-        assert_rgb_close(cell_pixel(&image, 6, 0, 0.75, 0.16), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 6, 0, 0.25, 0.5), PALETTE[BG], 0);
-        assert_rgb_close(cell_pixel(&image, 7, 0, 0.25, 0.16), PALETTE[BG], 0);
+        assert_rgb_close(cell_pixel(&image, 6, 0, 0.75, 0.16), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 6, 0, 0.25, 0.5), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 7, 0, 0.25, 0.16), BG, 0);
         assert_rgb_close(cell_pixel(&image, 7, 0, 0.75, 0.16), PALETTE[GREEN], 0);
         assert_rgb_close(cell_pixel(&image, 7, 0, 0.25, 0.5), PALETTE[GREEN], 0);
         assert_rgb_close(cell_pixel(&image, 7, 0, 0.75, 0.5), PALETTE[GREEN], 0);
@@ -420,26 +412,22 @@ mod tests {
         // Shades blend the foreground over the already-painted background.
         assert_rgb_close(
             cell_center(&image, 0, 2),
-            blend_rgb(PALETTE[RED], PALETTE[BG], 64),
+            blend_rgb(PALETTE[RED], BG, 64),
             0,
         );
         assert_rgb_close(
             cell_center(&image, 1, 2),
-            blend_rgb(PALETTE[RED], PALETTE[BG], 128),
+            blend_rgb(PALETTE[RED], BG, 128),
             0,
         );
         assert_rgb_close(
             cell_center(&image, 2, 2),
-            blend_rgb(PALETTE[RED], PALETTE[BG], 192),
+            blend_rgb(PALETTE[RED], BG, 192),
             0,
         );
 
         // Faint = half intensity.
-        assert_rgb_close(
-            cell_center(&image, 0, 3),
-            blend_rgb(PALETTE[FG], PALETTE[BG], 127),
-            0,
-        );
+        assert_rgb_close(cell_center(&image, 0, 3), blend_rgb(FG, BG, 127), 0);
     }
 
     #[test]
@@ -571,8 +559,9 @@ mod tests {
     }
 
     fn theme() -> Theme {
-        PALETTE
-            .iter()
+        [BG, FG]
+            .into_iter()
+            .chain(PALETTE)
             .map(|c| format!("{:02x}{:02x}{:02x}", c.r, c.g, c.b))
             .collect::<Vec<_>>()
             .join(",")
@@ -647,9 +636,8 @@ mod tests {
     ) {
         let styled = cell_pixel(image, styled_col, styled_row, x_ratio, y_ratio);
         let control = cell_pixel(image, control_col, control_row, x_ratio, y_ratio);
-        let bg = PALETTE[BG];
-        let styled_ink = rgb_distance(styled, bg);
-        let control_ink = rgb_distance(control, bg);
+        let styled_ink = rgb_distance(styled, BG);
+        let control_ink = rgb_distance(control, BG);
         let diff = styled_ink.saturating_sub(control_ink);
         assert!(
             diff >= min_diff,
@@ -662,14 +650,14 @@ mod tests {
             assert_closer_to(
                 cell_pixel(image, 0, 0, x_ratio, y_ratio),
                 PALETTE[GREEN],
-                PALETTE[BG],
+                BG,
             );
         }
 
         for (x_ratio, y_ratio) in [(0.50, 0.50), (0.72, 0.72), (0.06, 0.06)] {
             assert_rgb_close(
                 cell_pixel(image, 0, 0, x_ratio, y_ratio),
-                PALETTE[BG],
+                BG,
                 background_threshold,
             );
         }
@@ -724,7 +712,7 @@ mod tests {
 
         let inked_pixels = (y_t..y_b)
             .flat_map(|y| (x_l..x_r).map(move |x| image.buf()[y * image.width() + x]))
-            .filter(|px| rgb_distance(RGB8::new(px.r, px.g, px.b), PALETTE[BG]) > 20)
+            .filter(|px| rgb_distance(RGB8::new(px.r, px.g, px.b), BG) > 20)
             .count();
 
         assert!(inked_pixels > 10, "expected the cell to contain glyph ink");
