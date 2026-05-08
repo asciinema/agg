@@ -39,6 +39,20 @@ struct RenderCell {
     fg: RGBA8,
 }
 
+#[derive(Clone, Copy)]
+enum BoxLineStyle {
+    Light,
+    Heavy,
+}
+
+#[derive(Clone, Copy)]
+struct BoxLineGlyph {
+    up: Option<BoxLineStyle>,
+    right: Option<BoxLineStyle>,
+    down: Option<BoxLineStyle>,
+    left: Option<BoxLineStyle>,
+}
+
 pub struct SwashRenderer {
     font_families: Vec<String>,
     theme: Theme,
@@ -370,6 +384,104 @@ impl SwashRenderer {
         }
     }
 
+    fn box_thickness(&self) -> usize {
+        (self.underline_thickness.ceil() as usize).max(1)
+    }
+
+    fn line_thickness(&self, style: BoxLineStyle) -> usize {
+        let light = self.box_thickness();
+
+        match style {
+            BoxLineStyle::Light => light,
+            BoxLineStyle::Heavy => light.saturating_mul(2),
+        }
+    }
+
+    fn paint_box_lines(
+        &self,
+        buf: &mut [RGBA8],
+        layout: CellLayout,
+        fg: RGBA8,
+        faint: bool,
+        glyph: BoxLineGlyph,
+    ) {
+        let cell_w = layout.x_r.saturating_sub(layout.x_l);
+        let cell_h = layout.y_b.saturating_sub(layout.y_t);
+        let light_w = self.box_thickness().min(cell_w);
+        let light_h = self.box_thickness().min(cell_h);
+        let center_x_l = layout.x_l + (cell_w.saturating_sub(light_w)) / 2;
+        let center_x_r = center_x_l + light_w;
+        let center_y_t = layout.y_t + (cell_h.saturating_sub(light_h)) / 2;
+        let center_y_b = center_y_t + light_h;
+
+        let stroke_x = |style| {
+            let stroke_w = self.line_thickness(style).min(cell_w);
+            let x_l = layout.x_l + (cell_w - stroke_w) / 2;
+
+            (x_l, x_l + stroke_w)
+        };
+
+        let stroke_y = |style| {
+            let stroke_h = self.line_thickness(style).min(cell_h);
+            let y_t = layout.y_t + (cell_h - stroke_h) / 2;
+
+            (y_t, y_t + stroke_h)
+        };
+
+        let up_x = glyph.up.map(stroke_x);
+        let down_x = glyph.down.map(stroke_x);
+        let right_y = glyph.right.map(stroke_y);
+        let left_y = glyph.left.map(stroke_y);
+
+        let vertical_l = [up_x, down_x]
+            .into_iter()
+            .flatten()
+            .map(|(x_l, _)| x_l)
+            .min();
+
+        let vertical_r = [up_x, down_x]
+            .into_iter()
+            .flatten()
+            .map(|(_, x_r)| x_r)
+            .max();
+
+        let horizontal_t = [right_y, left_y]
+            .into_iter()
+            .flatten()
+            .map(|(y_t, _)| y_t)
+            .min();
+
+        let horizontal_b = [right_y, left_y]
+            .into_iter()
+            .flatten()
+            .map(|(_, y_b)| y_b)
+            .max();
+
+        if let Some((v_l, v_r)) = up_x {
+            let up_bottom = horizontal_b.unwrap_or(center_y_b);
+
+            self.paint_cell_rect(buf, (v_l, layout.y_t, v_r, up_bottom), fg, faint);
+        }
+
+        if let Some((h_t, h_b)) = right_y {
+            let right_left = vertical_l.unwrap_or(center_x_l);
+
+            self.paint_cell_rect(buf, (right_left, h_t, layout.x_r, h_b), fg, faint);
+        }
+
+        if let Some((v_l, v_r)) = down_x {
+            let down_top = horizontal_t.unwrap_or(center_y_t);
+
+            self.paint_cell_rect(buf, (v_l, down_top, v_r, layout.y_b), fg, faint);
+        }
+
+        if let Some((h_t, h_b)) = left_y {
+            let left_right = vertical_r.unwrap_or(center_x_r);
+
+            self.paint_cell_rect(buf, (layout.x_l, h_t, left_right, h_b), fg, faint);
+        }
+    }
+
     fn paint_mosaic_symbol(
         &self,
         buf: &mut [RGBA8],
@@ -387,40 +499,58 @@ impl SwashRenderer {
         let half_x = x(1, 2);
         let half_y = y(1, 2);
 
-        let stroke_w = layout
-            .x_r
-            .saturating_sub(layout.x_l)
-            .div_ceil(4)
-            .max(1)
-            .min(layout.x_r.saturating_sub(layout.x_l));
+        use BoxLineStyle::{Heavy, Light};
 
-        let stroke_l = layout.x_l + (layout.x_r.saturating_sub(layout.x_l) - stroke_w) / 2;
-        let stroke_r = stroke_l + stroke_w;
+        macro_rules! box_lines {
+            ($up:expr, $right:expr, $down:expr, $left:expr) => {
+                self.paint_box_lines(
+                    buf,
+                    layout,
+                    fg,
+                    attrs.faint,
+                    BoxLineGlyph {
+                        up: $up,
+                        right: $right,
+                        down: $down,
+                        left: $left,
+                    },
+                )
+            };
+        }
 
         match cp {
-            // box drawings heavy vertical
-            0x2503 => self.paint_cell_rect(
-                buf,
-                (stroke_l, layout.y_t, stroke_r, layout.y_b),
-                fg,
-                attrs.faint,
-            ),
+            // box drawings light/heavy horizontal and vertical
+            0x2500 => box_lines!(None, Some(Light), None, Some(Light)),
+            0x2501 => box_lines!(None, Some(Heavy), None, Some(Heavy)),
+            0x2502 => box_lines!(Some(Light), None, Some(Light), None),
+            0x2503 => box_lines!(Some(Heavy), None, Some(Heavy), None),
 
-            // box drawings heavy up
-            0x2579 => self.paint_cell_rect(
-                buf,
-                (stroke_l, layout.y_t, stroke_r, half_y),
-                fg,
-                attrs.faint,
-            ),
+            // box drawings light/heavy corners
+            0x250C => box_lines!(None, Some(Light), Some(Light), None),
+            0x250F => box_lines!(None, Some(Heavy), Some(Heavy), None),
+            0x2510 => box_lines!(None, None, Some(Light), Some(Light)),
+            0x2513 => box_lines!(None, None, Some(Heavy), Some(Heavy)),
+            0x2514 => box_lines!(Some(Light), Some(Light), None, None),
+            0x2517 => box_lines!(Some(Heavy), Some(Heavy), None, None),
+            0x2518 => box_lines!(Some(Light), None, None, Some(Light)),
+            0x251B => box_lines!(Some(Heavy), None, None, Some(Heavy)),
 
-            // box drawings heavy down
-            0x257B => self.paint_cell_rect(
-                buf,
-                (stroke_l, half_y, stroke_r, layout.y_b),
-                fg,
-                attrs.faint,
-            ),
+            // box drawings mixed junctions used by Rich tables
+            0x2521 => box_lines!(Some(Heavy), Some(Heavy), Some(Light), None),
+            0x2529 => box_lines!(Some(Heavy), None, Some(Light), Some(Heavy)),
+            0x2533 => box_lines!(None, Some(Heavy), Some(Heavy), Some(Heavy)),
+            0x2534 => box_lines!(Some(Light), Some(Light), None, Some(Light)),
+            0x2547 => box_lines!(Some(Heavy), Some(Heavy), Some(Light), Some(Heavy)),
+
+            // box drawings light/heavy half-lines
+            0x2574 => box_lines!(None, None, None, Some(Light)),
+            0x2575 => box_lines!(Some(Light), None, None, None),
+            0x2576 => box_lines!(None, Some(Light), None, None),
+            0x2577 => box_lines!(None, None, Some(Light), None),
+            0x2578 => box_lines!(None, None, None, Some(Heavy)),
+            0x2579 => box_lines!(Some(Heavy), None, None, None),
+            0x257A => box_lines!(None, Some(Heavy), None, None),
+            0x257B => box_lines!(None, None, Some(Heavy), None),
 
             // upper half block
             0x2580 => self.paint_cell_rect(

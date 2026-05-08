@@ -373,14 +373,24 @@ mod tests {
             "\x1b[38;5;1m░▒▓\x1b[39m",
             "\r\n",
             "\x1b[2m█\x1b[22m",
+            "\r\n",
+            "\x1b[38;5;4m─│╴╵╶╷\x1b[39m",
+            "\r\n",
+            "\x1b[38;5;5m━┃╸╹╺╻\x1b[39m",
+            "\r\n",
+            "\x1b[38;5;6m┌┐└┘┏┓┗┛\x1b[39m",
+            "\r\n",
+            "\x1b[38;5;3m┡┩┳┴╇\x1b[39m",
         );
         let image = renderer.render(&lines_for(input), None);
 
         // Heavy vertical and half-lines use centered crisp strokes.
         assert_rgb_close(cell_pixel(&image, 0, 0, 0.5, 0.5), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.34, 0.5), BG, 0);
         assert_rgb_close(cell_pixel(&image, 0, 0, 0.1, 0.5), BG, 0);
         assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.25), PALETTE[GREEN], 0);
         assert_rgb_close(cell_pixel(&image, 1, 0, 0.5, 0.75), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.46), PALETTE[GREEN], 0);
         assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.25), BG, 0);
         assert_rgb_close(cell_pixel(&image, 2, 0, 0.5, 0.75), PALETTE[GREEN], 0);
 
@@ -429,6 +439,69 @@ mod tests {
 
         // Faint = half intensity.
         assert_rgb_close(cell_center(&image, 0, 3), blend_rgb(FG, BG, 127), 0);
+
+        // Box drawing light lines use the font-derived light stroke.
+        assert_rgb_close(cell_pixel(&image, 0, 4, 0.5, 0.46), PALETTE[BLUE], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 4, 0.5, 0.4), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 1, 4, 0.42, 0.5), PALETTE[BLUE], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 4, 0.58, 0.5), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 2, 4, 0.25, 0.46), PALETTE[BLUE], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 4, 0.75, 0.46), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 3, 4, 0.42, 0.25), PALETTE[BLUE], 0);
+        assert_rgb_close(cell_pixel(&image, 3, 4, 0.42, 0.75), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 4, 4, 0.75, 0.46), PALETTE[BLUE], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 4, 0.25, 0.46), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 5, 4, 0.42, 0.75), PALETTE[BLUE], 0);
+        assert_rgb_close(cell_pixel(&image, 5, 4, 0.42, 0.25), BG, 0);
+
+        // Box drawing heavy horizontal lines and half-lines mirror vertical strokes.
+        assert_rgb_close(cell_pixel(&image, 0, 5, 0.5, 0.5), PALETTE[MAGENTA], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 5, 0.5, 0.4), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 2, 5, 0.25, 0.5), PALETTE[MAGENTA], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 5, 0.75, 0.5), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 4, 5, 0.75, 0.5), PALETTE[MAGENTA], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 5, 0.25, 0.5), BG, 0);
+
+        // All-light and all-heavy corners join cleanly through the center.
+        assert_rgb_close(cell_pixel(&image, 0, 6, 0.75, 0.46), PALETTE[CYAN], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 6, 0.42, 0.75), PALETTE[CYAN], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 6, 0.25, 0.25), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 4, 6, 0.75, 0.5), PALETTE[CYAN], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 6, 0.5, 0.75), PALETTE[CYAN], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 6, 0.25, 0.25), BG, 0);
+
+        // Mixed-weight junctions used by emoji.cast are rendered as crisp geometry.
+        assert_rgb_close(cell_pixel(&image, 0, 7, 0.5, 0.25), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 7, 0.75, 0.5), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 7, 0.42, 0.75), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 7, 0.25, 0.5), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 1, 7, 0.5, 0.25), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 7, 0.25, 0.5), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 7, 0.42, 0.75), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 1, 7, 0.75, 0.5), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 2, 7, 0.25, 0.5), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 7, 0.75, 0.5), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 7, 0.5, 0.75), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 2, 7, 0.5, 0.25), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 3, 7, 0.25, 0.46), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 3, 7, 0.75, 0.46), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 3, 7, 0.42, 0.25), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 3, 7, 0.42, 0.75), BG, 0);
+        assert_rgb_close(cell_pixel(&image, 4, 7, 0.5, 0.25), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 7, 0.75, 0.5), PALETTE[YELLOW], 0);
+        assert_rgb_close(cell_pixel(&image, 4, 7, 0.42, 0.75), PALETTE[YELLOW], 0);
+    }
+
+    #[test]
+    fn swash_heavy_box_corners_join_without_notches() {
+        let mut settings = settings(false);
+        settings.font_size = 40;
+        let mut renderer = swash(settings);
+        let image = renderer.render(&lines_for("\x1b[38;5;2m┏\x1b[39m"), None);
+
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.42, 0.5), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.5, 0.46), PALETTE[GREEN], 0);
+        assert_rgb_close(cell_pixel(&image, 0, 0, 0.25, 0.25), BG, 0);
     }
 
     #[test]
