@@ -493,6 +493,76 @@ mod tests {
     }
 
     #[test]
+    fn swash_renders_powerline_symbols_as_cell_geometry() {
+        let mut renderer = swash(settings_without_symbol_fallback());
+
+        let image = renderer.render(
+            &lines_for(concat!(
+                "\x1b[38;5;2m",
+                "\u{e0b0}\u{e0b1}\u{e0b2}\u{e0b3}",
+                "\u{e0b4}\u{e0b5}\u{e0b6}\u{e0b7}",
+                "\u{e0b8}\u{e0b9}\u{e0ba}\u{e0bb}",
+                "\u{e0bc}\u{e0bd}\u{e0be}\u{e0bf}",
+                "\x1b[39m",
+            )),
+            None,
+        );
+
+        for (col, x, y) in [
+            (0, 0.25, 0.50),  // right full triangle
+            (1, 0.50, 0.25),  // right bracket
+            (2, 0.75, 0.50),  // left full triangle
+            (3, 0.50, 0.25),  // left bracket
+            (4, 0.50, 0.50),  // right thick cap
+            (5, 0.85, 0.25),  // right thin cap
+            (6, 0.50, 0.50),  // left thick cap
+            (7, 0.12, 0.25),  // left thin cap
+            (8, 0.25, 0.75),  // lower-left triangle
+            (9, 0.50, 0.50),  // backslash
+            (10, 0.75, 0.75), // lower-right triangle
+            (11, 0.50, 0.50), // forward slash
+            (12, 0.25, 0.25), // upper-left triangle
+            (13, 0.50, 0.50), // redundant forward slash
+            (14, 0.75, 0.25), // upper-right triangle
+            (15, 0.50, 0.50), // redundant backslash
+        ] {
+            let actual = cell_pixel(&image, col, 0, x, y);
+            let ink = rgb_distance(actual, BG);
+
+            assert!(
+                ink > 40,
+                "expected powerline cell {col} at ({x}, {y}) to have green ink, got {actual:?}",
+            );
+        }
+
+        for (col, x, y) in [
+            (0, 0.85, 0.15),  // right full triangle
+            (1, 0.25, 0.50),  // right bracket interior
+            (2, 0.15, 0.15),  // left full triangle
+            (3, 0.75, 0.50),  // left bracket interior
+            (4, 0.90, 0.10),  // right thick cap corner
+            (5, 0.50, 0.50),  // right thin cap interior
+            (6, 0.10, 0.10),  // left thick cap corner
+            (7, 0.50, 0.50),  // left thin cap interior
+            (8, 0.90, 0.10),  // lower-left triangle
+            (9, 0.90, 0.10),  // backslash off diagonal
+            (10, 0.10, 0.10), // lower-right triangle
+            (11, 0.10, 0.10), // forward slash off diagonal
+            (12, 0.90, 0.90), // upper-left triangle
+            (13, 0.90, 0.90), // redundant forward slash off diagonal
+            (14, 0.10, 0.90), // upper-right triangle
+            (15, 0.10, 0.90), // redundant backslash off diagonal
+        ] {
+            let actual = cell_pixel(&image, col, 0, x, y);
+
+            assert!(
+                rgb_distance(actual, BG) <= 4,
+                "expected powerline cell {col} at ({x}, {y}) to stay background, got {actual:?}",
+            );
+        }
+    }
+
+    #[test]
     fn swash_heavy_box_corners_join_without_notches() {
         let mut settings = settings(false);
         settings.font_size = 40;
@@ -728,6 +798,22 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright,
+        }
+    }
+
+    fn settings_without_symbol_fallback() -> Settings {
+        let mut font_db = fontdb::Database::new();
+        font_db.load_font_data(include_bytes!("../fonts/JetBrainsMono-Regular.ttf").to_vec());
+
+        Settings {
+            terminal_size: (COLS, ROWS),
+            font_db,
+            font_families: vec![FONT_FAMILY.to_owned()],
+            text_family: FONT_FAMILY.to_owned(),
+            font_size: FONT_SIZE,
+            line_height: LINE_HEIGHT,
+            theme: theme(),
+            bold_is_bright: false,
         }
     }
 
