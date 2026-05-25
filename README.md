@@ -29,6 +29,7 @@ Notable features:
 - automatic use of the recording's embedded theme when present,
 - configurable [font families](https://docs.asciinema.org/manual/agg/usage/#fonts)
   with sensible cross-platform defaults and implicit fallbacks for symbols,
+  including automatic Nerd Font symbols rendering,
 - configurable font size and line height,
 - additional font directory support via `--font-dir` for fonts outside standard
   system locations,
