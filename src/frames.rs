@@ -50,6 +50,19 @@ pub fn from_range(
     generate_with(&mut vt, events, RangeEmitter::new(start, end, blank))
 }
 
+/// Generate terminal states at each resolved timestamp, using player seek
+/// semantics. `positions` must be sorted ascending and deduplicated.
+pub fn at_positions(
+    events: &[Event],
+    terminal_size: (usize, usize),
+    positions: Vec<f64>,
+) -> Vec<Frame> {
+    let mut vt = terminal::build(terminal_size);
+    let blank = Frame::from_vt(0.0, &vt);
+
+    generate_with(&mut vt, events, PositionEmitter::new(positions, blank))
+}
+
 /// Replay the timeline through `vt`, feeding the emitter one candidate frame
 /// per event. Only output events mutate the terminal; marker and `Other` events
 /// still produce a candidate frame so the emitter can detect crossings.
@@ -123,6 +136,55 @@ impl FrameEmitter for RangeEmitter {
         if self.end.is_none_or(|end| time <= end) && matches!(event, Event::Output { .. }) {
             out.push(frame);
         }
+
+        out
+    }
+}
+
+struct PositionEmitter {
+    positions: Vec<f64>,
+    next: usize,
+    /// Terminal state after the last processed event, the source for the next
+    /// crossed position. Initialized to the blank frame.
+    last: Frame,
+}
+
+impl PositionEmitter {
+    fn new(positions: Vec<f64>, blank: Frame) -> Self {
+        PositionEmitter {
+            positions,
+            next: 0,
+            last: blank,
+        }
+    }
+
+    /// Emit every pending position strictly before `boundary`, each carrying the
+    /// current `last` state retimestamped to the requested position.
+    fn emit_before(&mut self, boundary: f64, out: &mut Vec<Frame>) {
+        while self.next < self.positions.len() && self.positions[self.next] < boundary {
+            let mut frame = self.last.clone();
+            frame.time = self.positions[self.next];
+            out.push(frame);
+            self.next += 1;
+        }
+    }
+}
+
+impl FrameEmitter for PositionEmitter {
+    fn emit(&mut self, frame: Frame, _event: &Event) -> Vec<Frame> {
+        let mut out = Vec::new();
+
+        // Positions before this event's time are now final; events sharing a
+        // position's timestamp are applied first, so the boundary is exclusive.
+        self.emit_before(frame.time, &mut out);
+        self.last = frame;
+
+        out
+    }
+
+    fn finish(&mut self) -> Vec<Frame> {
+        let mut out = Vec::new();
+        self.emit_before(f64::INFINITY, &mut out);
 
         out
     }
@@ -224,5 +286,48 @@ mod tests {
 
         assert_eq!(times(&frames), vec![0.0, 1.0, 2.0]);
         assert_eq!(texts(&frames), vec!["    ", "a   ", "ab  "]);
+    }
+
+    #[test]
+    fn positions_capture_seek_state_at_each_timestamp() {
+        let events = [output(1.0, "a"), output(2.0, "b"), output(3.0, "c")];
+
+        let frames = at_positions(&events, (4, 1), vec![2.0]);
+        assert_eq!(times(&frames), vec![2.0]);
+        assert_eq!(texts(&frames), vec!["ab  "]);
+
+        let frames = at_positions(&events, (4, 1), vec![3.0]);
+        assert_eq!(texts(&frames), vec!["abc "]);
+    }
+
+    #[test]
+    fn position_before_first_event_emits_blank() {
+        let events = [output(1.0, "a")];
+        let frames = at_positions(&events, (4, 1), vec![0.5]);
+
+        assert_eq!(times(&frames), vec![0.5]);
+        assert_eq!(texts(&frames), vec!["    "]);
+    }
+
+    #[test]
+    fn one_event_crossing_multiple_positions_shares_state() {
+        let events = [output(1.0, "a"), output(3.0, "b")];
+        let frames = at_positions(&events, (4, 1), vec![1.5, 2.5]);
+
+        assert_eq!(times(&frames), vec![1.5, 2.5]);
+        assert_eq!(texts(&frames), vec!["a   ", "a   "]);
+    }
+
+    #[test]
+    fn exact_match_applies_all_events_at_that_timestamp() {
+        let events = [
+            output(1.0, "a"),
+            output(2.0, "b"),
+            output(2.0, "c"),
+            output(5.0, "d"),
+        ];
+        let frames = at_positions(&events, (4, 1), vec![2.0]);
+
+        assert_eq!(texts(&frames), vec!["abc "]);
     }
 }

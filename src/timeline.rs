@@ -2,6 +2,51 @@ use anyhow::Result;
 
 use crate::asciicast::Event;
 
+/// The slice of an adjusted recording timeline needed to resolve selections.
+pub struct Summary {
+    duration: f64,
+    has_output: bool,
+    markers: Vec<(f64, String)>,
+    event_times: Vec<f64>,
+}
+
+impl Summary {
+    pub fn from_events(events: &[Event]) -> Self {
+        let markers = events
+            .iter()
+            .filter_map(|e| match e {
+                Event::Marker { time, label } => Some((*time, label.clone())),
+                _ => None,
+            })
+            .collect();
+
+        Summary {
+            // Adjusted duration is the timestamp of the last timeline event,
+            // including non-visual events such as markers and exits.
+            duration: events.last().map_or(0.0, Event::time),
+            has_output: events.iter().any(|e| matches!(e, Event::Output { .. })),
+            markers,
+            event_times: events.iter().map(Event::time).collect(),
+        }
+    }
+
+    pub fn duration(&self) -> f64 {
+        self.duration
+    }
+
+    pub fn has_output(&self) -> bool {
+        self.has_output
+    }
+
+    pub fn markers(&self) -> &[(f64, String)] {
+        &self.markers
+    }
+
+    pub fn event_times(&self) -> &[f64] {
+        &self.event_times
+    }
+}
+
 pub fn accelerate(
     events: impl Iterator<Item = Result<Event>>,
     speed: f64,
@@ -51,6 +96,36 @@ mod tests {
 
     fn times(events: Vec<Event>) -> Vec<f64> {
         events.into_iter().map(|e| e.time()).collect()
+    }
+
+    #[test]
+    fn summary_duration_includes_trailing_non_output_event() {
+        // Duration is the timestamp of the last timeline event even when it is a
+        // non-output event such as a marker.
+        let events = [
+            output(1.0),
+            Event::Marker {
+                time: 5.0,
+                label: "end".to_owned(),
+            },
+        ];
+
+        let summary = super::Summary::from_events(&events);
+
+        assert_eq!(summary.duration(), 5.0);
+        assert!(summary.has_output());
+        assert_eq!(summary.markers(), &[(5.0, "end".to_owned())]);
+        assert_eq!(summary.event_times(), &[1.0, 5.0]);
+    }
+
+    #[test]
+    fn summary_of_empty_timeline_has_zero_duration_and_no_output() {
+        let summary = super::Summary::from_events(&[]);
+
+        assert_eq!(summary.duration(), 0.0);
+        assert!(!summary.has_output());
+        assert!(summary.markers().is_empty());
+        assert!(summary.event_times().is_empty());
     }
 
     #[test]

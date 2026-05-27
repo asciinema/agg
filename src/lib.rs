@@ -3,6 +3,7 @@ mod fonts;
 mod frames;
 mod output;
 mod renderer;
+mod selection;
 mod terminal;
 mod theme;
 mod timeline;
@@ -16,6 +17,8 @@ use clap::ValueEnum;
 use log::{info, warn};
 
 use crate::asciicast::Asciicast;
+
+pub use crate::selection::SelectionSpec;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_TEXT_FONT_FAMILY: &str =
@@ -44,6 +47,7 @@ pub struct Config {
     pub no_loop: bool,
     pub renderer: Renderer,
     pub rows: Option<usize>,
+    pub selection: SelectionSpec,
     pub speed: f64,
     pub text_font_family: String,
     pub theme: Option<Theme>,
@@ -66,6 +70,7 @@ impl Default for Config {
             no_loop: DEFAULT_NO_LOOP,
             renderer: Default::default(),
             rows: None,
+            selection: SelectionSpec::default(),
             speed: DEFAULT_SPEED,
             text_font_family: String::from(DEFAULT_TEXT_FONT_FAMILY),
             theme: Default::default(),
@@ -166,10 +171,27 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let events = timeline::accelerate(events, config.speed);
     let events = events.collect::<Result<Vec<_>>>()?;
 
-    let frames = frames::from_range(&events, terminal_size, None, None);
-    let frames = output::dedupe_visual_changes(frames);
-    let frames = output::adjust_timeline_timestamps(frames);
-    let frames = output::cap_fps(frames, config.fps_cap);
+    let summary = timeline::Summary::from_events(&events);
+    let plan = selection::resolve(&config.selection, &summary)?;
+
+    let frames = match plan {
+        // Range selections produce time-based animation frames: dedupe duplicate
+        // states, normalize the first frame to t=0, then cap FPS.
+        selection::SelectionPlan::Range { start, end } => {
+            let frames = frames::from_range(&events, terminal_size, start, end);
+            let frames = output::dedupe_visual_changes(frames);
+            let frames = output::adjust_timeline_timestamps(frames);
+            output::cap_fps(frames, config.fps_cap)
+        }
+
+        // Discrete selections: keep every resolved position, with no visual
+        // dedupe or FPS capping, spaced by a fixed per-frame duration.
+        selection::SelectionPlan::Positions(positions) => {
+            let frames = frames::at_positions(&events, terminal_size, positions);
+            output::adjust_discrete_timestamps(frames, config.last_frame_duration)
+        }
+    };
+
     let count = frames.len() as u64;
 
     info!(

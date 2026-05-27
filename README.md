@@ -38,6 +38,8 @@ Notable features:
 - two selectable rendering backends: `swash` (default) and `resvg`,
 - adjustable playback speed,
 - idle time limiting to skip periods of inactivity,
+- frame selection by time ranges, discrete positions, markers, percentages, and
+  event indexes,
 - looped or single-pass playback,
 - configurable FPS cap and last-frame duration,
 - terminal size override (cols/rows) for re-rendering at a different geometry.

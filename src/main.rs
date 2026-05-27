@@ -46,6 +46,50 @@ impl clap::builder::TypedValueParser for ThemeValueParser {
     }
 }
 
+#[derive(Clone)]
+pub struct SelectValueParser;
+
+impl clap::builder::TypedValueParser for SelectValueParser {
+    type Value = agg::SelectionSpec;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        value
+            .to_string_lossy()
+            .parse::<agg::SelectionSpec>()
+            .map_err(|msg| {
+                cmd.clone()
+                    .error(clap::error::ErrorKind::ValueValidation, msg)
+            })
+    }
+}
+
+const SELECT_LONG_HELP: &str = "\
+Select frames to render.
+
+A selector is one of:
+  .., POS.., ..POS, POS..POS      time range
+  POS, POS,POS,...                discrete positions
+  markers                         all marker positions
+
+POS may be:
+  12.5, 12.5s, 1m20s, 1:20        time
+  50%                             percent of adjusted duration
+  marker:build, marker:3          marker label prefix or 0-based marker index
+  event:100                       0-based event index
+
+Times are on the adjusted output timeline, after --idle-time-limit and --speed.
+The `markers` selector is standalone; use `marker:<label>` in ranges or lists.
+
+Examples:
+  --select 5..100%
+  --select marker:build..marker:test
+  --select 1,50%,marker:build,event:100";
+
 fn parse_line_height(s: &str) -> Result<f64, String> {
     let v: f64 = s.parse().map_err(|e: ParseFloatError| e.to_string())?;
 
@@ -116,6 +160,10 @@ struct Cli {
     /// Set last frame duration
     #[clap(long, default_value_t = agg::DEFAULT_LAST_FRAME_DURATION)]
     last_frame_duration: f64,
+
+    /// Select frames to render (see --help for details)
+    #[clap(long, value_name = "SELECTOR", value_parser = SelectValueParser, long_help = SELECT_LONG_HELP)]
+    select: Option<agg::SelectionSpec>,
 
     /// Override terminal width (number of columns)
     #[clap(long)]
@@ -214,6 +262,7 @@ fn main() -> Result<()> {
         no_loop: cli.no_loop,
         renderer: cli.renderer,
         rows: cli.rows,
+        selection: cli.select.unwrap_or_default(),
         speed: cli.speed,
         text_font_family: cli.text_font_family,
         theme: cli.theme.map(|theme| theme.0),
@@ -284,5 +333,28 @@ mod tests {
         assert_eq!(cli.font_family, Some("JetBrains Mono".to_owned()));
         assert_eq!(cli.text_font_family, agg::DEFAULT_TEXT_FONT_FAMILY);
         assert_eq!(cli.emoji_font_family, agg::DEFAULT_EMOJI_FONT_FAMILY);
+    }
+
+    #[test]
+    fn select_accepts_valid_selector() {
+        use agg::SelectionSpec;
+
+        let cli =
+            Cli::try_parse_from(["agg", "--select", "5..30", "input.cast", "output.gif"]).unwrap();
+        let expected = "5..30".parse::<SelectionSpec>().unwrap();
+
+        assert_eq!(cli.select, Some(expected));
+    }
+
+    #[test]
+    fn select_rejects_invalid_selector() {
+        let err =
+            match Cli::try_parse_from(["agg", "--select", "5..10..15", "input.cast", "output.gif"])
+            {
+                Ok(_) => panic!("expected validation error"),
+                Err(err) => err,
+            };
+
+        assert_eq!(err.kind(), ErrorKind::ValueValidation);
     }
 }

@@ -29,6 +29,16 @@ pub fn adjust_timeline_timestamps(mut frames: Vec<Frame>) -> Vec<Frame> {
     frames
 }
 
+/// Assign sequential output timestamps using a fixed per-frame duration. This
+/// preserves selection order rather than source-time spacing.
+pub fn adjust_discrete_timestamps(mut frames: Vec<Frame>, frame_duration: f64) -> Vec<Frame> {
+    for (i, frame) in frames.iter_mut().enumerate() {
+        frame.time = i as f64 * frame_duration;
+    }
+
+    frames
+}
+
 /// Reduce frames to at most one per `1/fps_cap` interval. Each window keeps the
 /// latest terminal state, timestamped at the window's start.
 pub fn cap_fps(frames: Vec<Frame>, fps_cap: u8) -> Vec<Frame> {
@@ -96,6 +106,14 @@ mod tests {
     }
 
     #[test]
+    fn empty_input_yields_empty_output() {
+        assert!(dedupe_visual_changes(Vec::new()).is_empty());
+        assert!(adjust_timeline_timestamps(Vec::new()).is_empty());
+        assert!(adjust_discrete_timestamps(Vec::new(), 3.0).is_empty());
+        assert!(cap_fps(Vec::new(), 30).is_empty());
+    }
+
+    #[test]
     fn timeline_adjustment_subtracts_first_timestamp() {
         let frames = vec![tagged(5.0, 0), tagged(8.0, 1), tagged(10.0, 2)];
         let frames = adjust_timeline_timestamps(frames);
@@ -124,5 +142,13 @@ mod tests {
 
         assert_eq!(times(&frames), vec![0.0, 1.0, 2.0]);
         assert_eq!(tags(&frames), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn discrete_timestamps_are_sequential() {
+        let frames = vec![tagged(2.0, 0), tagged(5.0, 1), tagged(10.0, 2)];
+        let frames = adjust_discrete_timestamps(frames, 3.0);
+
+        assert_eq!(times(&frames), vec![0.0, 3.0, 6.0]);
     }
 }
