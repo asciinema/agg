@@ -64,56 +64,9 @@ pub fn batch(
     }
 }
 
-pub fn accelerate(
-    events: impl Iterator<Item = Result<OutputEvent>>,
-    speed: f64,
-) -> impl Iterator<Item = Result<OutputEvent>> {
-    events.map(move |event| event.map(|(time, data)| (time / speed, data)))
-}
-
-pub fn limit_idle_time(
-    events: impl Iterator<Item = Result<OutputEvent>>,
-    limit: f64,
-) -> impl Iterator<Item = Result<OutputEvent>> {
-    let mut prev_time = 0.0;
-    let mut offset = 0.0;
-
-    events.map(move |event| {
-        event.map(|(time, data)| {
-            let delay = time - prev_time;
-            let excess = delay - limit;
-
-            if excess > 0.0 {
-                offset += excess;
-            }
-
-            prev_time = time;
-
-            (time - offset, data)
-        })
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-
-    #[test]
-    fn accelerate() {
-        let stdout = [
-            (0.0, "foo".to_owned()),
-            (1.0, "bar".to_owned()),
-            (2.0, "baz".to_owned()),
-        ];
-
-        let stdout = super::accelerate(stdout.into_iter().map(Ok), 2.0)
-            .collect::<Result<Vec<_>>>()
-            .unwrap();
-
-        assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
-        assert_eq!(&stdout[1], &(0.5, "bar".to_owned()));
-        assert_eq!(&stdout[2], &(1.0, "baz".to_owned()));
-    }
 
     #[test]
     fn batch() {
@@ -159,26 +112,5 @@ mod tests {
         assert_eq!(&stdout[0], &(0.0, "".to_owned()));
         assert_eq!(&stdout[1], &(1.0, "foo".to_owned()));
         assert_eq!(&stdout[2], &(2.0, "bar".to_owned()));
-    }
-
-    #[test]
-    fn limit_idle_time() {
-        let stdout = [
-            (0.0, "foo".to_owned()),
-            (1.0, "bar".to_owned()),
-            (3.5, "baz".to_owned()),
-            (4.0, "qux".to_owned()),
-            (7.5, "quux".to_owned()),
-        ];
-
-        let stdout = super::limit_idle_time(stdout.into_iter().map(Ok), 2.0)
-            .collect::<Result<Vec<_>>>()
-            .unwrap();
-
-        assert_eq!(&stdout[0], &(0.0, "foo".to_owned()));
-        assert_eq!(&stdout[1], &(1.0, "bar".to_owned()));
-        assert_eq!(&stdout[2], &(3.0, "baz".to_owned()));
-        assert_eq!(&stdout[3], &(3.5, "qux".to_owned()));
-        assert_eq!(&stdout[4], &(5.5, "quux".to_owned()));
     }
 }

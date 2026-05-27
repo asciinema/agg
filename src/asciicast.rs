@@ -31,6 +31,24 @@ pub enum Event {
     Other { time: f64 },
 }
 
+impl Event {
+    pub fn time(&self) -> f64 {
+        match self {
+            Event::Output { time, .. } | Event::Marker { time, .. } | Event::Other { time } => {
+                *time
+            }
+        }
+    }
+
+    pub fn with_time(self, time: f64) -> Event {
+        match self {
+            Event::Output { data, .. } => Event::Output { time, data },
+            Event::Marker { label, .. } => Event::Marker { time, label },
+            Event::Other { .. } => Event::Other { time },
+        }
+    }
+}
+
 impl Default for Header {
     fn default() -> Self {
         Self {
