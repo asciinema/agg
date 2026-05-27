@@ -4,6 +4,7 @@ use imgref::ImgVec;
 use rgb::{FromSlice, RGBA8};
 
 use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::terminal::Snapshot;
 use crate::theme::Theme;
 
 pub struct ResvgRenderer<'a> {
@@ -392,8 +393,8 @@ impl<'a> ResvgRenderer<'a> {
 }
 
 impl<'a> Renderer for ResvgRenderer<'a> {
-    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
-        let svg = self.svg_for_frame(lines, cursor);
+    fn render(&mut self, snapshot: &Snapshot) -> ImgVec<RGBA8> {
+        let svg = self.svg_for_frame(&snapshot.lines, snapshot.cursor);
         let tree = usvg::Tree::from_str(&svg, &self.options).unwrap();
 
         let mut pixmap =

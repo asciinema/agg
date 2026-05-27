@@ -2,6 +2,7 @@ mod asciicast;
 mod events;
 mod fonts;
 mod renderer;
+mod terminal;
 mod theme;
 mod timeline;
 mod vt;
@@ -266,8 +267,8 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         });
 
         for (i, frame) in frames.enumerate() {
-            let (time, lines, cursor) = frame?;
-            let image = renderer.render(&lines, cursor);
+            let (time, snapshot) = frame?;
+            let image = renderer.render(&snapshot);
             let time = if i == 0 { 0.0 } else { time };
             collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
         }

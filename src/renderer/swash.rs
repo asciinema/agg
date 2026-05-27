@@ -10,6 +10,7 @@ use swash::scale::{Render, ScaleContext, Source, StrikeWith};
 use swash::FontRef;
 
 use crate::renderer::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::terminal::Snapshot;
 use crate::theme::Theme;
 
 type CharVariant = (char, bool, bool);
@@ -1216,13 +1217,13 @@ fn sextant_mask(cp: u32) -> Option<u8> {
 }
 
 impl Renderer for SwashRenderer {
-    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8> {
+    fn render(&mut self, snapshot: &Snapshot) -> ImgVec<RGBA8> {
         let mut buf = self.new_frame();
         let margin_l = self.col_width;
         let margin_t = (self.row_height / 2.0).round() as usize;
         let mut cells = Vec::new();
 
-        for (row, line) in lines.iter().enumerate() {
+        for (row, line) in snapshot.lines.iter().enumerate() {
             let mut col = 0;
 
             for cell in line.cells() {
@@ -1232,7 +1233,7 @@ impl Renderer for SwashRenderer {
 
                 let attrs = text_attrs(
                     cell.pen(),
-                    &cursor,
+                    &snapshot.cursor,
                     col,
                     row,
                     &self.theme,

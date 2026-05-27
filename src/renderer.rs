@@ -4,10 +4,11 @@ mod swash;
 use imgref::ImgVec;
 use rgb::{RGB8, RGBA8};
 
+use crate::terminal::Snapshot;
 use crate::theme::Theme;
 
 pub trait Renderer {
-    fn render(&mut self, lines: &[avt::Line], cursor: Option<(usize, usize)>) -> ImgVec<RGBA8>;
+    fn render(&mut self, snapshot: &Snapshot) -> ImgVec<RGBA8>;
     fn pixel_size(&self) -> (usize, usize);
 }
 
@@ -204,12 +205,12 @@ mod tests {
         let mut renderer = resvg(settings(false));
         let lines = vt_lines();
 
-        let mut render = |cur| renderer.render(&lines, cur);
+        let mut render_frame = |cur| render(&mut renderer, lines.clone(), cur);
 
         // First render: cursor over (0, 5) — covers every assertion except
         // the two alternate-cursor-position cases (cursor-over-plain-colored,
         // cursor-over-reverse-colored) which need their own renders below.
-        let image = render(Some((0, 5)));
+        let image = render_frame(Some((0, 5)));
 
         // ── color paths ──
         // Cube/grayscale solid fills use threshold 0 (tighter than the resvg
@@ -282,12 +283,12 @@ mod tests {
         assert_rgb_close(cell_center(&image, 2, 11), FG, 3);
 
         // Second render: cursor over the plain colored cell — swap.
-        let image = render(Some((4, 5)));
+        let image = render_frame(Some((4, 5)));
         assert_rgb_close(cell_center(&image, 4, 5), PALETTE[BLUE], 3);
 
         // Third render: cursor over the reverse colored cell — XOR cancels,
         // cell renders with its original (un-swapped) bg color.
-        let image = render(Some((6, 5)));
+        let image = render_frame(Some((6, 5)));
         assert_rgb_close(cell_center(&image, 6, 5), PALETTE[YELLOW], 3);
     }
 
@@ -296,8 +297,8 @@ mod tests {
         let mut renderer = swash(settings(false));
         let lines = vt_lines();
 
-        let mut render = |cur| renderer.render(&lines, cur);
-        let image = render(Some((0, 5)));
+        let mut render_frame = |cur| render(&mut renderer, lines.clone(), cur);
+        let image = render_frame(Some((0, 5)));
 
         // ── color paths ──
         assert_rgb_close(cell_center(&image, 38, 0), BG, 0);
@@ -353,10 +354,10 @@ mod tests {
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[RED], 4);
         assert_rgb_close(cell_center(&image, 2, 11), FG, 4);
 
-        let image = render(Some((4, 5)));
+        let image = render_frame(Some((4, 5)));
         assert_rgb_close(cell_center(&image, 4, 5), PALETTE[BLUE], 0);
 
-        let image = render(Some((6, 5)));
+        let image = render_frame(Some((6, 5)));
         assert_rgb_close(cell_center(&image, 6, 5), PALETTE[YELLOW], 0);
     }
 
@@ -382,7 +383,7 @@ mod tests {
             "\r\n",
             "\x1b[38;5;3m┡┩┳┴╇\x1b[39m",
         );
-        let image = renderer.render(&lines_for(input), None);
+        let image = render(&mut renderer, lines_for(input), None);
 
         // Heavy vertical and half-lines use centered crisp strokes.
         assert_rgb_close(cell_pixel(&image, 0, 0, 0.5, 0.5), PALETTE[GREEN], 0);
@@ -496,8 +497,9 @@ mod tests {
     fn swash_renders_powerline_symbols_as_cell_geometry() {
         let mut renderer = swash(settings_without_symbol_fallback());
 
-        let image = renderer.render(
-            &lines_for(concat!(
+        let image = render(
+            &mut renderer,
+            lines_for(concat!(
                 "\x1b[38;5;2m",
                 "\u{e0b0}\u{e0b1}\u{e0b2}\u{e0b3}",
                 "\u{e0b4}\u{e0b5}\u{e0b6}\u{e0b7}",
@@ -567,7 +569,7 @@ mod tests {
         let mut settings = settings(false);
         settings.font_size = 40;
         let mut renderer = swash(settings);
-        let image = renderer.render(&lines_for("\x1b[38;5;2m┏\x1b[39m"), None);
+        let image = render(&mut renderer, lines_for("\x1b[38;5;2m┏\x1b[39m"), None);
 
         assert_rgb_close(cell_pixel(&image, 0, 0, 0.42, 0.5), PALETTE[GREEN], 0);
         assert_rgb_close(cell_pixel(&image, 0, 0, 0.5, 0.46), PALETTE[GREEN], 0);
@@ -577,7 +579,11 @@ mod tests {
     #[test]
     fn resvg_renders_nerd_font_symbols() {
         let mut renderer = resvg(settings(false));
-        let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
+        let image = render(
+            &mut renderer,
+            lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"),
+            None,
+        );
 
         assert_nerd_font_symbol_rendered(&image, 3);
     }
@@ -607,7 +613,11 @@ mod tests {
         };
 
         let mut renderer = resvg(settings);
-        let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
+        let image = render(
+            &mut renderer,
+            lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"),
+            None,
+        );
 
         assert_nerd_font_symbol_rendered(&image, 3);
     }
@@ -615,7 +625,11 @@ mod tests {
     #[test]
     fn swash_renders_nerd_font_symbols() {
         let mut renderer = swash(settings(false));
-        let image = renderer.render(&lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"), None);
+        let image = render(
+            &mut renderer,
+            lines_for("\x1b[38;5;2m\u{f43a}\x1b[39m"),
+            None,
+        );
 
         assert_nerd_font_symbol_rendered(&image, 0);
     }
@@ -624,8 +638,9 @@ mod tests {
     fn swash_preserves_nerd_font_symbol_overhang() {
         let mut renderer = swash(settings(false));
 
-        let image = renderer.render(
-            &lines_for("\x1b[38;5;2m\u{f03d}\x1b[39m\x1b[48;5;3m \x1b[49m"),
+        let image = render(
+            &mut renderer,
+            lines_for("\x1b[38;5;2m\u{f03d}\x1b[39m\x1b[48;5;3m \x1b[49m"),
             None,
         );
 
@@ -650,7 +665,7 @@ mod tests {
         };
 
         let mut renderer = swash(settings);
-        let image = renderer.render(&lines_for("\x1b[48;5;3m日\x1b[49m"), None);
+        let image = render(&mut renderer, lines_for("\x1b[48;5;3m日\x1b[49m"), None);
 
         assert_closer_to(cell_pixel(&image, 1, 0, 0.3, 0.5), FG, PALETTE[YELLOW]);
     }
@@ -677,13 +692,13 @@ mod tests {
         };
 
         let mut fallback_renderer = swash(settings(make_db(), vec![]));
-        let fallback_image = fallback_renderer.render(&lines_for("M"), None);
+        let fallback_image = render(&mut fallback_renderer, lines_for("M"), None);
 
         let mut regular_renderer = swash(settings(make_db(), vec![FONT_FAMILY.to_owned()]));
-        let regular_image = regular_renderer.render(&lines_for("M"), None);
+        let regular_image = render(&mut regular_renderer, lines_for("M"), None);
 
         let mut italic_renderer = swash(settings(make_db(), vec![FONT_FAMILY.to_owned()]));
-        let italic_image = italic_renderer.render(&lines_for("\x1b[3mM"), None);
+        let italic_image = render(&mut italic_renderer, lines_for("\x1b[3mM"), None);
 
         assert_images_equal(&fallback_image, &regular_image);
         assert_images_differ(&fallback_image, &italic_image);
@@ -696,7 +711,7 @@ mod tests {
     fn resvg_bold_is_bright_brightens() {
         let mut renderer = resvg(settings(true));
         let lines = vt_lines();
-        let image = renderer.render(&lines, None);
+        let image = render(&mut renderer, lines.clone(), None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 3);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 3);
     }
@@ -705,7 +720,7 @@ mod tests {
     fn swash_bold_is_bright_brightens() {
         let mut renderer = swash(settings(true));
         let lines = vt_lines();
-        let image = renderer.render(&lines, None);
+        let image = render(&mut renderer, lines.clone(), None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 4);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
     }
@@ -737,7 +752,7 @@ mod tests {
         };
 
         let mut renderer = swash(settings);
-        let image = renderer.render(&lines_for("😀"), None);
+        let image = render(&mut renderer, lines_for("😀"), None);
 
         assert_cell_has_ink(&image, 0, 0, 2);
     }
@@ -769,9 +784,17 @@ mod tests {
 
         let mut renderer = swash(settings);
         let lines = lines_for("⭐");
-        let image = renderer.render(&lines, None);
+        let image = render(&mut renderer, lines.clone(), None);
 
         assert_color_emoji_rendered(&image, 0, 0, 2);
+    }
+
+    fn render<R: Renderer>(
+        renderer: &mut R,
+        lines: Vec<avt::Line>,
+        cursor: Option<(usize, usize)>,
+    ) -> ImgVec<RGBA8> {
+        renderer.render(&Snapshot { lines, cursor })
     }
 
     fn settings(bold_is_bright: bool) -> Settings {
