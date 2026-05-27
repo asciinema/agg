@@ -3,7 +3,7 @@ use std::io;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer};
 
-use super::{Asciicast, Header, Theme};
+use super::{Asciicast, Event, Header, Theme};
 
 #[derive(Deserialize)]
 struct V2Header {
@@ -35,7 +35,7 @@ struct V2Event {
     time: f64,
     #[serde(deserialize_with = "deserialize_code")]
     code: V2EventCode,
-    data: String,
+    data: serde_json::Value,
 }
 
 #[derive(PartialEq, Debug)]
@@ -45,6 +45,33 @@ enum V2EventCode {
     Resize,
     Marker,
     Other(char),
+}
+
+impl V2EventCode {
+    fn into_event(self, time: f64, data: serde_json::Value) -> Result<Event> {
+        match self {
+            V2EventCode::Output => Ok(Event::Output {
+                time,
+                data: require_string(data, "output")?,
+            }),
+
+            V2EventCode::Marker => Ok(Event::Marker {
+                time,
+                label: require_string(data, "marker")?,
+            }),
+
+            // Ignored events carry no domain payload, so a non-string value is
+            // tolerated rather than rejected during parsing.
+            _ => Ok(Event::Other { time }),
+        }
+    }
+}
+
+fn require_string(data: serde_json::Value, kind: &str) -> Result<String> {
+    match data {
+        serde_json::Value::String(s) => Ok(s),
+        _ => bail!("{kind} event data must be a string"),
+    }
 }
 
 pub struct Parser(V2Header);
@@ -76,13 +103,13 @@ impl Parser {
     }
 }
 
-fn parse_line(line: io::Result<String>) -> Option<Result<(f64, String)>> {
+fn parse_line(line: io::Result<String>) -> Option<Result<Event>> {
     match line {
         Ok(line) => {
             if line.is_empty() {
                 None
             } else {
-                parse_event(line).transpose()
+                Some(parse_event(line))
             }
         }
 
@@ -90,16 +117,10 @@ fn parse_line(line: io::Result<String>) -> Option<Result<(f64, String)>> {
     }
 }
 
-fn parse_event(line: String) -> Result<Option<(f64, String)>> {
+fn parse_event(line: String) -> Result<Event> {
     let event = serde_json::from_str::<V2Event>(&line).context("asciicast parse error")?;
 
-    let output = if let V2EventCode::Output = event.code {
-        Some((event.time, event.data))
-    } else {
-        None
-    };
-
-    Ok(output)
+    event.code.into_event(event.time, event.data)
 }
 
 fn deserialize_code<'de, D>(deserializer: D) -> Result<V2EventCode, D::Error>
@@ -173,6 +194,96 @@ impl From<&V2Theme> for Theme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn ok_lines(lines: Vec<&str>) -> Vec<io::Result<String>> {
+        lines.into_iter().map(|s| Ok(s.to_string())).collect()
+    }
+
+    #[test]
+    fn preserves_events_with_absolute_times() {
+        let parser = open(r#"{"version":2,"width":80,"height":24}"#).unwrap();
+
+        let lines = ok_lines(vec![
+            r#"[0.5,"o","a"]"#,
+            r#"[1.0,"m","label"]"#,
+            r#"[1.5,"o","b"]"#,
+            r#"[2.0,"r","100x40"]"#,
+        ]);
+
+        let events = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                Event::Output {
+                    time: 0.5,
+                    data: "a".to_string()
+                },
+                Event::Marker {
+                    time: 1.0,
+                    label: "label".to_string()
+                },
+                Event::Output {
+                    time: 1.5,
+                    data: "b".to_string()
+                },
+                Event::Other { time: 2.0 },
+            ]
+        );
+    }
+
+    #[test]
+    fn tolerates_non_string_payload_on_ignored_events() {
+        let parser = open(r#"{"version":2,"width":80,"height":24}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.5,"r",0]"#, r#"[1.0,"o","a"]"#]);
+
+        let events = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                Event::Other { time: 0.5 },
+                Event::Output {
+                    time: 1.0,
+                    data: "a".to_string()
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_non_string_output_data() {
+        let parser = open(r#"{"version":2,"width":80,"height":24}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.1,"o",123]"#]);
+
+        let result = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_non_string_marker_label() {
+        let parser = open(r#"{"version":2,"width":80,"height":24}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.1,"m",123]"#]);
+
+        let result = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>();
+
+        assert!(result.is_err());
+    }
 
     fn header_with_palette(colors: &[&str]) -> String {
         let palette = colors.join(":");

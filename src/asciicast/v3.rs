@@ -3,7 +3,7 @@ use std::io;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer};
 
-use super::{Asciicast, Header, Theme};
+use super::{Asciicast, Event, Header, Theme};
 
 #[derive(Deserialize)]
 struct V3Header {
@@ -40,7 +40,7 @@ struct V3Event {
     time: f64,
     #[serde(deserialize_with = "deserialize_code")]
     code: V3EventCode,
-    data: String,
+    data: serde_json::Value,
 }
 
 #[derive(PartialEq, Debug)]
@@ -51,6 +51,33 @@ enum V3EventCode {
     Marker,
     Exit,
     Other(char),
+}
+
+impl V3EventCode {
+    fn into_event(self, time: f64, data: serde_json::Value) -> Result<Event> {
+        match self {
+            V3EventCode::Output => Ok(Event::Output {
+                time,
+                data: require_string(data, "output")?,
+            }),
+
+            V3EventCode::Marker => Ok(Event::Marker {
+                time,
+                label: require_string(data, "marker")?,
+            }),
+
+            // Ignored events carry no domain payload, so a non-string value is
+            // tolerated rather than rejected during parsing.
+            _ => Ok(Event::Other { time }),
+        }
+    }
+}
+
+fn require_string(data: serde_json::Value, kind: &str) -> Result<String> {
+    match data {
+        serde_json::Value::String(s) => Ok(s),
+        _ => bail!("{kind} event data must be a string"),
+    }
 }
 
 pub struct Parser {
@@ -90,13 +117,13 @@ impl Parser {
         Asciicast { header, events }
     }
 
-    fn parse_line(&mut self, line: io::Result<String>) -> Option<Result<(f64, String)>> {
+    fn parse_line(&mut self, line: io::Result<String>) -> Option<Result<Event>> {
         match line {
             Ok(line) => {
                 if line.is_empty() || line.starts_with('#') {
                     None
                 } else {
-                    self.parse_event(line).transpose()
+                    Some(self.parse_event(line))
                 }
             }
 
@@ -104,19 +131,14 @@ impl Parser {
         }
     }
 
-    fn parse_event(&mut self, line: String) -> Result<Option<(f64, String)>> {
+    fn parse_event(&mut self, line: String) -> Result<Event> {
         let event = serde_json::from_str::<V3Event>(&line).context("asciicast parse error")?;
 
+        // v3 timestamps are intervals; accumulate into an absolute timeline.
         let time = self.prev_time + event.time;
         self.prev_time = time;
 
-        let output = if let V3EventCode::Output = event.code {
-            Some((time, event.data))
-        } else {
-            None
-        };
-
-        Ok(output)
+        event.code.into_event(time, event.data)
     }
 }
 
@@ -216,21 +238,31 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                (0.5, "a".to_string()),
-                (1.5, "b".to_string()),
-                (3.0, "c".to_string()),
+                Event::Output {
+                    time: 0.5,
+                    data: "a".to_string()
+                },
+                Event::Output {
+                    time: 1.5,
+                    data: "b".to_string()
+                },
+                Event::Output {
+                    time: 3.0,
+                    data: "c".to_string()
+                },
             ]
         );
     }
 
     #[test]
-    fn non_output_events_advance_clock_but_are_filtered() {
+    fn preserves_non_output_events_on_the_timeline() {
         let parser = open(r#"{"version":3,"term":{"cols":80,"rows":24}}"#).unwrap();
 
         let lines = ok_lines(vec![
             r#"[0.5,"o","a"]"#,
             r#"[1.0,"m","label"]"#,
-            r#"[1.5,"o","b"]"#,
+            r#"[0.25,"r","100x40"]"#,
+            r#"[0.25,"o","b"]"#,
         ]);
 
         let events = parser
@@ -241,8 +273,91 @@ mod tests {
 
         assert_eq!(
             events,
-            vec![(0.5, "a".to_string()), (3.0, "b".to_string()),]
+            vec![
+                Event::Output {
+                    time: 0.5,
+                    data: "a".to_string()
+                },
+                Event::Marker {
+                    time: 1.5,
+                    label: "label".to_string()
+                },
+                Event::Other { time: 1.75 },
+                Event::Output {
+                    time: 2.0,
+                    data: "b".to_string()
+                },
+            ]
         );
+    }
+
+    #[test]
+    fn tolerates_non_string_payload_on_ignored_events() {
+        let parser = open(r#"{"version":3,"term":{"cols":80,"rows":24}}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.5,"x",0]"#, r#"[0.5,"o","a"]"#]);
+
+        let events = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                Event::Other { time: 0.5 },
+                Event::Output {
+                    time: 1.0,
+                    data: "a".to_string()
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn unlabeled_marker_has_empty_label() {
+        let parser = open(r#"{"version":3,"term":{"cols":80,"rows":24}}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.5,"m",""]"#]);
+
+        let events = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(
+            events,
+            vec![Event::Marker {
+                time: 0.5,
+                label: "".to_string()
+            }]
+        );
+    }
+
+    #[test]
+    fn rejects_non_string_output_data() {
+        let parser = open(r#"{"version":3,"term":{"cols":80,"rows":24}}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.1,"o",123]"#]);
+
+        let result = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_non_string_marker_label() {
+        let parser = open(r#"{"version":3,"term":{"cols":80,"rows":24}}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.1,"m",123]"#]);
+
+        let result = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>();
+
+        assert!(result.is_err());
     }
 
     #[test]

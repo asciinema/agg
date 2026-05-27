@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::asciicast::OutputEvent;
+type OutputEvent = (f64, String);
 
 struct Batch<I>
 where

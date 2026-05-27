@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use serde::Deserialize;
 
-use super::{Asciicast, Header};
+use super::{Asciicast, Event, Header};
 
 #[derive(Deserialize)]
 struct V1 {
@@ -34,7 +34,10 @@ pub fn load(json: String) -> Result<Asciicast<'static>> {
         let time = *prev_time + event.time;
         *prev_time = time;
 
-        Some(Ok((time, event.data)))
+        Some(Ok(Event::Output {
+            time,
+            data: event.data,
+        }))
     }));
 
     Ok(Asciicast { header, events })
@@ -63,9 +66,18 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                (0.5, "a".to_string()),
-                (1.5, "b".to_string()),
-                (3.0, "c".to_string()),
+                Event::Output {
+                    time: 0.5,
+                    data: "a".to_string()
+                },
+                Event::Output {
+                    time: 1.5,
+                    data: "b".to_string()
+                },
+                Event::Output {
+                    time: 3.0,
+                    data: "c".to_string()
+                },
             ]
         );
     }
@@ -90,10 +102,22 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                (0.0, "a".to_string()),
-                (0.5, "b".to_string()),
-                (0.5, "c".to_string()),
-                (1.0, "d".to_string()),
+                Event::Output {
+                    time: 0.0,
+                    data: "a".to_string()
+                },
+                Event::Output {
+                    time: 0.5,
+                    data: "b".to_string()
+                },
+                Event::Output {
+                    time: 0.5,
+                    data: "c".to_string()
+                },
+                Event::Output {
+                    time: 1.0,
+                    data: "d".to_string()
+                },
             ]
         );
     }

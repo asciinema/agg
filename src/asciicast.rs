@@ -10,7 +10,7 @@ use crate::theme::Theme;
 
 pub struct Asciicast<'a> {
     pub header: Header,
-    pub events: Box<dyn Iterator<Item = Result<OutputEvent>> + 'a>,
+    pub events: Box<dyn Iterator<Item = Result<Event>> + 'a>,
 }
 
 pub struct Header {
@@ -20,7 +20,16 @@ pub struct Header {
     pub idle_time_limit: Option<f64>,
 }
 
-pub type OutputEvent = (f64, String);
+/// A single recording event. Every parsed event is preserved in file order so
+/// timing transforms, selection, and frame generation use the same timeline.
+/// `Other` covers input, resize, exit, and unknown events: their payload is not
+/// modeled, only their timestamp.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Event {
+    Output { time: f64, data: String },
+    Marker { time: f64, label: String },
+    Other { time: f64 },
+}
 
 impl Default for Header {
     fn default() -> Self {
