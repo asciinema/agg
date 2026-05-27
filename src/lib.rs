@@ -1,21 +1,21 @@
 mod asciicast;
-mod events;
 mod fonts;
+mod frames;
+mod output;
 mod renderer;
 mod terminal;
 mod theme;
 mod timeline;
-mod vt;
 
 use std::fmt::{Debug, Display};
 use std::io::{BufRead, Write};
-use std::{iter, thread, time::Instant};
+use std::{thread, time::Instant};
 
 use anyhow::{anyhow, Result};
 use clap::ValueEnum;
 use log::{info, warn};
 
-use crate::asciicast::{Asciicast, Event};
+use crate::asciicast::Asciicast;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_TEXT_FONT_FAMILY: &str =
@@ -164,18 +164,13 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
 
     let events = timeline::limit_idle_time(events, itl);
     let events = timeline::accelerate(events, config.speed);
+    let events = events.collect::<Result<Vec<_>>>()?;
 
-    let events = events.filter_map(|event| match event {
-        Ok(Event::Output { time, data }) => Some(Ok((time, data))),
-        Ok(_) => None,
-        Err(e) => Some(Err(e)),
-    });
-
-    let events = iter::once(Ok((0.0, "".to_owned()))).chain(events);
-    let events = events::batch(events, config.fps_cap);
-    let events = events.collect::<Vec<_>>();
-    let count = events.len() as u64;
-    let frames = vt::frames(events.into_iter(), terminal_size);
+    let frames = frames::from_range(&events, terminal_size, None, None);
+    let frames = output::dedupe_visual_changes(frames);
+    let frames = output::adjust_timeline_timestamps(frames);
+    let frames = output::cap_fps(frames, config.fps_cap);
+    let count = frames.len() as u64;
 
     info!(
         "recording terminal size: {}x{}",
@@ -266,11 +261,9 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
             }
         });
 
-        for (i, frame) in frames.enumerate() {
-            let (time, snapshot) = frame?;
-            let image = renderer.render(&snapshot);
-            let time = if i == 0 { 0.0 } else { time };
-            collector.add_frame_rgba(i, image, time + config.last_frame_duration)?;
+        for (i, frame) in frames.into_iter().enumerate() {
+            let image = renderer.render(&frame.snapshot);
+            collector.add_frame_rgba(i, image, frame.time + config.last_frame_duration)?;
         }
 
         drop(collector);
