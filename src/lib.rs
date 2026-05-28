@@ -174,21 +174,21 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
     let summary = timeline::Summary::from_events(&events);
     let plan = selection::resolve(&config.selection, &summary)?;
 
-    let frames = match plan {
+    let frames: Vec<frames::Frame> = match plan {
         // Range selections produce time-based animation frames: dedupe duplicate
         // states, normalize the first frame to t=0, then cap FPS.
         selection::SelectionPlan::Range { start, end } => {
             let frames = frames::from_range(&events, terminal_size, start, end);
             let frames = output::dedupe_visual_changes(frames);
             let frames = output::adjust_timeline_timestamps(frames);
-            output::cap_fps(frames, config.fps_cap)
+            output::cap_fps(frames, config.fps_cap).collect()
         }
 
         // Discrete selections: keep every resolved position, with no visual
         // dedupe or FPS capping, spaced by a fixed per-frame duration.
         selection::SelectionPlan::Positions(positions) => {
             let frames = frames::at_positions(&events, terminal_size, positions);
-            output::adjust_discrete_timestamps(frames, config.last_frame_duration)
+            output::adjust_discrete_timestamps(frames, config.last_frame_duration).collect()
         }
     };
 

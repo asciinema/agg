@@ -4,6 +4,8 @@
 //! timeline. A [`FrameEmitter`] is shown one candidate frame per event and
 //! decides which frames end up in the output.
 
+use std::collections::VecDeque;
+
 use crate::asciicast::Event;
 use crate::terminal::{self, Snapshot};
 
@@ -38,53 +40,68 @@ trait FrameEmitter {
 
 /// Generate frames for a contiguous time range. `start`/`end` are absolute
 /// timeline timestamps; `None` means open-ended.
-pub fn from_range(
-    events: &[Event],
+pub fn from_range<'a>(
+    events: &'a [Event],
     terminal_size: (usize, usize),
     start: Option<f64>,
     end: Option<f64>,
-) -> Vec<Frame> {
-    let mut vt = terminal::build(terminal_size);
+) -> impl Iterator<Item = Frame> + 'a {
+    let vt = terminal::build(terminal_size);
     let blank = Frame::from_vt(0.0, &vt);
 
-    generate_with(&mut vt, events, RangeEmitter::new(start, end, blank))
+    generate_with(vt, events, RangeEmitter::new(start, end, blank))
 }
 
 /// Generate terminal states at each resolved timestamp, using player seek
 /// semantics. `positions` must be sorted ascending and deduplicated.
-pub fn at_positions(
-    events: &[Event],
+pub fn at_positions<'a>(
+    events: &'a [Event],
     terminal_size: (usize, usize),
     positions: Vec<f64>,
-) -> Vec<Frame> {
-    let mut vt = terminal::build(terminal_size);
+) -> impl Iterator<Item = Frame> + 'a {
+    let vt = terminal::build(terminal_size);
     let blank = Frame::from_vt(0.0, &vt);
 
-    generate_with(&mut vt, events, PositionEmitter::new(positions, blank))
+    generate_with(vt, events, PositionEmitter::new(positions, blank))
 }
 
 /// Replay the timeline through `vt`, feeding the emitter one candidate frame
 /// per event. Only output events mutate the terminal; marker and `Other` events
 /// still produce a candidate frame so the emitter can detect crossings.
-fn generate_with<E: FrameEmitter>(
-    vt: &mut avt::Vt,
-    events: &[Event],
+fn generate_with<'a, E: FrameEmitter + 'a>(
+    mut vt: avt::Vt,
+    events: &'a [Event],
     mut emitter: E,
-) -> Vec<Frame> {
-    let mut selected = Vec::new();
+) -> impl Iterator<Item = Frame> + 'a {
+    let mut events_iter = events.iter();
+    let mut pending: VecDeque<Frame> = VecDeque::new();
+    let mut finished = false;
 
-    for event in events {
-        if let Event::Output { data, .. } = event {
-            terminal::feed_str(vt, data);
+    std::iter::from_fn(move || loop {
+        if let Some(f) = pending.pop_front() {
+            return Some(f);
         }
 
-        let frame = Frame::from_vt(event.time(), vt);
-        selected.extend(emitter.emit(frame, event));
-    }
+        if finished {
+            return None;
+        }
 
-    selected.extend(emitter.finish());
+        match events_iter.next() {
+            None => {
+                finished = true;
+                pending.extend(emitter.finish());
+            }
 
-    selected
+            Some(event) => {
+                if let Event::Output { data, .. } = event {
+                    terminal::feed_str(&mut vt, data);
+                }
+
+                let frame = Frame::from_vt(event.time(), &vt);
+                pending.extend(emitter.emit(frame, event));
+            }
+        }
+    })
 }
 
 struct RangeEmitter {
@@ -223,6 +240,19 @@ mod tests {
                     .collect::<String>()
             })
             .collect()
+    }
+
+    fn from_range(
+        events: &[Event],
+        size: (usize, usize),
+        start: Option<f64>,
+        end: Option<f64>,
+    ) -> Vec<Frame> {
+        super::from_range(events, size, start, end).collect()
+    }
+
+    fn at_positions(events: &[Event], size: (usize, usize), positions: Vec<f64>) -> Vec<Frame> {
+        super::at_positions(events, size, positions).collect()
     }
 
     #[test]
