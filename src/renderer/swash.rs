@@ -72,6 +72,8 @@ pub struct SwashRenderer {
     glyph_cache: HashMap<CharVariant, Option<Image>>,
     font_id_cache: HashMap<FontFace, Option<fontdb::ID>>,
     bold_is_bright: bool,
+    hinting: bool,
+    antialias: bool,
 }
 
 fn get_font_id<T: AsRef<str> + std::fmt::Debug>(
@@ -185,6 +187,8 @@ impl SwashRenderer {
             font_id_cache: HashMap::new(),
             glyph_cache: HashMap::new(),
             bold_is_bright: settings.bold_is_bright,
+            hinting: settings.hinting,
+            antialias: settings.antialias,
         }
     }
 
@@ -300,6 +304,7 @@ impl SwashRenderer {
 
     fn rasterize_font_glyph(&mut self, font_id: fontdb::ID, ch: char) -> Option<Image> {
         let font_size = self.font_size as f32;
+        let hinting = self.hinting;
         let scale_context = &mut self.scale_context;
 
         self.font_db
@@ -314,7 +319,7 @@ impl SwashRenderer {
                 let mut scaler = scale_context
                     .builder_with_id(font, font_id_key(font_id))
                     .size(font_size)
-                    .hint(true)
+                    .hint(hinting)
                     .build();
 
                 // Swash returns an empty image when a mapped glyph is in a
@@ -1051,6 +1056,10 @@ impl SwashRenderer {
             Content::Mask => {
                 self.paint_image(buf, width, height, x_offset, y_offset, |bx, by, bg| {
                     let mut ratio = glyph.data[by * width + bx];
+
+                    if !self.antialias {
+                        ratio = if ratio >= 128 { 255 } else { 0 };
+                    }
 
                     if attrs.faint {
                         ratio = (ratio as f32 * 0.5) as u8;

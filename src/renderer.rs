@@ -21,6 +21,8 @@ pub struct Settings {
     pub line_height: f64,
     pub theme: Theme,
     pub bold_is_bright: bool,
+    pub hinting: bool,
+    pub antialias: bool,
 }
 
 pub fn resvg<'a>(settings: Settings) -> resvg::ResvgRenderer<'a> {
@@ -610,6 +612,8 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright: false,
+            hinting: true,
+            antialias: true,
         };
 
         let mut renderer = resvg(settings);
@@ -662,6 +666,8 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright: false,
+            hinting: true,
+            antialias: true,
         };
 
         let mut renderer = swash(settings);
@@ -689,6 +695,8 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright: false,
+            hinting: true,
+            antialias: true,
         };
 
         let mut fallback_renderer = swash(settings(make_db(), vec![]));
@@ -714,6 +722,53 @@ mod tests {
         let image = render(&mut renderer, lines.clone(), None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 3);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 3);
+    }
+
+    #[test]
+    fn swash_antialias_off_binarizes_glyph_edges() {
+        // 'M' has slanted strokes, so an antialiased raster produces partial
+        // FG/BG blends along the diagonals.
+        let lines = lines_for("M");
+
+        let mut aa_on = swash(settings(false));
+        let on_image = render(&mut aa_on, lines.clone(), None);
+
+        let mut aa_off = swash(settings_with_antialias(false));
+        let off_image = render(&mut aa_off, lines.clone(), None);
+
+        // AA on: at least one pixel in the glyph cell is a partial blend that is
+        // neither exactly FG nor exactly BG.
+        let on_pixels: Vec<RGB8> = cell_pixels(&on_image, 0, 0).collect();
+        assert!(
+            on_pixels.iter().any(|&p| p != FG && p != BG),
+            "expected antialiased 'M' to contain an intermediate FG/BG blend",
+        );
+
+        // AA off: every pixel in the glyph cell is exactly FG or exactly BG.
+        let off_pixels: Vec<RGB8> = cell_pixels(&off_image, 0, 0).collect();
+        for &p in &off_pixels {
+            assert!(
+                p == FG || p == BG,
+                "expected non-antialiased 'M' pixels to be exactly FG or BG, got {p:?}",
+            );
+        }
+
+        // Solid ink is preserved: any fully-covered pixel (exactly FG with AA on,
+        // i.e. mask ratio 255) stays FG with AA off, since 255 >= 128.
+        // Guards against eroding the glyph body.
+        let solid_fg = on_pixels
+            .iter()
+            .zip(&off_pixels)
+            .filter(|(&on, _)| on == FG);
+        let mut solid_fg_count = 0;
+        for (_, &off) in solid_fg {
+            assert_eq!(off, FG, "expected solid-FG pixels to survive binarization without eroding");
+            solid_fg_count += 1;
+        }
+        assert!(
+            solid_fg_count > 0,
+            "expected 'M' to have solid foreground ink"
+        );
     }
 
     #[test]
@@ -749,6 +804,8 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright: false,
+            hinting: true,
+            antialias: true,
         };
 
         let mut renderer = swash(settings);
@@ -780,6 +837,8 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright: false,
+            hinting: true,
+            antialias: true,
         };
 
         let mut renderer = swash(settings);
@@ -821,6 +880,15 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright,
+            hinting: true,
+            antialias: true,
+        }
+    }
+
+    fn settings_with_antialias(antialias: bool) -> Settings {
+        Settings {
+            antialias,
+            ..settings(false)
         }
     }
 
@@ -837,6 +905,8 @@ mod tests {
             line_height: LINE_HEIGHT,
             theme: theme(),
             bold_is_bright: false,
+            hinting: true,
+            antialias: true,
         }
     }
 
@@ -886,6 +956,29 @@ mod tests {
 
     fn cell_center(image: &ImgVec<RGBA8>, col: usize, row: usize) -> RGB8 {
         cell_pixel(image, col, row, 0.5, 0.5)
+    }
+
+    /// Iterate the RGB values of every pixel within a single terminal cell,
+    /// accounting for the renderers' 1-col / 0.5-row padding.
+    fn cell_pixels(
+        image: &ImgVec<RGBA8>,
+        col: usize,
+        row: usize,
+    ) -> impl Iterator<Item = RGB8> + '_ {
+        let cell_width = image.width() as f64 / (COLS + 2) as f64;
+        let cell_height = image.height() as f64 / (ROWS + 1) as f64;
+        let x_l = ((1.0 + col as f64) * cell_width).round() as usize;
+        let x_r = ((1.0 + (col + 1) as f64) * cell_width).round() as usize;
+        let y_t = ((0.5 + row as f64) * cell_height).round() as usize;
+        let y_b = ((0.5 + (row + 1) as f64) * cell_height).round() as usize;
+        let width = image.width();
+
+        (y_t..y_b).flat_map(move |y| {
+            (x_l..x_r).map(move |x| {
+                let px = image.buf()[y * width + x];
+                RGB8::new(px.r, px.g, px.b)
+            })
+        })
     }
 
     fn assert_rgb_close(actual: RGB8, expected: RGB8, threshold: u16) {

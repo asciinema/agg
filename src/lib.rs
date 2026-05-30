@@ -21,6 +21,8 @@ use crate::asciicast::Asciicast;
 pub use crate::selection::SelectionSpec;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
+pub const DEFAULT_HINTING: bool = true;
+pub const DEFAULT_ANTIALIAS: bool = true;
 pub const DEFAULT_TEXT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
 pub const DEFAULT_EMOJI_FONT_FAMILY: &str =
@@ -34,6 +36,7 @@ pub const DEFAULT_SPEED: f64 = 1.0;
 pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 
 pub struct Config {
+    pub antialias: bool,
     pub bold_is_bright: bool,
     pub cols: Option<usize>,
     pub emoji_font_family: String,
@@ -41,6 +44,7 @@ pub struct Config {
     pub font_family: Option<String>,
     pub font_size: usize,
     pub fps_cap: u8,
+    pub hinting: bool,
     pub idle_time_limit: Option<f64>,
     pub last_frame_duration: f64,
     pub line_height: f64,
@@ -57,6 +61,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            antialias: DEFAULT_ANTIALIAS,
             bold_is_bright: DEFAULT_BOLD_IS_BRIGHT,
             cols: None,
             emoji_font_family: String::from(DEFAULT_EMOJI_FONT_FAMILY),
@@ -64,6 +69,7 @@ impl Default for Config {
             font_family: None,
             font_size: DEFAULT_FONT_SIZE,
             fps_cap: DEFAULT_FPS_CAP,
+            hinting: DEFAULT_HINTING,
             idle_time_limit: None,
             last_frame_duration: DEFAULT_LAST_FRAME_DURATION,
             line_height: DEFAULT_LINE_HEIGHT,
@@ -225,6 +231,10 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         );
     }
 
+    if config.renderer == Renderer::Resvg && (!config.hinting || !config.antialias) {
+        warn!("--hinting/--antialias only affect the swash renderer; they are ignored with --renderer resvg");
+    }
+
     let theme_opt = config
         .theme
         .or_else(|| header.term_theme.map(Theme::Embedded))
@@ -241,6 +251,8 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         line_height: config.line_height,
         theme: theme_opt.try_into()?,
         bold_is_bright: config.bold_is_bright,
+        hinting: config.hinting,
+        antialias: config.antialias,
     };
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {
