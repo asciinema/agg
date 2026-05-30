@@ -47,9 +47,6 @@ Notable features:
 Check out the [agg docs](https://docs.asciinema.org/manual/agg/) for
 installation and usage overview.
 
-agg is a successor to
-[asciicast2gif](https://github.com/asciinema/asciicast2gif).
-
 ## Building
 
 Building from source requires [Rust](https://www.rust-lang.org/) compiler
