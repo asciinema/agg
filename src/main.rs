@@ -149,6 +149,10 @@ struct Cli {
     #[clap(long, action = ArgAction::Set, default_value_t = agg::DEFAULT_ANTIALIAS)]
     antialias: bool,
 
+    /// Hinting engine for the aliased path (swash renderer, --antialias false only)
+    #[clap(long, value_enum, default_value_t = agg::HintEngine::default())]
+    hint_engine: agg::HintEngine,
+
     /// Adjust playback speed
     #[clap(long, default_value_t = agg::DEFAULT_SPEED)]
     speed: f64,
@@ -265,6 +269,7 @@ fn main() -> Result<()> {
         font_family: cli.font_family,
         font_size: cli.font_size,
         fps_cap: cli.fps_cap,
+        hint_engine: cli.hint_engine,
         hinting: cli.hinting,
         idle_time_limit: cli.idle_time_limit,
         last_frame_duration: cli.last_frame_duration,

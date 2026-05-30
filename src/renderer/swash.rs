@@ -5,13 +5,18 @@ use std::hash::{Hash, Hasher};
 use imgref::ImgVec;
 use log::debug;
 use rgb::RGBA8;
+use skrifa::outline::{DrawSettings, Engine, HintingInstance, HintingOptions, OutlinePen, Target};
+use skrifa::prelude::{LocationRef, Size};
+use skrifa::{FontRef as SkrifaFontRef, MetadataProvider};
 use swash::scale::image::{Content, Image};
 use swash::scale::{Render, ScaleContext, Source, StrikeWith};
 use swash::FontRef;
+use zeno::{Command, Format, Mask, Origin, Point};
 
 use crate::renderer::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
 use crate::terminal::Snapshot;
 use crate::theme::Theme;
+use crate::HintEngine;
 
 type CharVariant = (char, bool, bool);
 type FontFace = (String, bool, bool);
@@ -71,9 +76,13 @@ pub struct SwashRenderer {
     scale_context: ScaleContext,
     glyph_cache: HashMap<CharVariant, Option<Image>>,
     font_id_cache: HashMap<FontFace, Option<fontdb::ID>>,
+    // The mono autohinter analyses the whole font, so it's built once per font
+    // and reused across glyphs. `None` records a font with no usable outline.
+    hinter_cache: HashMap<fontdb::ID, Option<HintingInstance>>,
     bold_is_bright: bool,
     hinting: bool,
     antialias: bool,
+    hint_engine: HintEngine,
 }
 
 fn get_font_id<T: AsRef<str> + std::fmt::Debug>(
@@ -144,6 +153,133 @@ fn glyph_image_is_visible(img: &Image) -> bool {
     img.placement.width > 0 && img.placement.height > 0 && !img.data.is_empty()
 }
 
+fn skrifa_engine(engine: HintEngine) -> Engine {
+    // Engine::Auto forces the FreeType-style autohinter, which grid-fits both
+    // axes uniformly. AutoFallback/Interpreter defer to the font's own bytecode,
+    // which leaves vertical stems sub-pixel.
+    match engine {
+        HintEngine::Auto => Engine::Auto(None),
+        HintEngine::AutoFallback => Engine::AutoFallback,
+        HintEngine::Interpreter => Engine::Interpreter,
+    }
+}
+
+/// Build the monochrome hinting instance for a font once, so its potentially
+/// expensive autohint analysis is reused across every glyph of that font.
+///
+/// Returns `None` when the font has no scalable outline (e.g. a color/bitmap
+/// emoji face) or the engine can't be configured for it.
+fn build_mono_hinter(
+    font_data: &[u8],
+    face_index: u32,
+    font_size: f32,
+    engine: HintEngine,
+) -> Option<HintingInstance> {
+    let font = SkrifaFontRef::from_index(font_data, face_index).ok()?;
+    let outlines = font.outline_glyphs();
+
+    HintingInstance::new(
+        &outlines,
+        Size::new(font_size),
+        LocationRef::default(),
+        HintingOptions {
+            engine: skrifa_engine(engine),
+            target: Target::Mono,
+        },
+    )
+    .ok()
+}
+
+/// Rasterize a glyph as a grid-fit coverage mask with
+/// skrifa and zeno (the path used when `--antialias` is off).
+///
+/// Swash only exposes smooth (vertical-only) hinting, which leaves thin
+/// vertical stems at sub-pixel x positions. Binarizing that smooth mask at 50%
+/// then erases stems whose ink splits across two columns (missing verticals of 'm').
+/// Mono hinting grid-fits both axes so each stem lands on a whole pixel column
+/// and survives binarization.
+///
+/// `hinter` is the cached mono hinter (see [`build_mono_hinter`]);
+/// `None` draws the outline unhinted (used when `--hinting` is off). Returns
+/// `None` for glyphs with no scalable outline, so the caller can fall back to
+/// swash for emoji.
+fn rasterize_mono_glyph(
+    font_data: &[u8],
+    face_index: u32,
+    ch: char,
+    font_size: f32,
+    hinter: Option<&HintingInstance>,
+) -> Option<Image> {
+    struct ZenoPen(Vec<Command>);
+
+    impl OutlinePen for ZenoPen {
+        fn move_to(&mut self, x: f32, y: f32) {
+            self.0.push(Command::MoveTo(Point::new(x, y)));
+        }
+
+        fn line_to(&mut self, x: f32, y: f32) {
+            self.0.push(Command::LineTo(Point::new(x, y)));
+        }
+
+        fn quad_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) {
+            self.0
+                .push(Command::QuadTo(Point::new(cx, cy), Point::new(x, y)));
+        }
+
+        fn curve_to(&mut self, c0x: f32, c0y: f32, c1x: f32, c1y: f32, x: f32, y: f32) {
+            self.0.push(Command::CurveTo(
+                Point::new(c0x, c0y),
+                Point::new(c1x, c1y),
+                Point::new(x, y),
+            ));
+        }
+
+        fn close(&mut self) {
+            self.0.push(Command::Close);
+        }
+    }
+
+    let font = SkrifaFontRef::from_index(font_data, face_index).ok()?;
+    let glyph_id = font.charmap().map(ch)?;
+    let outlines = font.outline_glyphs();
+    let glyph = outlines.get(glyph_id)?;
+
+    let settings = match hinter {
+        Some(hinter) => DrawSettings::hinted(hinter, false),
+        None => DrawSettings::unhinted(Size::new(font_size), LocationRef::default()),
+    };
+
+    let mut pen = ZenoPen(Vec::new());
+    glyph.draw(settings, &mut pen).ok()?;
+
+    if pen.0.is_empty() {
+        return None;
+    }
+
+    // Mirror swash's outline rasterization: zeno alpha mask with a baseline
+    // origin, so the resulting `placement` matches `paint_glyph`'s expectations.
+    //
+    // The `inspect` call is load-bearing: zeno derives `placement.top` for a
+    // BottomLeft origin from its internal `height`, which is only populated once
+    // `ensure_size()` runs. `render()` alone leaves it at 0, collapsing every
+    // glyph's top to the baseline so letters jump vertically.
+    // `inspect()` forces sizing first, which is what swash does.
+    let (data, placement) = Mask::new(&pen.0[..])
+        .origin(Origin::BottomLeft)
+        .format(Format::Alpha)
+        .inspect(|_, _, _| {})
+        .render();
+
+    let glyph = Image {
+        source: Source::Outline,
+        content: Content::Mask,
+        placement,
+        data,
+    };
+
+    glyph_image_is_visible(&glyph).then_some(glyph)
+}
+
 fn font_weight(bold: bool) -> fontdb::Weight {
     if bold {
         fontdb::Weight::BOLD
@@ -186,9 +322,11 @@ impl SwashRenderer {
             scale_context: ScaleContext::new(),
             font_id_cache: HashMap::new(),
             glyph_cache: HashMap::new(),
+            hinter_cache: HashMap::new(),
             bold_is_bright: settings.bold_is_bright,
             hinting: settings.hinting,
             antialias: settings.antialias,
+            hint_engine: settings.hint_engine,
         }
     }
 
@@ -305,10 +443,36 @@ impl SwashRenderer {
     fn rasterize_font_glyph(&mut self, font_id: fontdb::ID, ch: char) -> Option<Image> {
         let font_size = self.font_size as f32;
         let hinting = self.hinting;
+        let antialias = self.antialias;
+        let engine = self.hint_engine;
         let scale_context = &mut self.scale_context;
+        let hinter_cache = &mut self.hinter_cache;
 
         self.font_db
             .with_face_data(font_id, |font_data, face_index| {
+                // With AA off, render a grid-fit monochrome outline so
+                // thin vertical stems survive binarization.
+                // Color/bitmap glyphs have no outline here
+                // and fall through to swash below.
+                if !antialias {
+                    let hinter = if hinting {
+                        hinter_cache
+                            .entry(font_id)
+                            .or_insert_with(|| {
+                                build_mono_hinter(font_data, face_index, font_size, engine)
+                            })
+                            .as_ref()
+                    } else {
+                        None
+                    };
+
+                    if let Some(glyph) =
+                        rasterize_mono_glyph(font_data, face_index, ch, font_size, hinter)
+                    {
+                        return Some(glyph);
+                    }
+                }
+
                 let font = FontRef::from_index(font_data, face_index as usize)?;
                 let glyph_id = font.charmap().map(ch);
 

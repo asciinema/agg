@@ -44,6 +44,7 @@ pub struct Config {
     pub font_family: Option<String>,
     pub font_size: usize,
     pub fps_cap: u8,
+    pub hint_engine: HintEngine,
     pub hinting: bool,
     pub idle_time_limit: Option<f64>,
     pub last_frame_duration: f64,
@@ -69,6 +70,7 @@ impl Default for Config {
             font_family: None,
             font_size: DEFAULT_FONT_SIZE,
             fps_cap: DEFAULT_FPS_CAP,
+            hint_engine: HintEngine::default(),
             hinting: DEFAULT_HINTING,
             idle_time_limit: None,
             last_frame_duration: DEFAULT_LAST_FRAME_DURATION,
@@ -91,6 +93,19 @@ pub enum Renderer {
     #[value(alias = "fontdue")]
     Swash,
     Resvg,
+}
+
+/// Hinting engine used for the aliased (`--antialias false`) swash path, which
+/// grid-fits glyph outlines with skrifa's `Target::Mono` before rasterizing.
+#[derive(Clone, Copy, ValueEnum, Default, PartialEq, Debug)]
+pub enum HintEngine {
+    /// Use autohinter
+    #[default]
+    Auto,
+    /// Use the font's own bytecode hinting when it prefers it, else the autohinter.
+    AutoFallback,
+    /// Force the TrueType bytecode interpreter (the font's own hinting program).
+    Interpreter,
 }
 
 #[derive(Clone, Debug, ValueEnum, Default)]
@@ -231,8 +246,10 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         );
     }
 
-    if config.renderer == Renderer::Resvg && (!config.hinting || !config.antialias) {
-        warn!("--hinting/--antialias only affect the swash renderer; they are ignored with --renderer resvg");
+    if config.renderer == Renderer::Resvg
+        && (!config.hinting || !config.antialias || config.hint_engine != HintEngine::default())
+    {
+        warn!("--hinting/--antialias/--hint-engine only affect the swash renderer; they are ignored with --renderer resvg");
     }
 
     let theme_opt = config
@@ -253,6 +270,7 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         bold_is_bright: config.bold_is_bright,
         hinting: config.hinting,
         antialias: config.antialias,
+        hint_engine: config.hint_engine,
     };
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {
