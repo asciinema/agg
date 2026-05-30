@@ -3,8 +3,8 @@
 __agg__ is a command-line tool for generating animated GIF files from terminal
 session recordings.
 
-It supports conversion from [asciicast
-v2](https://github.com/asciinema/asciinema/blob/master/doc/asciicast-v2.md)
+It supports conversion from
+[asciicast](https://github.com/asciinema/asciinema/blob/master/doc/asciicast-v3.md)
 files produced by [asciinema recorder](https://github.com/asciinema/asciinema).
 It uses Kornel Lesiński's excellent
 [gifski](https://github.com/ImageOptim/gifski) library to produce optimized,
