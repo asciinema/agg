@@ -22,11 +22,12 @@ pub use crate::selection::SelectionSpec;
 
 pub const DEFAULT_BOLD_IS_BRIGHT: bool = false;
 pub const DEFAULT_HINTING: bool = true;
-pub const DEFAULT_ANTIALIAS: bool = true;
 pub const DEFAULT_TEXT_FONT_FAMILY: &str =
     "JetBrains Mono,Fira Code,SF Mono,Menlo,Consolas,DejaVu Sans Mono,Liberation Mono";
 pub const DEFAULT_EMOJI_FONT_FAMILY: &str =
     "Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,JoyPixels,Twemoji,Noto Emoji";
+pub const FULL_FONT_AA_LEVELS: u16 = 256;
+pub const DEFAULT_FONT_AA_LEVELS: u16 = 6;
 pub const DEFAULT_FONT_SIZE: usize = 16;
 pub const DEFAULT_FPS_CAP: u8 = 30;
 pub const DEFAULT_LAST_FRAME_DURATION: f64 = 3.0;
@@ -36,12 +37,12 @@ pub const DEFAULT_SPEED: f64 = 1.0;
 pub const DEFAULT_IDLE_TIME_LIMIT: f64 = 5.0;
 
 pub struct Config {
-    pub antialias: bool,
     pub bold_is_bright: bool,
     pub cols: Option<usize>,
     pub emoji_font_family: String,
     pub font_dirs: Vec<String>,
     pub font_family: Option<String>,
+    pub font_aa_levels: u16,
     pub font_size: usize,
     pub fps_cap: u8,
     pub hinting: bool,
@@ -61,12 +62,12 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            antialias: DEFAULT_ANTIALIAS,
             bold_is_bright: DEFAULT_BOLD_IS_BRIGHT,
             cols: None,
             emoji_font_family: String::from(DEFAULT_EMOJI_FONT_FAMILY),
             font_dirs: vec![],
             font_family: None,
+            font_aa_levels: DEFAULT_FONT_AA_LEVELS,
             font_size: DEFAULT_FONT_SIZE,
             fps_cap: DEFAULT_FPS_CAP,
             hinting: DEFAULT_HINTING,
@@ -224,15 +225,19 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         );
     }
 
+    if config.renderer != Renderer::Swash && config.font_aa_levels != DEFAULT_FONT_AA_LEVELS {
+        warn!("--font-aa-levels only affects the swash renderer");
+    }
+
+    if config.renderer != Renderer::Swash && !config.hinting {
+        warn!("--hinting only affects the swash renderer");
+    }
+
     if !fonts.text_family_monospaced {
         warn!(
             "first font family {:?} is not monospaced; terminal cell metrics may be incorrect",
             fonts.text_family
         );
-    }
-
-    if config.renderer == Renderer::Resvg && (!config.hinting || !config.antialias) {
-        warn!("--hinting/--antialias only affect the swash renderer; they are ignored with --renderer resvg");
     }
 
     let theme_opt = config
@@ -247,12 +252,12 @@ pub fn run<I: BufRead, O: Write + Send>(input: I, output: O, config: Config) -> 
         font_db: fonts.db,
         font_families: fonts.families,
         text_family: fonts.text_family,
+        font_aa_levels: config.font_aa_levels,
         font_size: config.font_size,
         line_height: config.line_height,
         theme: theme_opt.try_into()?,
         bold_is_bright: config.bold_is_bright,
         hinting: config.hinting,
-        antialias: config.antialias,
     };
 
     let mut renderer: Box<dyn renderer::Renderer> = match config.renderer {

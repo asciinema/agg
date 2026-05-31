@@ -62,6 +62,7 @@ pub struct SwashRenderer {
     theme: Theme,
     pixel_width: usize,
     pixel_height: usize,
+    font_aa_levels: u16,
     font_size: usize,
     col_width: f64,
     row_height: f64,
@@ -73,7 +74,6 @@ pub struct SwashRenderer {
     font_id_cache: HashMap<FontFace, Option<fontdb::ID>>,
     bold_is_bright: bool,
     hinting: bool,
-    antialias: bool,
 }
 
 fn get_font_id<T: AsRef<str> + std::fmt::Debug>(
@@ -178,6 +178,7 @@ impl SwashRenderer {
             theme: settings.theme,
             pixel_width: ((cols + 2) as f64 * col_width).round() as usize,
             pixel_height: ((rows + 1) as f64 * row_height).round() as usize,
+            font_aa_levels: settings.font_aa_levels,
             font_size: settings.font_size,
             col_width,
             row_height,
@@ -188,7 +189,6 @@ impl SwashRenderer {
             glyph_cache: HashMap::new(),
             bold_is_bright: settings.bold_is_bright,
             hinting: settings.hinting,
-            antialias: settings.antialias,
         }
     }
 
@@ -1055,11 +1055,8 @@ impl SwashRenderer {
         match glyph.content {
             Content::Mask => {
                 self.paint_image(buf, width, height, x_offset, y_offset, |bx, by, bg| {
-                    let mut ratio = glyph.data[by * width + bx];
-
-                    if !self.antialias {
-                        ratio = if ratio >= 128 { 255 } else { 0 };
-                    }
+                    let mut ratio =
+                        quantize_alpha(glyph.data[by * width + bx], self.font_aa_levels);
 
                     if attrs.faint {
                         ratio = (ratio as f32 * 0.5) as u8;
@@ -1132,6 +1129,17 @@ impl SwashRenderer {
             }
         }
     }
+}
+
+fn quantize_alpha(alpha: u8, levels: u16) -> u8 {
+    if levels >= crate::FULL_FONT_AA_LEVELS {
+        return alpha;
+    }
+
+    let steps = levels.max(2) - 1;
+    let bucket = ((alpha as u16 * steps + 127) / 255).min(steps);
+
+    ((bucket * 255 + steps / 2) / steps) as u8
 }
 
 fn blend_straight_alpha(fg: RGBA8, bg: RGBA8, ratio: u8) -> RGBA8 {
@@ -1339,5 +1347,27 @@ mod tests {
 
         assert_eq!(fade_color(src, false), RGBA8::new(100, 80, 60, 20));
         assert_eq!(fade_color(src, true), RGBA8::new(50, 40, 30, 20));
+    }
+
+    #[test]
+    fn quantize_alpha_preserves_full_aa() {
+        assert_eq!(quantize_alpha(0, crate::FULL_FONT_AA_LEVELS), 0);
+        assert_eq!(quantize_alpha(37, crate::FULL_FONT_AA_LEVELS), 37);
+        assert_eq!(quantize_alpha(255, crate::FULL_FONT_AA_LEVELS), 255);
+    }
+
+    #[test]
+    fn quantize_alpha_maps_to_even_levels() {
+        assert_eq!(quantize_alpha(0, 4), 0);
+        assert_eq!(quantize_alpha(42, 4), 0);
+        assert_eq!(quantize_alpha(43, 4), 85);
+        assert_eq!(quantize_alpha(128, 4), 170);
+        assert_eq!(quantize_alpha(255, 4), 255);
+    }
+
+    #[test]
+    fn quantize_alpha_treats_two_levels_as_aliased() {
+        assert_eq!(quantize_alpha(127, 2), 0);
+        assert_eq!(quantize_alpha(128, 2), 255);
     }
 }
