@@ -161,6 +161,10 @@ struct Cli {
     )]
     font_antialiasing: u16,
 
+    /// Enable font hinting (swash renderer only)
+    #[clap(long, action = ArgAction::Set, default_value_t = agg::DEFAULT_FONT_HINTING)]
+    font_hinting: bool,
+
     /// Use additional font directory; may be specified multiple times
     #[clap(long)]
     font_dir: Vec<String>,
@@ -176,10 +180,6 @@ struct Cli {
     /// Render bold text with bright colors (ANSI 0..7 → 8..15)
     #[clap(long, default_value_t = agg::DEFAULT_BOLD_IS_BRIGHT)]
     bold_is_bright: bool,
-
-    /// Enable font hinting (swash renderer only)
-    #[clap(long, action = ArgAction::Set, default_value_t = agg::DEFAULT_HINTING)]
-    hinting: bool,
 
     /// Adjust playback speed
     #[clap(long, default_value_t = agg::DEFAULT_SPEED)]
@@ -295,9 +295,9 @@ fn main() -> Result<()> {
         font_dirs: cli.font_dir,
         font_family: cli.font_family,
         font_aa_levels: cli.font_antialiasing,
+        font_hinting: cli.font_hinting,
         font_size: cli.font_size,
         fps_cap: cli.fps_cap,
-        hinting: cli.hinting,
         idle_time_limit: cli.idle_time_limit,
         last_frame_duration: cli.last_frame_duration,
         line_height: cli.line_height,
