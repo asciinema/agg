@@ -17,6 +17,7 @@ dependencies = [
  "clap",
  "env_logger",
  "fontdb",
+ "gif",
  "gifski",
  "imgref",
  "log",

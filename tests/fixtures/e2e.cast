@@ -1,0 +1,4 @@
+{"version": 2, "width": 24, "height": 6}
+[0.0, "o", "hello\r\n"]
+[1.0, "o", "\u001b[1;31mbold red\u001b[0m\r\n"]
+[2.0, "o", "plain again\r\n"]
