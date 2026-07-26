@@ -157,8 +157,10 @@ where
         "r" => Ok(Resize),
         "m" => Ok(Marker),
         "x" => Ok(Exit),
-        "" => Err(Error::custom("missing event code")),
-        s => Ok(Other(s.chars().next().unwrap())),
+        s => match s.chars().next() {
+            Some(c) => Ok(Other(c)),
+            None => Err(Error::custom("missing event code")),
+        },
     }
 }
 
@@ -289,6 +291,20 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn maps_unknown_event_code_to_other() {
+        let parser = open(r#"{"version":3,"term":{"cols":80,"rows":24}}"#).unwrap();
+        let lines = ok_lines(vec![r#"[0.5,"z","a"]"#]);
+
+        let events = parser
+            .parse(lines.into_iter())
+            .events
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(events, vec![Event::Other { time: 0.5 }]);
     }
 
     #[test]
