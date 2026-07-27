@@ -4,7 +4,7 @@ use std::{fs::File, io::BufReader, iter};
 
 use anyhow::{anyhow, Result};
 use clap::{ArgAction, Parser, ValueEnum};
-use reqwest::header;
+use ureq::tls::{RootCerts, TlsConfig};
 
 static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
@@ -227,26 +227,27 @@ struct Cli {
 }
 
 fn download(url: &str) -> Result<impl io::Read> {
-    let client = reqwest::blocking::Client::builder()
+    let agent: ureq::Agent = ureq::Agent::config_builder()
         .user_agent(USER_AGENT)
-        .gzip(true)
-        .build()?;
+        .tls_config(
+            TlsConfig::builder()
+                .root_certs(RootCerts::PlatformVerifier)
+                .build(),
+        )
+        .build()
+        .new_agent();
 
-    let request = client
+    let response = agent
         .get(url)
         .header(
-            header::ACCEPT,
-            header::HeaderValue::from_static(
-                "application/x-asciicast,application/json,application/octet-stream",
-            ),
+            "accept",
+            "application/x-asciicast,application/json,application/octet-stream",
         )
-        .build()?;
-
-    let response = client.execute(request)?.error_for_status()?;
+        .call()?;
 
     let ct = response
         .headers()
-        .get(header::CONTENT_TYPE)
+        .get("content-type")
         .and_then(|hv| hv.to_str().ok())
         .ok_or_else(|| anyhow!("unknown content type".to_owned()))?;
 
@@ -257,7 +258,7 @@ fn download(url: &str) -> Result<impl io::Read> {
         return Err(anyhow!(format!("{ct} is not supported")));
     }
 
-    Ok(Box::new(response))
+    Ok(response.into_body().into_reader())
 }
 
 fn reader(path: &str) -> Result<Box<dyn io::Read>> {

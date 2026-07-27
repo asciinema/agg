@@ -32,7 +32,6 @@ fontdb = "0.23.0"
 gifski = { version = "1.34.0", default-features = false, features = ["gifsicle", "pbr"] }
 imgref = "1.12.1"
 log = "0.4.29"
-reqwest = { version = "0.13.3", default-features = false, features = ["blocking", "rustls", "gzip"] }
 resvg = { version = "0.45.1", features = ["text"] }
 rgb = "0.8.53"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -41,6 +40,7 @@ shellexpand = "3.1.2"
 swash = "0.2.7"
 tiny-skia = "0.11.4"
 ttf-parser = "0.25.1"
+ureq = { version = "3.3.0", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
 usvg = "0.45.1"
 
 [dev-dependencies]
