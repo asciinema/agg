@@ -736,7 +736,7 @@ mod tests {
         let off_pixels: Vec<_> = cell_rgb_pixels(&aa_off, 0, 0).collect();
 
         assert!(
-            off_pixels.iter().any(|&p| p == FG),
+            off_pixels.contains(&FG),
             "expected two-level 'm' to retain foreground ink",
         );
 
