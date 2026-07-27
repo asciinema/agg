@@ -119,13 +119,17 @@ mod tests {
 
     #[test]
     fn empty_input_yields_empty_output() {
-        assert!(dedupe_visual_changes(Vec::<Frame>::new().into_iter())
-            .next()
-            .is_none());
+        assert!(
+            dedupe_visual_changes(Vec::<Frame>::new().into_iter())
+                .next()
+                .is_none()
+        );
 
-        assert!(adjust_timeline_timestamps(Vec::<Frame>::new().into_iter())
-            .next()
-            .is_none());
+        assert!(
+            adjust_timeline_timestamps(Vec::<Frame>::new().into_iter())
+                .next()
+                .is_none()
+        );
 
         assert!(
             adjust_discrete_timestamps(Vec::<Frame>::new().into_iter(), 3.0)
@@ -133,9 +137,11 @@ mod tests {
                 .is_none()
         );
 
-        assert!(cap_fps(Vec::<Frame>::new().into_iter(), 30)
-            .next()
-            .is_none());
+        assert!(
+            cap_fps(Vec::<Frame>::new().into_iter(), 30)
+                .next()
+                .is_none()
+        );
     }
 
     #[test]

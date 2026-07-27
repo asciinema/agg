@@ -4,7 +4,7 @@ mod v3;
 
 use std::io::{self, BufRead};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 use crate::theme::Theme;
 

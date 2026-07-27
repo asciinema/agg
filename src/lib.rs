@@ -12,7 +12,7 @@ use std::fmt::{Debug, Display};
 use std::io::{BufRead, Write};
 use std::{thread, time::Instant};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use log::{info, warn};
 

@@ -1,6 +1,6 @@
 use std::io;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Deserializer};
 
 use super::{Asciicast, Event, Header, Theme};
@@ -146,8 +146,8 @@ fn deserialize_code<'de, D>(deserializer: D) -> Result<V3EventCode, D::Error>
 where
     D: Deserializer<'de>,
 {
-    use serde::de::Error;
     use V3EventCode::*;
+    use serde::de::Error;
 
     let value: &str = Deserialize::deserialize(deserializer)?;
 

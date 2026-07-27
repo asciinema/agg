@@ -4,7 +4,7 @@ mod spec;
 
 pub use spec::{SelectionSpec, TimelinePosition};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 use crate::timeline;
 

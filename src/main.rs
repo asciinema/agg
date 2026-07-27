@@ -2,7 +2,7 @@ use std::io;
 use std::num::{ParseFloatError, ParseIntError};
 use std::{fs::File, io::BufReader, iter};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{ArgAction, Parser, ValueEnum};
 use ureq::tls::{RootCerts, TlsConfig};
 
@@ -226,7 +226,7 @@ struct Cli {
     quiet: bool,
 }
 
-fn download(url: &str) -> Result<impl io::Read> {
+fn download(url: &str) -> Result<impl io::Read + use<>> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .user_agent(USER_AGENT)
         .tls_config(

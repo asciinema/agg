@@ -3,7 +3,7 @@ use std::{fmt::Write, sync::Arc};
 use imgref::ImgVec;
 use rgb::{FromSlice, RGBA8};
 
-use super::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use super::{Renderer, Settings, TextAttrs, color_to_rgb, text_attrs};
 use crate::terminal::Snapshot;
 use crate::theme::Theme;
 

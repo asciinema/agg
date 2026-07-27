@@ -77,28 +77,30 @@ fn generate_with<'a, E: FrameEmitter + 'a>(
     let mut pending: VecDeque<Frame> = VecDeque::new();
     let mut finished = false;
 
-    std::iter::from_fn(move || loop {
-        if let Some(f) = pending.pop_front() {
-            return Some(f);
-        }
-
-        if finished {
-            return None;
-        }
-
-        match events_iter.next() {
-            None => {
-                finished = true;
-                pending.extend(emitter.finish());
+    std::iter::from_fn(move || {
+        loop {
+            if let Some(f) = pending.pop_front() {
+                return Some(f);
             }
 
-            Some(event) => {
-                if let Event::Output { data, .. } = event {
-                    terminal::feed_str(&mut vt, data);
+            if finished {
+                return None;
+            }
+
+            match events_iter.next() {
+                None => {
+                    finished = true;
+                    pending.extend(emitter.finish());
                 }
 
-                let frame = Frame::from_vt(event.time(), &vt);
-                pending.extend(emitter.emit(frame, event));
+                Some(event) => {
+                    if let Event::Output { data, .. } = event {
+                        terminal::feed_str(&mut vt, data);
+                    }
+
+                    let frame = Frame::from_vt(event.time(), &vt);
+                    pending.extend(emitter.emit(frame, event));
+                }
             }
         }
     })

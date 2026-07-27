@@ -5,11 +5,11 @@ use std::hash::{Hash, Hasher};
 use imgref::ImgVec;
 use log::debug;
 use rgb::RGBA8;
+use swash::FontRef;
 use swash::scale::image::{Content, Image};
 use swash::scale::{Render, ScaleContext, Source, StrikeWith};
-use swash::FontRef;
 
-use crate::renderer::{color_to_rgb, text_attrs, Renderer, Settings, TextAttrs};
+use crate::renderer::{Renderer, Settings, TextAttrs, color_to_rgb, text_attrs};
 use crate::terminal::Snapshot;
 use crate::theme::Theme;
 

@@ -2,7 +2,7 @@
 name = "agg"
 version = "1.9.0"
 authors = ["Marcin Kulik <m@ku1ik.com>"]
-edition = "2021"
+edition = "2024"
 homepage = "https://docs.asciinema.org/manual/agg/"
 repository = "https://github.com/asciinema/agg"
 description = "asciinema gif generator"
