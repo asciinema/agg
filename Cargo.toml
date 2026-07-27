@@ -21,7 +21,7 @@ include = [
 ]
 
 # MSRV
-rust-version = "1.85.0"
+rust-version = "1.86.0"
 
 [dependencies]
 anyhow = "1.0.102"

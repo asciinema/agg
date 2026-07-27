@@ -50,7 +50,7 @@ installation and usage overview.
 ## Building
 
 Building from source requires [Rust](https://www.rust-lang.org/) compiler
-(1.85.0 or later) and [Cargo package
+(1.86.0 or later) and [Cargo package
 manager](https://doc.rust-lang.org/cargo/). You can install both with
 [rustup](https://rustup.rs/).
 
