@@ -99,6 +99,9 @@ If you use Podman in root-less mode:
 podman run --rm -v $PWD:/data agg demo.cast demo.gif
 ```
 
+If you'd like to propose or submit any changes, please read the
+[contribution guidelines](CONTRIBUTING.md) first.
+
 ## Consulting
 
 If you're interested in customization of agg or any other asciinema component to
