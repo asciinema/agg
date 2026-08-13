@@ -99,6 +99,17 @@ If you use Podman in root-less mode:
 podman run --rm -v $PWD:/data agg demo.cast demo.gif
 ```
 
+## Development
+
+The recommended way to work on agg is the Nix dev shell, which provides the
+complete toolchain and just works:
+
+```sh
+nix develop
+```
+
+If you don't use Nix, you need the Rust toolchain (1.86 or later) with Cargo.
+
 If you'd like to propose or submit any changes, please read the
 [contribution guidelines](CONTRIBUTING.md) first.
 
