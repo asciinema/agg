@@ -49,25 +49,38 @@ installation and usage overview.
 
 ## Building
 
-Building from source requires [Rust](https://www.rust-lang.org/) compiler
-(1.86.0 or later) and [Cargo package
-manager](https://doc.rust-lang.org/cargo/). You can install both with
-[rustup](https://rustup.rs/).
-
 To download source code, build agg binary and install it in `$HOME/.cargo/bin`
 run:
 
-```bash
+```sh
 cargo install --git https://github.com/asciinema/agg
 ```
 
-You need to ensure `$HOME/.cargo/bin` is in your shell's `$PATH`.
+This requires the Rust toolchain (1.86 or later) with Cargo, installed via your
+system package manager or [rustup](https://rustup.rs/).
 
-Alternatively, you can manually download source code and build agg binary with:
+Once installed, ensure `$HOME/.cargo/bin` is in your shell's `$PATH`.
 
-```bash
+Alternatively, you can build from a local checkout. First download the source
+code:
+
+```sh
 git clone https://github.com/asciinema/agg
 cd agg
+```
+
+The recommended way to get the toolchain is the Nix dev shell, which provides
+everything needed and just works:
+
+```sh
+nix develop
+```
+
+If you don't use Nix, you need Rust with Cargo, as above.
+
+Then build the binary with:
+
+```sh
 cargo build --release
 ```
 
@@ -101,14 +114,8 @@ podman run --rm -v $PWD:/data agg demo.cast demo.gif
 
 ## Development
 
-The recommended way to work on agg is the Nix dev shell, which provides the
-complete toolchain and just works:
-
-```sh
-nix develop
-```
-
-If you don't use Nix, you need the Rust toolchain (1.86 or later) with Cargo.
+For toolchain setup and build instructions, see [Building](#building). Run the
+test suite with `cargo test`.
 
 If you'd like to propose or submit any changes, please read the
 [contribution guidelines](CONTRIBUTING.md) first.
