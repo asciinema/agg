@@ -87,3 +87,49 @@ fn rejects_invalid_terminal_size() {
 
     assert!(agg::run(cast.as_bytes(), &mut output, config()).is_err());
 }
+
+#[test]
+fn renders_cursor_only_updates() {
+    // Reproduce with either --renderer swash or --renderer resvg:
+    // cargo run -- tests/fixtures/cursor-only.cast target/cursor-only.gif \
+    //   --font-dir fonts --font-family "JetBrains Mono" --renderer swash
+    for renderer in [agg::Renderer::Swash, agg::Renderer::Resvg] {
+        let config = agg::Config {
+            renderer,
+            ..config()
+        };
+
+        let bytes = render("tests/fixtures/cursor-only.cast", config).unwrap();
+        let info = decode(&bytes);
+
+        // Text stays unchanged. Showing, moving, and hiding the cursor must each
+        // survive visual deduplication and render distinct consecutive frames.
+        assert_eq!(info.delays, vec![100, 100, 100, 300]);
+    }
+}
+
+#[test]
+fn rejects_zero_dimension_overrides_for_ranges_and_positions() {
+    let cast = "{\"version\":2,\"width\":8,\"height\":3}\n[0.0,\"o\",\"text\"]\n";
+
+    for selection in ["..", "0"] {
+        for (cols, rows) in [(0, 3), (8, 0)] {
+            let config = agg::Config {
+                cols: Some(cols),
+                rows: Some(rows),
+                selection: selection.parse().unwrap(),
+                ..config()
+            };
+
+            let mut output = Vec::new();
+            let error = agg::run(cast.as_bytes(), &mut output, config).unwrap_err();
+
+            assert_eq!(
+                error.downcast_ref::<avt::InvalidSize>(),
+                Some(&avt::InvalidSize { cols, rows })
+            );
+
+            assert!(output.is_empty());
+        }
+    }
+}

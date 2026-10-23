@@ -357,13 +357,11 @@ impl SwashRenderer {
     }
 
     fn foreground(&self, attrs: &TextAttrs) -> RGBA8 {
-        color_to_rgb(
-            &attrs
-                .foreground
-                .unwrap_or(avt::Color::RGB(self.theme.foreground)),
-            &self.theme,
-        )
-        .with_alpha(255)
+        attrs
+            .foreground
+            .map(|color| color_to_rgb(&color, &self.theme))
+            .unwrap_or(self.theme.foreground)
+            .with_alpha(255)
     }
 
     fn paint_background(&self, buf: &mut [RGBA8], layout: CellLayout, attrs: &TextAttrs) {

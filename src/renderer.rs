@@ -64,8 +64,18 @@ fn text_attrs(
     }
 
     if pen.is_inverse() ^ inverse {
-        let fg = background.unwrap_or(avt::Color::RGB(theme.background));
-        let bg = foreground.unwrap_or(avt::Color::RGB(theme.foreground));
+        let fg = background.unwrap_or(avt::Color::rgb(
+            theme.background.r,
+            theme.background.g,
+            theme.background.b,
+        ));
+
+        let bg = foreground.unwrap_or(avt::Color::rgb(
+            theme.foreground.r,
+            theme.foreground.g,
+            theme.foreground.b,
+        ));
+
         foreground = Some(fg);
         background = Some(bg);
     }
@@ -82,7 +92,7 @@ fn text_attrs(
 
 fn color_to_rgb(c: &avt::Color, theme: &Theme) -> RGB8 {
     match c {
-        avt::Color::RGB(c) => *c,
+        avt::Color::RGB(c) => RGB8::new(c.r, c.g, c.b),
         avt::Color::Indexed(c) => theme.color(*c),
     }
 }
@@ -205,7 +215,7 @@ mod tests {
     #[test]
     fn resvg_renders_expected_pixels() {
         let mut renderer = resvg(settings(false));
-        let lines = vt_lines();
+        let lines = terminal_lines();
 
         let mut render_frame = |cur| render(&mut renderer, lines.clone(), cur);
 
@@ -297,7 +307,7 @@ mod tests {
     #[test]
     fn swash_renders_expected_pixels() {
         let mut renderer = swash(settings(false));
-        let lines = vt_lines();
+        let lines = terminal_lines();
 
         let mut render_frame = |cur| render(&mut renderer, lines.clone(), cur);
         let image = render_frame(Some((0, 5)));
@@ -754,7 +764,7 @@ mod tests {
     #[test]
     fn resvg_bold_is_bright_brightens() {
         let mut renderer = resvg(settings(true));
-        let lines = vt_lines();
+        let lines = terminal_lines();
         let image = render(&mut renderer, lines.clone(), None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 3);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 3);
@@ -763,7 +773,7 @@ mod tests {
     #[test]
     fn swash_bold_is_bright_brightens() {
         let mut renderer = swash(settings(true));
-        let lines = vt_lines();
+        let lines = terminal_lines();
         let image = render(&mut renderer, lines.clone(), None);
         assert_rgb_close(cell_center(&image, 0, 11), PALETTE[BRIGHT_RED], 4);
         assert_rgb_close(cell_center(&image, 2, 11), PALETTE[BRIGHT_WHITE], 4);
@@ -910,19 +920,16 @@ mod tests {
             .unwrap()
     }
 
-    fn vt_lines() -> Vec<avt::Line> {
+    fn terminal_lines() -> Vec<avt::Line> {
         lines_for(SEED)
     }
 
     fn lines_for(input: &str) -> Vec<avt::Line> {
-        let mut vt = avt::Vt::builder()
-            .size(COLS, ROWS)
-            .scrollback_limit(0)
-            .build();
+        let mut terminal = avt::Terminal::new(COLS, ROWS).unwrap();
 
-        vt.feed_str(input);
+        terminal.feed(input);
 
-        vt.view().cloned().collect()
+        terminal.screen().visible_lines().cloned().collect()
     }
 
     fn cell_pixel(
